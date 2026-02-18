@@ -153,7 +153,9 @@ async function genImg(desc) {
 }
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
     console.log(`\\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);
-    const bpPrompt = `MISSION: Create JSON blueprint for: "${target}".\\n\\n1. Return ONLY raw JSON object.\\n2. Format: {"title":"LONG_TAIL_SEO_TITLE", "chapters":["Part 1", ..., "Part 7"]}\\n3. Chapter count: EXACTLY 7.\\n4. Title rule: NO colon (A:B), use catchy sentence like "Expert Guide to..."\\n5. NO Markdown headers, NO [TOC], NO chatter.`;
+    console.log('   ㄴ [1단계] 실시간 트렌드 분석 및 E-E-A-T 블루프린트 설계 중...');
+    const searchData = await searchSerper(target);
+    const bpPrompt = `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\\n\\nTopic: "${target}"\\n\\nMISSION: Create JSON blueprint for: "${target}".\\nContext: ${searchData}\\n1. Return ONLY raw JSON object.\\n2. Format: {"title":"LONG_TAIL_SEO_TITLE", "chapters":["Part 1", ..., "Part 7"]}\\n3. Chapter count: EXACTLY 7.\\n4. Title rule: NO colon (A:B), use catchy sentence like "Expert Guide to..."\\n5. NO Markdown headers, NO [TOC], NO chatter.`;
     const bpRes = await callAI(model, bpPrompt);
     let title, chapters;
     try {

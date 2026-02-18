@@ -1,4 +1,4 @@
-name: VUE-ACTION-CLUSTER
+name: lifesaver-factory
 on:
   schedule:
     - cron: "00 22 * * *"

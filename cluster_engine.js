@@ -30,23 +30,54 @@ async function callAI(model, prompt) {
     return r.response.text().trim();
 }
 async function genImg(desc, kieKey, imgbbKey) {
-    if(!kieKey || !desc) return '';
+    if(!desc) return '';
     console.log('   ㄴ [2단계] AI 프리미엄 이미지 생성 중...');
-    try {
-        const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { model: 'z-image', input: { prompt: desc.replace(/[^a-zA-Z, ]/g, '') + ', high-end, editorial photography, 8k', aspect_ratio: '16:9' } }, { headers: { Authorization: 'Bearer ' + kieKey } });
-        const tid = cr.data.data.taskId;
-        for(let a=0; a<15; a++) { await new Promise(r => setTimeout(r, 8000));
-            const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey } });
-            if(pr.data.data.state === 'success') {
-                const url = JSON.parse(pr.data.data.resultJson).resultUrls[0];
-                if(imgbbKey) { 
-                    console.log('   ㄴ [이미지] ImgBB 영구 저장소 업로드 중...');
-                    const form = new FormData(); form.append('image', url); 
-                    const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders() }); 
-                    return ir.data.data.url; 
+    let imageUrl = '';
+
+    // 1. Kie.ai (Premium Engine)
+    if(kieKey && kieKey.length > 5) {
+        try {
+            const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { 
+                model: 'z-image', 
+                input: { prompt: desc.replace(/[^a-zA-Z, ]/g, '') + ', high-end, editorial photography, 8k', aspect_ratio: '16:9' } 
+            }, { headers: { Authorization: 'Bearer ' + kieKey } });
+            
+            const tid = cr.data.data.taskId;
+            for(let a=0; a<12; a++) { 
+                await new Promise(r => setTimeout(r, 10000));
+                const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey } });
+                if(pr.data.data.state === 'success') {
+                    imageUrl = JSON.parse(pr.data.data.resultJson).resultUrls[0];
+                    break;
                 }
-                return url; } }
-    } catch(e) { console.log('   ㄴ [이미지] 생성 실패 (이미지 없이 진행)'); } return '';
+                if(pr.data.data.state === 'fail' || pr.data.data.state === 'failed') break;
+            }
+        } catch(e) { console.log('   ㄴ [Kie.ai] 엔진 지연 또는 오류... 폴백 가동'); }
+    }
+
+    // 2. Pollinations.ai (Stable Fallback)
+    if(!imageUrl) {
+        try {
+            console.log('   ㄴ [폴백] Pollinations 엔진으로 전환합니다.');
+            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(desc)}?width=1280&height=720&nologo=true&seed=${Math.floor(Math.random()*1000000)}&model=flux`;
+        } catch(e) { }
+    }
+
+    if(!imageUrl) return '';
+
+    // 3. ImgBB Upload
+    try {
+        if(imgbbKey && imgbbKey.length > 5) {
+            console.log('   ㄴ [이미지] ImgBB 영구 저장소 업로드 중...');
+            const form = new FormData(); form.append('image', imageUrl);
+            const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders() });
+            return ir.data.data.url;
+        }
+        return imageUrl;
+    } catch(e) { 
+        console.log('   ㄴ [이미지] ImgBB 업로드 실패 (원본 URL 사용)'); 
+        return imageUrl; 
+    }
 }
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
     console.log(`\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);
@@ -67,8 +98,10 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     body += '<p>' + intro + '</p>'; let summary = intro.slice(-500);
     
     for(let i=0; i<7; i++) {
-        console.log(`   ㄴ [4단계] [챕터 ${i+1}/7] '${chapters[i]}' 연재 중...`);
-        let sect = clean(await callAI(model, `Topic: "${chapters[i]}" in "${title}". Expert deep-dive MIN 3000 CHARACTERS. Context: ${summary}. NO JSON.`));
+        const isLast = (i === 6);
+        const endPrompt = isLast ? ' THIS IS THE FINAL CHAPTER. Provide a comprehensive summary and a powerful, professional conclusion that leaves a lasting impression. ACT AS A TOP-TIER COLUMNIST.' : '';
+        console.log(`   ㄴ [4단계] [챕터 ${i+1}/7] '${chapters[i]}' 연재 중${isLast ? ' (결론 포함)' : ''}...`);
+        let sect = clean(await callAI(model, `Topic: "${chapters[i]}" in "${title}". Expert deep-dive MIN 3000 CHARACTERS. Context: ${summary}.${endPrompt} NO JSON.`));
         body += `<h2 id="s${i+1}" class="h2-premium">🎯 ${i+1}. ${chapters[i]}</h2><p>${sect.replace(/\n\n/g, "</p><p>")}</p>`;
         summary = sect.slice(-500);
     }

@@ -204,6 +204,8 @@ async function run() {
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });
+    const pool = config.clusters || []; if(!pool.length) return;
+    const mainSeed = pool.splice(Math.floor(Math.random()*pool.length), 1)[0];
     let subRes = clean(await callAI(model, 'Topic: "' + mainSeed + '".\\nGenerate 4 sub-topics as a simple JSON array of strings: ["A", "B", "C", "D"]. ONLY JSON. NO Chat.'), 'arr');
     let subTopics = [];
     try {

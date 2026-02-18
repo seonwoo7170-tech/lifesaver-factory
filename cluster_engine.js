@@ -103,7 +103,7 @@ async function writeAndPost(model, target, lang, blogger, bId, isPillar, prevLin
 }
 
 async function run() {
-    console.log("\\n[VUE] 최종 무결성 엔진 v1.3.54 기동 중...");
+    console.log("\\n[VUE] 최종 무결성 엔진 v1.3.56 기동 중...");
     const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
@@ -112,10 +112,11 @@ async function run() {
     const blogger = google.blogger({ version: 'v3', auth });
 
     const pool = config.clusters || [];
+    if(pool.length === 0) return console.log("❌ 키워드 소진");
     const rIdx = Math.floor(Math.random() * pool.length);
     const mainSeed = pool.splice(rIdx, 1)[0];
     
-    const subTopics = [mainSeed + " 서브 1", mainSeed + " 서브 2", mainSeed + " 서브 3", mainSeed + " 서브 4"];
+    const subTopics = [mainSeed + " 자가 수리 가이드", mainSeed + " 증상 진단법", mainSeed + " 부품 교체 노하우", mainSeed + " 정비 전문가 팁"];
     const subLinks = []; let currentTime = new Date();
     
     for(const t of subTopics) {
@@ -128,6 +129,8 @@ async function run() {
     await writeAndPost(model, mainSeed, config.blog_lang || 'ko', blogger, config.blog_id, true, subLinks, new Date(currentTime));
 
     config.clusters = pool;
-    fs.writeFileSync('cluster_config.json', JSON.stringify(config, null, 2));
+    const url = `https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`;
+    const gRes = await axios.get(url, { headers: { Authorization: `token ${process.env.GITHUB_TOKEN}` } });
+    await axios.put(url, { message: '[VUE] Config Update v1.3.56', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: gRes.data.sha }, { headers: { Authorization: `token ${process.env.GITHUB_TOKEN}` } });
 }
 run();

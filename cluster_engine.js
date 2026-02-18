@@ -19,8 +19,11 @@ const MASTER_GUIDELINE = `
    - 고유한 수치 데이터를 포함한 4열 4행 표(Table) 1개 필수.
    - 사실적 사진 묘사를 담은 이미지 프롬프트 1개 필수.
 4. 제목 규칙: "키워드 : 제목" 형식을 절대 사용하지 마십시오. 대신 사용자의 클릭을 유발하고 구글 검색 상위 노출에 최적화된 '롱테일(Long-tail) 매혹적 제목'을 생성하십시오. (예: "노트북 수리: 방법" (X) -> "초보자도 5분만에 성공하는 압도적인 노트북 수리 및 관리 꿀팁 7가지" (O))
+5. 마크다운 금지: 마크다운 문법(예: **, ##, -, [], ` 등)을 절대 사용하지 마십시오. 모든 텍스트는 순수 텍스트 또는 지침에 명시된 HTML 태그(<p>, <table>, <strong> 등)로만 작성하십시오.
 
-[VUE SIGNATURE: 인트로 서사 라이브러리 (20개 전문)]
+
+`;
+const NARRATIVE_HINTS = `[VUE SIGNATURE: 인트로 서사 라이브러리 (20개 전문)]
 ① "제가 직접 해본 결과, 역시 이론보다는 실전이 제일 중요하더라고요. 책에서 배울 때와는 전혀 다른 현장의 느낌이 있었거든요. 그래서 오늘은 제가 겪은 진짜 이야기를 들려드리려 합니다."
 ② "솔직히 처음엔 저도 이 방법을 전혀 몰라서 한참 동안이나 고생하고 시간만 낭비했습니다. 누가 옆에서 한마디만 해줬어도 좋았을 텐데 말이죠. 여러분은 저 같은 실수를 안 하셨으면 좋겠습니다."
 ③ "이 글을 읽는 분들도 아마 저처럼 시행착오를 겪고 계실 텐데, 그 막막한 마음 제가 누구보다 잘 압니다. 저도 처음에 컴퓨터 앞에 앉아 한숨만 푹푹 내쉬던 기억이 선하거든요."
@@ -36,7 +39,7 @@ const MASTER_GUIDELINE = `
 - h2 배경색 7종 순차 적용 (moccasin, lightpink, palegreen, skyblue, plum, lightsalmon, #98d8c8)
 - <p style="margin-bottom: 20px;"> 태그 강제 사용.
 - JSON-LD Article/FAQPage Schema 필수 포함.
-`;
+================================================================`;
 
 const STYLE = `<style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Pretendard:wght@400;700&display=swap');
@@ -66,7 +69,9 @@ function clean(raw, defType = 'obj') {
         }
         
         if (jsonStr) {
-            jsonStr = jsonStr.replace(/[\x00-\x1F]/g, char => char === '\n' ? '\\\n' : char === '\r' ? '\\\r' : char === '\t' ? '\\\t' : '');
+            jsonStr = jsonStr.replace(/[\x00-\x1F]/g, char => char === '\n' ? '\\n' : char === '\r' ? '\\r' : char === '\t' ? '\\t' : '');
+            // Final safety: strip any lingering markdown code block markers inside the extracted string
+            jsonStr = jsonStr.replace(/```json|```/gi, '').trim();
             return jsonStr;
         }
     } catch(e) { }
@@ -165,26 +170,40 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log(`\\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);
     console.log('   ㄴ [1단계] 실시간 트렌드 분석 및 E-E-A-T 블루프린트 설계 중...');
     const searchData = await searchSerper(target);
-    const bpPrompt = `MISSION: Create a high-end SEO blueprint for: "${target}".\\n\\n1. Return ONLY a valid JSON object.\\n2. Format: {"title":"LONG_TAIL_SEO_TITLE", "chapters":["Catchy Title 1", ..., "Catchy Title 7"]}\\n3. RULE: CHAPTERS MUST BE FULL TOPIC SENTENCES, NOT "Deep Dive 1".\\n4. TITLE RULE: NO colon (:), use compelling 롱테일 SEO style.\\n5. STAGE: BLUEPRINT ONLY. NO MARKDOWN. NO CHATTER.`;
+    const bpPrompt = `MISSION: Create a high-end, 7-part content strategy for: \"${target}\".
+
+1. Return ONLY a valid JSON object.
+2. Format: {\"title\":\"SEO_LONGTAIL_TITLE\", \"chapters\":[\"Topic 1\", ..., \"Topic 7\"]}
+3. TITLE RULE: Catchy, 35-45 chars, psychological triggers.
+4. CHAPTER STRATEGY (Force 7 distinct angles):
+   - Ch 1: Technical Foundations (The 'Why' and 'Science')
+   - Ch 2: Selection & Quality (Materials or Tools guide)
+   - Ch 3: Advanced Execution (Expert step-by-step)
+   - Ch 4: Risk Mitigation (Hidden pitfalls and Prevention)
+   - Ch 5: Economic Optimization (Cost vs Performance)
+   - Ch 6: Future Trends/Comparison (Modern context)
+   - Ch 7: Ultimate FAQ & Implementation Checklist
+5. RULE: NEVER repeat the main keyword in every chapter title. Use diverse phrasing.
+6. NO MARKDOWN, NO CHATTER. ONLY JSON.`;
     const bpRes = await callAI(model, bpPrompt);
     let title, chapters;
     try {
         const c = clean(bpRes, 'obj');
         const parsed = JSON.parse(c);
-        title = (parsed.title && parsed.title.length > 5) ? parsed.title : target;
+        title = (parsed.title && parsed.title.length > 20 && parsed.title !== target) ? parsed.title : \`\${target} 해결? 전문가가 알려주는 상위 1% 고성능 세팅 비결 (2026 최신)\`;
         chapters = (parsed.chapters && parsed.chapters.length >= 7) ? parsed.chapters : [];
         if(chapters.length < 7) throw new Error('Missing chapters');
     } catch(e) { 
         console.log('   ⚠️ [시스템] 블루프린트 설계 보정 중...');
-        title = target.includes(':') ? target.split(':')[1].trim() : target;
+        title = \`\${target} 완벽 해결법: 전문가의 상위 1% 시크릿 실전 노하우 (2026 최신)\`;
         chapters = [
-            `${target}의 핵심 개념과 필수 이해`,
-            `전문가가 알려주는 ${target} 실전 노하우`,
-            `모르면 손해 보는 ${target} 핵심 꿀팁`,
-            `${target} 시공 및 적용 시 주의사항`,
-            `실제 사례로 보는 ${target} 성공 가이드`,
-            `${target} 관련 자주 묻는 질문 해결`,
-            `완벽한 ${target} 마무리를 위한 체크리스트`
+            \`\\\${target}의 핵심 개념과 필수 이해\`,
+            \`전문가가 알려주는 \\\${target} 실전 노하우\`,
+            \`모르면 손해 보는 \\\${target} 핵심 꿀팁\`,
+            \`\\\${target} 시공 및 적용 시 주의사항\`,
+            \`실제 사례로 보는 \\\${target} 성공 가이드\`,
+            \`\\\${target} 관련 자주 묻는 질문 해결\`,
+            \`완벽한 \\\${target} 마무리를 위한 체크리스트\` 
         ];
     }
     console.log('   ㄴ [확정 제목] ' + title);
@@ -192,10 +211,10 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     const hero = await genImg(await callAI(model, 'Visual description for: ' + title));
     let body = STYLE + '<div class="vue-premium">';
     if(hero) body += '<img src="' + hero + '" style="width:100%; border-radius:15px; margin-bottom: 30px;">';
-    body += '<div class="toc-box"><h2>📋 Expert Guide Contents</h2><ul>' + chapters.map((c,i)=>`<li><a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
+    body += '<div class="toc-box"><h2>📋 Expert Guide Contents</h2><ul>' + chapters.map((c,i)=>`< li > <a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
     
     console.log('   ㄴ [3단계] 2026 E-E-A-T 기반 고품격 서론 집필 중...');
-    let intro = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nMISSION: Write a massive intro for: ${title}.\n\nRULES:\n1. NO JSON, NO HEADERS, NO TOC.\n2. ONLY BODY TEXT.\n3. Context: ${searchData}`), 'text');
+    let intro = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nNARRATIVE TEMPLATES: ${NARRATIVE_HINTS}\n\nMISSION: Write a massive, engaging intro for: ${title}.\n\nRULES:\n1. START with one of the NARRATIVE TEMPLATES style.\n2. START the response with <p style=\"margin-bottom: 20px;\"> tag.\n3. NO MARKDOWN (**), NO HEADERS (#), NO TOC.\n4. ONLY BODY HTML/TEXT. No salutations.\n5. Context: ${searchData}`), 'text');
     body += intro; let summary = intro.slice(-500);
     
     console.log('   ㄴ [4단계] [TURBO MODE] 7개 챕터 동시 집필 및 이미지 생성 중...');
@@ -203,7 +222,11 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     const chapterTasks = chapters.map(async (chapter, i) => {
         try {
             console.log(`      ㄴ [병렬 가동] ${i+1}/7 '${chapter}' 집필 시작...`);
-            let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nMISSION: Write ONLY the body content for: "${chapter}" (Part of article "${title}").\n\nRULES:\n1. NO HEADERS (#, ##), NO TOC, NO JSON.\n2. Write ONLY massive body text (1,500+ chars).\n3. Do NOT write other chapters.\n4. Context: ${summary}.\n5. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
+            let mission = (i === 6) 
+                ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: "${title}".\n\nRULES:\n1. Create 15-20 specialized Q&A pairs (FAQ style) with deep answers.\n2. Add a 'Master Action Checklist' (10+ items).\n3. MASSIVE CONTENT (2,000+ chars).\n4. NO HEADERS (#), NO TOC.`
+                : `MISSION: Write a massive, data-driven BODY for: \"${chapter}\" (Article: \"${title}\").\n\nRULES:\n1. QUANTITY: Write HUGE amounts of text (2,000+ characters minimum). \n2. TABLE: MUST include a 4-column x 4-row HTML Table with unique numerical data/evidence.\n3. ANALOGY: Use at least 2 metaphors from the Analogies library.\n4. NO STORY: No \"I/Me\" stories. No \"In conclusion\" or \"To sum up\".\n5. NO MARKDOWN: Never use ** or # or `. Use HTML <strong> if needed.\n6. START IMMEDIATELY with dense information. NO HEADERS (#).`;
+            
+            let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\\n\\n${mission}\\n\\nRULES:\\n1. NO HEADERS (#, ##), NO TOC, NO JSON.\\n2. NO GREETINGS. Context: ${summary}.\\n3. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
             const promptMatch = sect.match(/\[IMAGE_PROMPT:\s*(.*?)\]/);
             if(promptMatch) {
                 const chapterImg = await genImg(promptMatch[1]);
@@ -222,7 +245,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     });
     
     console.log('   ㄴ [5단계] FAQ 및 Schema 데이터 생성 중...');
-    let footer = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nCreate 25-30 massive FAQ, Closing, Tags, and JSON-LD Schema for "${title}". NO JSON outside schema.`));
+    let footer = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nMISSION: Create 25-30 massive FAQ, Closing, Tags, and JSON-LD Schema for "${title}".\n\nRULES:\n1. NO MARKDOWN (**, #). Use HTML tags.\n2. NO JSON outside the <script type="application/ld+json"> block.`), 'text');
     body += footer + '</div>';
     
     const res = await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, published: pTime.toISOString() } });

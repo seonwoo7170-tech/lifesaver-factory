@@ -25,9 +25,20 @@ function clean(raw) {
     return t.replace(/`/g, '').trim();
 }
 
-async function callAI(model, prompt) {
-    const r = await model.generateContent('[SYSTEM: ACT AS A PREMIUM TECH COLUMNIST. NO CHAT.]\n' + prompt);
-    return r.response.text().trim();
+async function callAI(model, prompt, retry = 0) {
+    try {
+        const r = await model.generateContent('[SYSTEM: ACT AS A PREMIUM TECH COLUMNIST. NO CHAT.]\n' + prompt);
+        return r.response.text().trim();
+    } catch (e) {
+        // [429 ERROR] Rate Limit handling with Exponential Backoff
+        if ((e.message.includes('429') || e.message.includes('Resource exhausted')) && retry < 5) {
+            const waitTime = Math.pow(2, retry) * 20000; // 20s, 40s, 80s, 160s, 320s
+            console.log(`   ⚠️ [Rate Limit] 429 감지. ${waitTime/1000}초 후 재시도 합니다... (${retry+1}/5)`);
+            await new Promise(res => setTimeout(res, waitTime));
+            return callAI(model, prompt, retry + 1);
+        }
+        throw e;
+    }
 }
 async function genImg(desc, kieKey, imgbbKey) {
     if(!desc) return '';

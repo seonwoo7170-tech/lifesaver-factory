@@ -49,20 +49,19 @@ const STYLE = `<style>
   .link-box { background-color: #212529; color: white; padding: 30px; text-align: center; border-radius: 15px; margin: 40px 0; border: 1px solid #444; }
 </style>`;
 
-function clean(raw) {
-    if(!raw) return '';
+function clean(raw, defType = 'obj') {
+    if(!raw) return defType === 'obj' ? '{}' : '[]';
     let t = raw.replace(/```json|```/gi, '').trim();
     try {
         const start = t.search(/[\{\[]/);
         const end = Math.max(t.lastIndexOf('}'), t.lastIndexOf(']'));
-        if (start !== -1 && end !== -1 && end > start) {
+        if (start !== -1 && end !== -1 && end >= start) {
             let jsonStr = t.substring(start, end + 1);
-            // Escape unescaped control characters for JSON.parse
             jsonStr = jsonStr.replace(/[\x00-\x1F]/g, char => char === '\n' ? '\\\n' : char === '\r' ? '\\\r' : char === '\t' ? '\\\t' : '');
             return jsonStr;
         }
     } catch(e) { }
-    return t.replace(/`/g, '').trim();
+    return defType === 'obj' ? '{"title":"' + t.replace(/["\\\n]/g, '') + '", "chapters":[]}' : '[]';
 }
 
 async function callAI(model, prompt, retry = 0) {
@@ -154,11 +153,14 @@ async function genImg(desc) {
 }
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
     console.log(`\\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);
-    console.log('   ㄴ [1단계] 실시간 트렌드 분석 및 E-E-A-T 블루프린트 설계 중...');
-    const searchData = await searchSerper(target);
-    const bpPrompt = `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\\n\\nTopic: "${target}"\\nContext: ${searchData}\\n1. ONLY JSON: {"title":"", "chapters":[]}\\n2. Title MUST be a compelling long-tail SEO title. DO NOT use 'Keyword: Title' format.\\n3. Generate EXACTLY 7 chapters. No prefixes.`;
+    const bpPrompt = `MISSION: Create JSON blueprint for: "${target}".\\n\\n1. Return ONLY raw JSON object.\\n2. Format: {"title":"LONG_TAIL_SEO_TITLE", "chapters":["Part 1", ..., "Part 7"]}\\n3. Chapter count: EXACTLY 7.\\n4. Title rule: NO colon (A:B), use catchy sentence like "Expert Guide to..."\\n5. NO Markdown headers, NO [TOC], NO chatter.`;
     const bpRes = await callAI(model, bpPrompt);
-    const { title, chapters } = JSON.parse(clean(bpRes));
+    let title, chapters;
+    try {
+        const parsed = JSON.parse(clean(bpRes, 'obj'));
+        title = parsed.title || target;
+        chapters = (parsed.chapters && parsed.chapters.length >= 7) ? parsed.chapters : Array.from({length:7}, (_,i) => `${target} Section ${i+1}`);
+    } catch(e) { title = target; chapters = Array.from({length:7}, (_,i) => `${target} Deep Dive ${i+1}`); }
     console.log('   ㄴ [확정 제목] ' + title);
 
     const hero = await genImg(await callAI(model, 'Visual description for: ' + title));
@@ -202,14 +204,13 @@ async function run() {
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });
-    const pool = config.clusters || []; if(!pool.length) return;
-    const mainSeed = pool.splice(Math.floor(Math.random()*pool.length), 1)[0];
-    let subRes = clean(await callAI(model, 'Generate 4 professional sub-topic strings for "' + mainSeed + '" as a simple JSON array: ["Topic1", "Topic2", ...]. ONLY JSON.'));
+    let subRes = clean(await callAI(model, 'Topic: "' + mainSeed + '".\\nGenerate 4 sub-topics as a simple JSON array of strings: ["A", "B", "C", "D"]. ONLY JSON. NO Chat.'), 'arr');
     let subTopics = [];
     try {
         const parsed = JSON.parse(subRes);
-        subTopics = (Array.isArray(parsed) ? parsed : (parsed.topics || parsed.chapters || [])).map(t => typeof t === 'string' ? t : (t.title || t.topic || JSON.stringify(t)));
-    } catch(e) { subTopics = [mainSeed + ' Details 1', mainSeed + ' Details 2']; }
+        subTopics = Array.isArray(parsed) ? parsed : (parsed.topics || []);
+        if(subTopics.length < 2) throw new Error();
+    } catch(e) { subTopics = [mainSeed + ' 필수 기초', mainSeed + ' 실전 활용', mainSeed + ' 심화 가이드', mainSeed + ' 문제 해결']; }
     let subLinks = []; let cTime = new Date();
     for(let i=0; i < subTopics.length; i++) {
         cTime.setMinutes(cTime.getMinutes()+180);

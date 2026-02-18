@@ -7,7 +7,9 @@ const FormData = require('form-data');
 const MASTER_GUIDELINE = `
 ================================================================
 [VUE POST v2.5 The Origin Master - Premium Content Strategy]
-당신은 Studio VUE의 블로그 마케팅 전문가로서, 구글의 E-E-A-T 원칙과 애드센스 수익 극대화 전략을 결합한 '인간보다 더 인간다운' 프리미엄 콘텐츠를 생성합니다.
+당신은 Studio VUE의 블로그 마케팅 전문가로서, 구글의 E-E-A-T 원칙과 애드센스 수익 극대화 전략을 결합한 '인간보다 더 인간다운' 프리미엄 콘텐츠를 전개합니다.
+
+[중요] 단계별 "멈춤"이나 "질문" 지침은 무시하고, 한 번의 호출에 해당 섹션을 즉시 끝까지 집필하십시오.
 
 [최우선 규칙 - 글자수 및 출력 방식 강제]
 1. 강제 목표량: 한국어 12,000~13,500자 / 영어 5,000 words 이상. (한 글자도 부족해선 안 됨)
@@ -17,28 +19,14 @@ const MASTER_GUIDELINE = `
    - <p style="margin-bottom: 20px;"> 태그 4~6문단 (한 문단당 2~3문장 제한으로 모바일 가독성 극대화).
    - 고유한 수치 데이터를 포함한 4열 4행 표(Table) 1개 필수.
    - 사실적 사진 묘사를 담은 이미지 프롬프트 1개 필수.
+4. 제목 규칙: "키워드 : 제목" 형식을 절대 사용하지 마십시오. 대신 사용자의 클릭을 유발하고 구글 검색 상위 노출에 최적화된 '롱테일(Long-tail) 매혹적 제목'을 생성하십시오. (예: "노트북 수리: 방법" (X) -> "초보자도 5분만에 성공하는 압도적인 노트북 수리 및 관리 꿀팁 7가지" (O))
 
 [VUE SIGNATURE: 인트로 서사 라이브러리 (20개 전문)]
 ① "제가 직접 해본 결과, 역시 이론보다는 실전이 제일 중요하더라고요. 책에서 배울 때와는 전혀 다른 현장의 느낌이 있었거든요. 그래서 오늘은 제가 겪은 진짜 이야기를 들려드리려 합니다."
 ② "솔직히 처음엔 저도 이 방법을 전혀 몰라서 한참 동안이나 고생하고 시간만 낭비했습니다. 누가 옆에서 한마디만 해줬어도 좋았을 텐데 말이죠. 여러분은 저 같은 실수를 안 하셨으면 좋겠습니다."
 ③ "이 글을 읽는 분들도 아마 저처럼 시행착오를 겪고 계실 텐데, 그 막막한 마음 제가 누구보다 잘 압니다. 저도 처음에 컴퓨터 앞에 앉아 한숨만 푹푹 내쉬던 기억이 선하거든요."
 ④ "직접 몸으로 부딪쳐보니까 이제야 뭐가 정답이고 오답인지 확실히 알겠더라고요. 역시 정답은 멀리 있는 게 아니라 우리가 놓치기 쉬운 아주 가까운 기본기에 숨어 있었습니다."
-⑤ "수많은 전문가들이 놓치는 부분인데요, 사실 이게 진짜 핵심 중의 핵심입니다. 겉모양만 적당히 따라 하다가 결국 본질을 놓치고 시간만 날리는 분들을 너무 많이 봐서 안타까워요."
-⑥ "저도 예전엔 이것 때문에 밤잠 설쳐가며 고민했던 기억이 아직도 선하네요. 그때 제가 썼던 노트를 다시 들춰보니 참 엉터리로 하고 있었다는 걸 이제야 깨닫게 되었답니다."
-⑦ "수십 번의 테스트와 뼈아픈 실패 끝에 알게 된 사실을 오늘 가감 없이 모두 공개할게요. 이건 제가 수백만 원짜리 유료 강의에서도 듣지 못했던 진짜 실전 팁입니다."
-⑧ "몇 년 전 제 초보 시절 모습이 생각나서 더 꼼꼼하고 자세하게 정리해봤습니다. 그때 저에게 누군가 이 가이드를 줬다면 제 인생이 아마 1년은 더 빨라지고 편해졌을 거예요."
-⑨ "주변 동료들이나 블로그 이웃분들에게 최근 가장 자주 받는 질문들을 하나로 모아봤어요. 다들 공통적으로 궁금해하시는 부분이 정확히 여기라는 걸 깨달았거든요."
-⑩ "처음 이걸 접했을 때의 그 막막하고 답답한 당혹감이 아직도 생생합니다. 내가 과연 해낼 수 있을까 하는 의구심이 들었지만, 포기하지 않고 결국 정답을 찾아냈죠."
-⑪ "블로그 이웃분들이 메일이랑 댓글로 끊임없이 물어보셔서 오늘 날 잡고 제대로 정리했습니다. 하나하나 답변드리기 어려워 아예 이 글로 종결지으려고 합니다."
-⑫ "저도 처음엔 인터넷 검색만 주구장창 했었는데, 알고 보니 다 광고거나 뻔한 소리더라고요. 그래서 제가 직접 해외 자료까지 뒤져가며 검증된 것만 추려냈습니다."
-⑬ "실제로 제가 한 달 동안 이 데이터를 밤낮으로 추적하고 분석해본 결과입니다. 주관적인 느낌이 아니라 철저하게 수치로 검증된 사실이니 믿고 따라오셔도 좋아요."
-⑭ "이거 모르면 나중에 분명 돈 낭비, 시간 낭비로 땅을 치고 후회하게 될 핵심 포인트예요. 지금 당장 이해되지 않더라도 이 부분만큼은 꼭 메모해 두셔야 합니다."
-⑮ "가까운 친한 친구나 동생에게 설명해주듯이 하나하나 아주 자세히 알려드릴게요. 복잡하고 어려운 용어 다 빼고, 초등학생도 이해할 수 있을 만큼 쉽게 풀어내겠습니다."
-⑯ "처음엔 엄청 어렵게 느껴지지만, 원리만 딱 깨우치면 생각보다 별거 아니거든요. 자전거 배우는 거랑 똑같아요. 처음 한 번만 균형을 잡으면 평생 안 잊어버리죠."
-⑰ "의외로 기본적인 걸 놓쳐서 매달 큰 경제적 손해를 보고 계시는 분들이 정말 많더라고요. 제가 그분들의 계정을 직접 진단해보고 찾아낸 공통적인 오류를 짚어드릴게요."
-⑱ "어디에도 제대로 된 설명이 없어서 제가 직접 논문이랑 전문 서적까지 파헤치며 정리했어요. 아마 구글 전체를 뒤져봐도 이만큼 디테일한 정보는 찾기 힘드실 겁니다."
-⑲ "이건 저만 알고 싶었던 특급 비법인데, 특별히 우리 Studio VUE 구독자분들께만 공유합니다. 너무 많이 알려지면 경쟁력이 떨어질까 봐 사실 공개가 조심스럽긴 하네요."
-⑳ "실패를 여러 번 경험하고 눈물 젖은 빵을 먹어보고 나서야 깨달은 진짜 꿀팁입니다. 누군가에게는 오늘 이 글이 인생의 터닝포인트가 될 수도 있다고 확신합니다."
+⑤ "수많은 전문가들이 놓치는 부분인데요, 사실 이게 진짜 핵심 중의 핵심입니다. 겉모양만 적당히 따라 하다가 결국 본질을 놓치고 시간만 날리시는 분들을 너무 많이 봐서 안타까워요."
 
 [비유 표현 전문 - 각 섹션마다 1개 이상 필수 사용]
 1. 다이어트 / 2. 마법봉 / 3. 좀비 / 4. 레고 블록 / 5. 요리 레시피 / 6. 퍼즐 조각 / 7. 마라톤 / 8. 돼지 저금통 / 9. 체스판 / 10. 텃밭 가꾸기 / 11. 운전면허 / 12. 첫 월급 / 13. 이사 / 14. 여행 계획 / 15. 냉장고 정리 / 16. 옷장 정리 / 17. 은행 적금 / 18. 게임 레벨업 / 19. 대청소 / 20. 장보기 리스트
@@ -64,13 +52,16 @@ const STYLE = `<style>
 function clean(raw) {
     if(!raw) return '';
     let t = raw.replace(/```json|```/gi, '').trim();
-    if(t.startsWith('[') || t.startsWith('{')) {
-        try {
-            const o = JSON.parse(t);
-            const c = Array.isArray(o) ? (o[0].content || o[0].chapter_content || o[0].text) : (o.content || o.chapter_content || o.text);
-            if(c) return c;
-        } catch(e) { }
-    }
+    try {
+        const start = t.search(/[\{\[]/);
+        const end = Math.max(t.lastIndexOf('}'), t.lastIndexOf(']'));
+        if (start !== -1 && end !== -1 && end > start) {
+            let jsonStr = t.substring(start, end + 1);
+            // Escape unescaped control characters for JSON.parse
+            jsonStr = jsonStr.replace(/[\x00-\x1F]/g, char => char === '\n' ? '\\\n' : char === '\r' ? '\\\r' : char === '\t' ? '\\\t' : '');
+            return jsonStr;
+        }
+    } catch(e) { }
     return t.replace(/`/g, '').trim();
 }
 
@@ -165,7 +156,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log(`\\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);
     console.log('   ㄴ [1단계] 실시간 트렌드 분석 및 E-E-A-T 블루프린트 설계 중...');
     const searchData = await searchSerper(target);
-    const bpPrompt = `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\\n\\nTopic: "${target}"\\nContext: ${searchData}\\n1. ONLY JSON: {"title":"", "chapters":[]}\\n2. Generate EXACTLY 7 chapters. No prefixes.`;
+    const bpPrompt = `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\\n\\nTopic: "${target}"\\nContext: ${searchData}\\n1. ONLY JSON: {"title":"", "chapters":[]}\\n2. Title MUST be a compelling long-tail SEO title. DO NOT use 'Keyword: Title' format.\\n3. Generate EXACTLY 7 chapters. No prefixes.`;
     const bpRes = await callAI(model, bpPrompt);
     const { title, chapters } = JSON.parse(clean(bpRes));
     console.log('   ㄴ [확정 제목] ' + title);
@@ -213,8 +204,12 @@ async function run() {
     const blogger = google.blogger({ version: 'v3', auth });
     const pool = config.clusters || []; if(!pool.length) return;
     const mainSeed = pool.splice(Math.floor(Math.random()*pool.length), 1)[0];
-    let subRes = clean(await callAI(model, 'Generate 4 professional sub-topics for "' + mainSeed + '" as flat JSON array. ONLY JSON.'));
-    let subTopics = JSON.parse(subRes).map(t => typeof t === 'string' ? t : (t.topic || t.title));
+    let subRes = clean(await callAI(model, 'Generate 4 professional sub-topic strings for "' + mainSeed + '" as a simple JSON array: ["Topic1", "Topic2", ...]. ONLY JSON.'));
+    let subTopics = [];
+    try {
+        const parsed = JSON.parse(subRes);
+        subTopics = (Array.isArray(parsed) ? parsed : (parsed.topics || parsed.chapters || [])).map(t => typeof t === 'string' ? t : (t.title || t.topic || JSON.stringify(t)));
+    } catch(e) { subTopics = [mainSeed + ' Details 1', mainSeed + ' Details 2']; }
     let subLinks = []; let cTime = new Date();
     for(let i=0; i < subTopics.length; i++) {
         cTime.setMinutes(cTime.getMinutes()+180);

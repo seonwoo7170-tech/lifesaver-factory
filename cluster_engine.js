@@ -190,20 +190,20 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     try {
         const c = clean(bpRes, 'obj');
         const parsed = JSON.parse(c);
-        title = (parsed.title && parsed.title.length > 20 && parsed.title !== target) ? parsed.title : \`\${target} 해결? 전문가가 알려주는 상위 1% 고성능 세팅 비결 (2026 최신)\`;
+        title = (parsed.title && parsed.title.length > 20 && parsed.title !== target) ? parsed.title : `${target} 해결? 전문가가 알려주는 상위 1% 고성능 세팅 비결 (2026 최신)`;
         chapters = (parsed.chapters && parsed.chapters.length >= 7) ? parsed.chapters : [];
         if(chapters.length < 7) throw new Error('Missing chapters');
     } catch(e) { 
         console.log('   ⚠️ [시스템] 블루프린트 설계 보정 중...');
-        title = \`\${target} 완벽 해결법: 전문가의 상위 1% 시크릿 실전 노하우 (2026 최신)\`;
+        title = `${target} 완벽 해결법: 전문가의 상위 1% 시크릿 실전 노하우 (2026 최신)`;
         chapters = [
-            \`\\\${target}의 핵심 개념과 필수 이해\`,
-            \`전문가가 알려주는 \\\${target} 실전 노하우\`,
-            \`모르면 손해 보는 \\\${target} 핵심 꿀팁\`,
-            \`\\\${target} 시공 및 적용 시 주의사항\`,
-            \`실제 사례로 보는 \\\${target} 성공 가이드\`,
-            \`\\\${target} 관련 자주 묻는 질문 해결\`,
-            \`완벽한 \\\${target} 마무리를 위한 체크리스트\` 
+            `${target}의 핵심 개념과 필수 이해`,
+            `전문가가 알려주는 ${target} 실전 노하우`,
+            `모르면 손해 보는 ${target} 핵심 꿀팁`,
+            `${target} 시공 및 적용 시 주의사항`,
+            `실제 사례로 보는 ${target} 성공 가이드`,
+            `${target} 관련 자주 묻는 질문 해결`,
+            `완벽한 ${target} 마무리를 위한 체크리스트` 
         ];
     }
     console.log('   ㄴ [확정 제목] ' + title);

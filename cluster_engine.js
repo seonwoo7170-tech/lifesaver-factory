@@ -27,11 +27,11 @@ const STYLE = `<style>
 const LIBS = {
     ko: {
         labels: { toc: '📋 안내 가이드 목차', btn: '전체 가이드 계속 읽기 🚀', faq: '❓ 자주 묻는 질문', read: '📚 추천 더 읽어보기', dis: '⚠ 안내사항' },
-        disclaimer: "본 콘텐츠는 정보 제공의 목적으로 작성되었으며, 전문적인 조언을 대체하지 않습니다. 실제 적용 시 각별한 주의가 필요하며, 결과에 대해서는 책임지지 않습니다."
+        disclaimer: "본 콘텐츠는 정보 제공의 목적으로 작성되었으며, 전문적인 조언을 대체하지 않습니다."
     },
     en: {
         labels: { toc: '📋 Table of Contents', btn: 'Read Full Guide 🚀', faq: '❓ Frequently Asked Questions', read: '📚 Further Reading', dis: '⚠ Disclaimer' },
-        disclaimer: "The information provided in this article is for general informational purposes only. The author and publisher shall not be held responsible for any actions taken based on this information."
+        disclaimer: "General info only."
     }
 };
 
@@ -52,88 +52,61 @@ async function callAI(model, prompt) {
 async function genImg(desc, kieKey, imgbbKey) {
     if(!kieKey || !desc) return "";
     try {
-        const cr = await axios.post("https://api.kie.ai/api/v1/jobs/createTask", { model: "z-image", input: { prompt: desc.replace(/[\"\n*#-]/g, '') + ", high-end editorial photography, 8k, majestic lighting", aspect_ratio: "16:9" } }, { headers: { Authorization: "Bearer " + kieKey.trim() } });
+        const cr = await axios.post("https://api.kie.ai/api/v1/jobs/createTask", { model: "z-image", input: { prompt: desc.replace(/[\"\n*#-]/g, '') + ", editorial photography, 8k", aspect_ratio: "16:9" } }, { headers: { Authorization: "Bearer " + kieKey.trim() } });
         const tid = cr.data.data.taskId;
-        let finalKieUrl = "";
-        for(let a=1; a<=25; a++) {
-            await new Promise(res => setTimeout(res, 8000));
+        let finalUrl = "";
+        for(let a=1; a<=20; a++) {
+            await new Promise(r => setTimeout(r, 8000));
             const pr = await axios.get("https://api.kie.ai/api/v1/jobs/recordInfo?taskId=" + tid, { headers: { Authorization: "Bearer " + kieKey.trim() } });
-            if(pr.data.data.state === 'success') { finalKieUrl = JSON.parse(pr.data.data.resultJson).resultUrls?.[0] || ""; break; }
-            if(pr.data.data.state === 'fail') break;
+            if(pr.data.data.state === 'success') { finalUrl = JSON.parse(pr.data.data.resultJson).resultUrls?.[0] || ""; break; }
         }
-        if(finalKieUrl && imgbbKey) {
-            const form = new FormData();
-            form.append('image', finalKieUrl);
+        if(finalUrl && imgbbKey) {
+            const form = new FormData(); form.append('image', finalUrl);
             const ir = await axios.post("https://api.imgbb.com/1/upload?key=" + imgbbKey.trim(), form, { headers: form.getHeaders() });
             return ir.data.data.url;
         }
-        return finalKieUrl;
-    } catch(e) { console.error("❌ 이미지 오류:", e.message); } return "";
+        return finalUrl;
+    } catch(e) { console.error("Img Error", e.message); } return "";
 }
 
 async function writeAndPost(model, target, lang, blogger, bId, isPillar, prevLinks, publishTime) {
-    const Lib = LIBS[lang] || LIBS.en;
-    console.log("\n----------------------------------------------");
-    console.log(`🚀 [${isPillar ? '마스터 메인' : '서브 클러스터'}] 집필 시작: ${target}`);
-    
-    const blueprintData = await callAI(model, `JSON Object for article about '${target}': {"title":"","chapters":["Part 1", ..., "Part 7"]}`);
-    const { title, chapters } = JSON.parse(blueprintData.replace(/```json|```/g, '').trim());
-    console.log("✅ 확정 제목: " + title);
-    
-    const heroImg = await genImg(await callAI(model, "Visual prompt for: " + title), process.env.KIE_API_KEY, process.env.IMGBB_API_KEY);
-    
-    let body = STYLE + `<div class='vue-premium'>`;
-    if(heroImg) body += `<div class='img-center'><img src='${heroImg}' class='img-premium'></div>`;
-    body += `<div class='toc-premium'><div class='toc-title'>${Lib.labels.toc}</div><ul class='toc-list'>${chapters.map((c, i) => `<li class='toc-item'><a href='#s${i+1}' class='toc-link'>· ${c}</a></li>`).join('')}</ul></div>`;
-    
-    let currentContext = await callAI(model, `Write a top-tier narrative introduction (1500+ chars) for article: ${title}.`);
-    body += clean(currentContext);
-    let writtenSummary = currentContext.substring(currentContext.length - 1500);
-
-    for(let i=0; i < 7; i++) {
-        process.stdout.write(`   -> 챕터 ${i+1}/7 연재 중... \r`);
-        const sectionContent = await callAI(model, `[DUPLICATION SHIELD]\nPrevious context: ${writtenSummary}\n\nInstruction: Write chapter '${chapters[i]}' for '${title}'. Expert deep-dive (MIN 2500 chars). NO MARKDOWN.`);
-        body += `<h2 id='s${i+1}' class='h2-premium'>🎯 ${i+1}. ${chapters[i]}</h2>`;
-        body += clean(sectionContent);
-        writtenSummary = sectionContent.substring(sectionContent.length - 1500);
+    const Lib = LIBS[lang] || LIBS.en; title='', body='';
+    const bpData = await callAI(model, `JSON article blueprint for '${target}': {"title":"", "chapters":["Part 1", ..., "Part 7"]}`);
+    const { title: tTitle, chapters } = JSON.parse(bpData.replace(/```json|```/g, '').trim());
+    console.log(`Writing: ${tTitle}`);
+    const hero = await genImg(await callAI(model, `Visual prompt for ${tTitle}`), process.env.KIE_API_KEY, process.env.IMGBB_API_KEY);
+    let content = STYLE + `<div class='vue-premium'>`;
+    if(hero) content += `<div class='img-center'><img src='${hero}' class='img-premium'></div>`;
+    content += `<div class='toc-premium'><div class='toc-title'>${Lib.labels.toc}</div><ul>${chapters.map((c,i)=>`<li><a href='#s${i+1}'>· ${c}</a></li>`).join('')}</ul></div>`;
+    let intro = await callAI(model, `Write expert introduction (1k chars) for ${tTitle}`);
+    content += clean(intro); let summary = intro.slice(-500);
+    for(let i=0; i<7; i++) {
+        let sect = await callAI(model, `[DUPLICATION SHIELD] Context: ${summary}\n\nWrite chapter '${chapters[i]}' for '${tTitle}' (2k chars)`);
+        content += `<h2 id='s${i+1}' class='h2-premium'>🎯 ${i+1}. ${chapters[i]}</h2>` + clean(sect);
+        summary = sect.slice(-500);
     }
-    
-    body += "</div>";
-    const res = await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, published: publishTime.toISOString() } });
-    console.log("✅ 발행 완료: " + res.data.url);
-    return { title, url: res.data.url };
+    content += "</div>";
+    await blogger.posts.insert({ blogId: bId, requestBody: { title: tTitle, content, published: publishTime.toISOString() } });
+    return { title: tTitle };
 }
 
 async function run() {
-    console.log("\n[VUE] 최종 무결성 엔진 v1.3.60 기동 중...");
+    console.log("Engine v1.3.62 Active");
     const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });
-
-    const pool = config.clusters || [];
-    if(pool.length === 0) return console.log("❌ 키워드 소진");
-    const rIdx = Math.floor(Math.random() * pool.length);
-    const mainSeed = pool.splice(rIdx, 1)[0];
-    
-    const subTopicsJson = await callAI(model, `Generate 4 expert sub-topics related to '${mainSeed}'. Output ONLY a JSON array: ["Topic 1", "Topic 2", "Topic 3", "Topic 4"].`);
-    const subTopics = JSON.parse(subTopicsJson.replace(/```json|```/g, '').trim());
-    
-    const subLinks = []; let currentTime = new Date();
-    for(const t of subTopics) {
-        currentTime.setMinutes(currentTime.getMinutes() + 180);
-        const r = await writeAndPost(model, t, config.blog_lang || 'ko', blogger, config.blog_id, false, [], new Date(currentTime));
-        subLinks.push(r);
-    }
-    
-    currentTime.setMinutes(currentTime.getMinutes() + 180);
-    await writeAndPost(model, mainSeed, config.blog_lang || 'ko', blogger, config.blog_id, true, subLinks, new Date(currentTime));
-
+    const pool = config.clusters || []; if(!pool.length) return;
+    const mainSeed = pool.splice(Math.floor(Math.random()*pool.length), 1)[0];
+    const subTopics = JSON.parse((await callAI(model, `4 sub-topics for '${mainSeed}' as JSON array.`)).replace(/```json|```/g,'').trim());
+    let cTime = new Date();
+    for(let t of subTopics) { cTime.setMinutes(cTime.getMinutes()+180); await writeAndPost(model, t, config.blog_lang, blogger, config.blog_id, false, [], new Date(cTime)); }
+    cTime.setMinutes(cTime.getMinutes()+180); await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, true, [], new Date(cTime));
     config.clusters = pool;
     const url = `https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`;
-    const gRes = await axios.get(url, { headers: { Authorization: `token ${process.env.GITHUB_TOKEN}` } });
-    await axios.put(url, { message: '[VUE] Config Update v1.3.60', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: gRes.data.sha }, { headers: { Authorization: `token ${process.env.GITHUB_TOKEN}` } });
+    const g = await axios.get(url, { headers: { Authorization: `token ${process.env.GITHUB_TOKEN}` } });
+    await axios.put(url, { message: 'Config Sync', content: Buffer.from(JSON.stringify(config,null,2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: `token ${process.env.GITHUB_TOKEN}` } });
 }
 run();

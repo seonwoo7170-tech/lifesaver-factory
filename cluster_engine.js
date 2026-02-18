@@ -5,7 +5,6 @@ const axios = require('axios');
 const FormData = require('form-data');
 
 const MASTER_GUIDELINE = `
-================================================================
 [VUE POST v2.5 The Origin Master - Premium Content Strategy]
 당신은 Studio VUE의 블로그 마케팅 전문가로서, 구글의 E-E-A-T 원칙과 애드센스 수익 극대화 전략을 결합한 '인간보다 더 인간다운' 프리미엄 콘텐츠를 전개합니다.
 
@@ -37,7 +36,6 @@ const MASTER_GUIDELINE = `
 - h2 배경색 7종 순차 적용 (moccasin, lightpink, palegreen, skyblue, plum, lightsalmon, #98d8c8)
 - <p style="margin-bottom: 20px;"> 태그 강제 사용.
 - JSON-LD Article/FAQPage Schema 필수 포함.
-================================================================
 `;
 
 const STYLE = `<style>
@@ -53,14 +51,26 @@ function clean(raw, defType = 'obj') {
     if(!raw) return defType === 'obj' ? '{}' : '[]';
     let t = raw.replace(/```json|```/gi, '').trim();
     try {
-        const start = t.search(/[\{\[]/);
-        const end = Math.max(t.lastIndexOf('}'), t.lastIndexOf(']'));
-        if (start !== -1 && end !== -1 && end >= start) {
-            let jsonStr = t.substring(start, end + 1);
+        const start = t.indexOf('{');
+        const end = t.lastIndexOf('}');
+        const startArr = t.indexOf('[');
+        const endArr = t.lastIndexOf(']');
+        
+        let jsonStr = '';
+        if (defType === 'obj' && start !== -1 && end !== -1) jsonStr = t.substring(start, end + 1);
+        else if (defType === 'arr' && startArr !== -1 && endArr !== -1) jsonStr = t.substring(startArr, endArr + 1);
+        else {
+            const s = start !== -1 ? start : startArr;
+            const e = Math.max(end, endArr);
+            if(s !== -1 && e !== -1) jsonStr = t.substring(s, e + 1);
+        }
+        
+        if (jsonStr) {
             jsonStr = jsonStr.replace(/[\x00-\x1F]/g, char => char === '\n' ? '\\\n' : char === '\r' ? '\\\r' : char === '\t' ? '\\\t' : '');
             return jsonStr;
         }
     } catch(e) { }
+    if(defType === 'text') return t;
     return defType === 'obj' ? '{"title":"' + t.replace(/["\\\n]/g, '') + '", "chapters":[]}' : '[]';
 }
 
@@ -155,14 +165,28 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log(`\\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);
     console.log('   ㄴ [1단계] 실시간 트렌드 분석 및 E-E-A-T 블루프린트 설계 중...');
     const searchData = await searchSerper(target);
-    const bpPrompt = `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\\n\\nTopic: "${target}"\\n\\nMISSION: Create JSON blueprint for: "${target}".\\nContext: ${searchData}\\n1. Return ONLY raw JSON object.\\n2. Format: {"title":"LONG_TAIL_SEO_TITLE", "chapters":["Part 1", ..., "Part 7"]}\\n3. Chapter count: EXACTLY 7.\\n4. Title rule: NO colon (A:B), use catchy sentence like "Expert Guide to..."\\n5. NO Markdown headers, NO [TOC], NO chatter.`;
+    const bpPrompt = `MISSION: Create a high-end SEO blueprint for: "${target}".\\n\\n1. Return ONLY a valid JSON object.\\n2. Format: {"title":"LONG_TAIL_SEO_TITLE", "chapters":["Catchy Title 1", ..., "Catchy Title 7"]}\\n3. RULE: CHAPTERS MUST BE FULL TOPIC SENTENCES, NOT "Deep Dive 1".\\n4. TITLE RULE: NO colon (:), use compelling 롱테일 SEO style.\\n5. STAGE: BLUEPRINT ONLY. NO MARKDOWN. NO CHATTER.`;
     const bpRes = await callAI(model, bpPrompt);
     let title, chapters;
     try {
-        const parsed = JSON.parse(clean(bpRes, 'obj'));
-        title = parsed.title || target;
-        chapters = (parsed.chapters && parsed.chapters.length >= 7) ? parsed.chapters : Array.from({length:7}, (_,i) => `${target} Section ${i+1}`);
-    } catch(e) { title = target; chapters = Array.from({length:7}, (_,i) => `${target} Deep Dive ${i+1}`); }
+        const c = clean(bpRes, 'obj');
+        const parsed = JSON.parse(c);
+        title = (parsed.title && parsed.title.length > 5) ? parsed.title : target;
+        chapters = (parsed.chapters && parsed.chapters.length >= 7) ? parsed.chapters : [];
+        if(chapters.length < 7) throw new Error('Missing chapters');
+    } catch(e) { 
+        console.log('   ⚠️ [시스템] 블루프린트 설계 보정 중...');
+        title = target.includes(':') ? target.split(':')[1].trim() : target;
+        chapters = [
+            `${target}의 핵심 개념과 필수 이해`,
+            `전문가가 알려주는 ${target} 실전 노하우`,
+            `모르면 손해 보는 ${target} 핵심 꿀팁`,
+            `${target} 시공 및 적용 시 주의사항`,
+            `실제 사례로 보는 ${target} 성공 가이드`,
+            `${target} 관련 자주 묻는 질문 해결`,
+            `완벽한 ${target} 마무리를 위한 체크리스트`
+        ];
+    }
     console.log('   ㄴ [확정 제목] ' + title);
 
     const hero = await genImg(await callAI(model, 'Visual description for: ' + title));
@@ -171,28 +195,34 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     body += '<div class="toc-box"><h2>📋 Expert Guide Contents</h2><ul>' + chapters.map((c,i)=>`<li><a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
     
     console.log('   ㄴ [3단계] 2026 E-E-A-T 기반 고품격 서론 집필 중...');
-    let intro = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\\n\\nMISSION: Write a massive intro for: ${title}. NO JSON. Search Data: ${searchData}`));
+    let intro = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nMISSION: Write a massive intro for: ${title}.\n\nRULES:\n1. NO JSON, NO HEADERS, NO TOC.\n2. ONLY BODY TEXT.\n3. Context: ${searchData}`), 'text');
     body += intro; let summary = intro.slice(-500);
     
+    console.log('   ㄴ [4단계] [TURBO MODE] 7개 챕터 동시 집필 및 이미지 생성 중...');
     const colors = ['moccasin', 'lightpink', 'palegreen', 'skyblue', 'plum', 'lightsalmon', '#98d8c8'];
-    for(let i=0; i<7; i++) {
-        console.log(`   ㄴ [4단계] [챕터 ${i+1}/7] '${chapters[i]}' 연재 중...`);
-        let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\\n\\nTopic: "${chapters[i]}" in "${title}". Context: ${summary}. Search Data: ${searchData}. NO JSON. IMPORTANT: MUST include exactly one [IMAGE_PROMPT: description] tag inside the text.`));
-        
-        // 이미지 태그 치환 프로세스
-        const promptMatch = sect.match(/\\[IMAGE_PROMPT:\\s*(.*?)\\]/);
-        if(promptMatch) {
-            const chapterImg = await genImg(promptMatch[1]);
-            if(chapterImg) sect = sect.replace(promptMatch[0], `<img src="${chapterImg}" alt="${chapters[i]}">`);
-            else sect = sect.replace(promptMatch[0], '');
+    const chapterTasks = chapters.map(async (chapter, i) => {
+        try {
+            console.log(`      ㄴ [병렬 가동] ${i+1}/7 '${chapter}' 집필 시작...`);
+            let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nMISSION: Write ONLY the body content for: "${chapter}" (Part of article "${title}").\n\nRULES:\n1. NO HEADERS (#, ##), NO TOC, NO JSON.\n2. Write ONLY massive body text (1,500+ chars).\n3. Do NOT write other chapters.\n4. Context: ${summary}.\n5. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
+            const promptMatch = sect.match(/\[IMAGE_PROMPT:\s*(.*?)\]/);
+            if(promptMatch) {
+                const chapterImg = await genImg(promptMatch[1]);
+                if(chapterImg) sect = sect.replace(promptMatch[0], `<img src="${chapterImg}" alt="${chapter}">`);
+                else sect = sect.replace(promptMatch[0], '');
+            }
+            return { i, chapter, sect };
+        } catch(e) {
+            return { i, chapter, sect: `<p>본 챕터의 내용을 준비 중입니다. 잠시만 기다려 주세요.</p>` };
         }
-        
-        body += `<h2 id="s${i+1}" style="background-color:${colors[i]}; border-radius:8px; color:black; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #333;">🎯 ${chapters[i]}</h2>${sect}`;
-        summary = sect.slice(-500);
-    }
+    });
+
+    const results = await Promise.all(chapterTasks);
+    results.sort((a, b) => a.i - b.i).forEach(r => {
+        body += `<h2 id="s${r.i+1}" style="background-color:${colors[r.i]}; border-radius:8px; color:black; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #333;">🎯 ${r.chapter}</h2>${r.sect}`;
+    });
     
     console.log('   ㄴ [5단계] FAQ 및 Schema 데이터 생성 중...');
-    let footer = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\\n\\nCreate 25-30 massive FAQ, Closing, Tags, and JSON-LD Schema for "${title}". NO JSON outside schema.`));
+    let footer = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nCreate 25-30 massive FAQ, Closing, Tags, and JSON-LD Schema for "${title}". NO JSON outside schema.`));
     body += footer + '</div>';
     
     const res = await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, published: pTime.toISOString() } });
@@ -208,7 +238,7 @@ async function run() {
     const blogger = google.blogger({ version: 'v3', auth });
     const pool = config.clusters || []; if(!pool.length) return;
     const mainSeed = pool.splice(Math.floor(Math.random()*pool.length), 1)[0];
-    let subRes = clean(await callAI(model, 'Topic: "' + mainSeed + '".\\nGenerate 4 sub-topics as a simple JSON array of strings: ["A", "B", "C", "D"]. ONLY JSON. NO Chat.'), 'arr');
+    let subRes = clean(await callAI(model, 'Topic: "' + mainSeed + '".\nGenerate 4 sub-topics as a simple JSON array of strings: ["A", "B", "C", "D"]. ONLY JSON. NO Chat.'), 'arr');
     let subTopics = [];
     try {
         const parsed = JSON.parse(subRes);
@@ -222,7 +252,7 @@ async function run() {
     }
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
-    const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.3.75', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_REPOSITORY_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.3.85', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_REPOSITORY_TOKEN } });
 }
 run();

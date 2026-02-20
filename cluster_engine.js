@@ -198,11 +198,11 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     } catch(e) { 
         console.log('   ⚠️ [시스템] 블루프린트 설계 보정 중...');
         const titleTemplates = [
-            `전문가들이 숨겨온 \${target} 실전 세팅의 모든 것 (2026 최신)`,
-            `\${target} 아직도 모르세요? 시행착오를 제로로 만드는 기술`,
-            `\${target} 완벽 가이드: 상위 1%만이 아는 숨겨진 노하우`,
-            `더 이상 실패 없는 \${target}: 비용을 아끼는 기적의 팁`,
-            `\${target} 총정리: 몰라서 손해 보지 말고 지금 확인하세요`
+            `전문가들이 숨겨온 ${target} 실전 세팅의 모든 것 (2026 최신)`,
+            `${target} 아직도 모르세요? 시행착오를 제로로 만드는 기술`,
+            `${target} 완벽 가이드: 상위 1%만이 아는 숨겨진 노하우`,
+            `더 이상 실패 없는 ${target}: 비용을 아끼는 기적의 팁`,
+            `${target} 총정리: 몰라서 손해 보지 말고 지금 확인하세요`
         ];
         title = titleTemplates[Math.floor(Math.random() * titleTemplates.length)];
         chapters = [
@@ -234,10 +234,10 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         try {
             console.log(`      ㄴ [병렬 가동] ${i+1}/7 '${chapter}' 집필 시작...`);
             let mission = (i === 6) 
-                ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: "${title}".\n\nRULES:\n1. Create 15-20 specialized Q&A pairs (FAQ style) with deep answers.\n2. Add a 'Master Action Checklist' (10+ items).\n3. MASSIVE CONTENT (2,000+ chars).\n4. NO HEADERS (#), NO HTML h1, h2, h3 tags.`
-                : `MISSION: Write a massive, data-driven BODY for: "${chapter}" (Article: "${title}").\n\nRULES:\n1. QUANTITY: Write HUGE amounts of text (2,000+ characters minimum). \n2. TABLE: MUST include a 4-column x 4-row HTML Table with unique numerical data/evidence.\n3. ANALOGY: Use at least 2 metaphors from the Analogies library.\n4. NO STORY: No "I/Me" stories. No "In conclusion" or "To sum up".\n5. STRICTLY FORBIDDEN: NEVER use ** or * or # or \` or HTML <h1>, <h2>, <h3> tags. Use HTML <strong> if needed.\n6. START IMMEDIATELY with dense information. NO HEADERS (#).`;
+                ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: "${title}".\n\nRULES:\n1. Create 15-20 specialized Q&A pairs (FAQ style) with deep answers ABOUT "${target}".\n2. MULTIPLE PARAGRAPHS: Each Q&A pair must be separated properly using <p style="margin-bottom: 20px;"> tags.\n3. Add a 'Master Action Checklist' (10+ items) specifically for "${target}".\n4. MASSIVE CONTENT (2,000+ chars).\n5. NO HEADERS (#), NO HTML h1, h2, h3 tags.`
+                : `MISSION: Write a massive, data-driven BODY for: "${chapter}" (Main Article: "${title}", Core Topic: "${target}").\n\nRULES:\n1. QUANTITY: Write HUGE amounts of text (2,000+ characters minimum). \n2. TABLE: MUST include a 4-column x 4-row HTML Table with unique numerical data/evidence.\n3. ANALOGY: Use at least 2 metaphors from the Analogies library.\n4. NO STORY: No "I/Me" stories. No "In conclusion" or "To sum up".\n5. FOCUS: The content MUST be strictly about "${chapter}" in the context of "${target}". Do not drift to general topics.\n6. STRICTLY FORBIDDEN: NEVER use ** or * or # or \` or HTML <h1>, <h2>, <h3> tags. Use HTML <strong> if needed.\n7. START IMMEDIATELY with dense information. NO HEADERS (#).`;
             
-            let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\n${mission}\n\nRULES:\n1. NO HEADERS (#, ##), NO TOC, NO JSON.\n2. NO GREETINGS. Context: ${summary}.\n3. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
+            let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\n${mission}\n\nRULES:\n1. NO HEADERS (#, ##), NO TOC, NO JSON.\n2. NO GREETINGS. Context: ${intro.slice(0, 500)}.\n3. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
             sect = sect.replace(/^#{1,6}\s+.*$/gm, '').replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '');
 
             const promptMatch = sect.match(/\[IMAGE_PROMPT:\s*(.*?)\]/);
@@ -259,7 +259,11 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     
     console.log('   ㄴ [5단계] Closing, Tags, Schema 데이터 생성 중...');
     let footer = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nMISSION: Create a powerful Closing, 10+ comma-separated Tags, and a JSON-LD FAQ Schema (with 15+ generated Q&A pairs for SEO) for "${title}".\n\nRULES:\n1. DO NOT write an HTML FAQ section (it is already written).\n2. NO MARKDOWN (**, #). Use HTML tags for Closing.\n3. NO JSON outside the <script type="application/ld+json"> block.\n4. START IMMEDIATELY with the Closing <p> tag. NO CHATTER (e.g., 'OK. 시작합니다').\n5. OUTPUT EXACTLY: Closing HTML, Tags HTML, and the JSON-LD script limit.`), 'text');
-    body += footer + '</div>';
+    
+    // 마무리 섹션에도 통일성 있는 명품 h2 배지를 강제로 주입합니다.
+    const closingH2 = `<h2 style="background-color:#ffe0b2; border-radius:8px; color:black; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #333;">🚀 핵심 요약 및 최종 마무리</h2>`;
+    const disclaimerHtml = `<div style="background-color:#fff3cd; padding:20px; border-radius:10px; font-size:14px; color:#856404; margin-top:40px; border:1px solid #ffeeba; line-height:1.6;"><p style="margin:0;"><b>⚠️ [면책 조항]</b> 본 포스팅은 단순 정보 제공을 목적으로 작성되었으며, 개인의 상황에 따라 결과가 다를 수 있습니다. 본 블로그는 포스팅 내용의 정확성이나 신뢰성에 대해 보증하지 않으며, 이로 인해 발생하는 어떠한 직간접적인 손해에 대해서도 법적 책임을 지지 않습니다. 중요한 의사 결정 시에는 반드시 전문가의 상담을 받으시거나 신중하게 판단하시기 바랍니다.</p></div>`;
+    body += closingH2 + footer + disclaimerHtml + '</div>';
     
     const res = await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, published: pTime.toISOString() } });
     console.log('   ㄴ ✅ 발행 완료! 주소: ' + res.data.url);
@@ -295,7 +299,7 @@ async function run() {
     }
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
-    const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_REPOSITORY_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.3.85', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_REPOSITORY_TOKEN } });
+    const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.00', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

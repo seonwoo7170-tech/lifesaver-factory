@@ -117,10 +117,12 @@ async function genImg(desc, model) {
     if(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(desc)) {
         try {
             console.log('   ㄴ [이미지] 한글 프롬프트 감지 -> 영어 번역 중...');
-            const trans = await callAI(model, 'Translate this visual description to highly detailed English for AI image generation (Return ONLY the English text): ' + desc, 0);
+            const trans = await callAI(model, 'Translate this visual description to a concise but detailed English for AI image generation. (STRICT: Return ONLY the English text, and stay under 400 characters): ' + desc, 0);
             engPrompt = trans.replace(/[^a-zA-Z0-9, ]/g, '').trim();
         } catch(e) { engPrompt = desc.replace(/[^a-zA-Z, ]/g, ''); }
     }
+    
+    engPrompt = engPrompt.slice(0, 800); // Failsafe for API limits
     
     console.log('   ㄴ [이미지] 전략적 비주얼 생성 중 (' + engPrompt.slice(0, 30) + '...)');
     let imageUrl = '';
@@ -372,6 +374,6 @@ async function run() {
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.17', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.18', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

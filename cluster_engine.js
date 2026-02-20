@@ -138,28 +138,36 @@ async function genImg(desc, model) {
     // 2. Kie.ai (Premium Fallback)
     if(!imageUrl && kieKey && kieKey.length > 5) {
         try {
+            console.log('   ㄴ [Kie.ai] z-image 호출 (비율: 16:9)...');
             const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { 
                 model: 'z-image', 
                 input: { prompt: engPrompt + ', high-end, editorial photography, 8k', aspect_ratio: '16:9' } 
             }, { headers: { Authorization: 'Bearer ' + kieKey } });
-            const tid = cr.data.data.taskId;
-            for(let a=0; a<15; a++) { 
-                await new Promise(r => setTimeout(r, 6000));
-                const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey } });
-                const state = pr.data.data.state;
-                if(state === 'success') { 
-                    const resJson = typeof pr.data.data.resultJson === 'string' ? JSON.parse(pr.data.data.resultJson) : pr.data.data.resultJson;
-                    imageUrl = resJson.resultUrls[0]; break; 
+            
+            // 경로 유연하게 처리 (data.taskId 또는 data.data.taskId)
+            const tid = cr.data.taskId || cr.data.data?.taskId;
+            if(tid) {
+                for(let a=0; a<15; a++) { 
+                    await new Promise(r => setTimeout(r, 6000));
+                    const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey } });
+                    const state = pr.data.state || pr.data.data?.state;
+                    if(state === 'success') { 
+                        const resData = pr.data.resultJson || pr.data.data?.resultJson;
+                        const resJson = typeof resData === 'string' ? JSON.parse(resData) : resData;
+                        imageUrl = resJson.resultUrls[0]; break; 
+                    }
+                    if(state === 'fail' || state === 'failed') break;
                 }
-                if(state === 'fail' || state === 'failed') break;
-            }
-        } catch(e) { console.log('   ㄴ [Kie.ai] 오류 발생... 다음 엔진 시도'); }
+            } else { console.log('   ㄴ [Kie.ai] 태스크 ID 누락. 응답: ' + JSON.stringify(cr.data).slice(0, 100)); }
+        } catch(e) { 
+            console.log('   ㄴ [Kie.ai] 실패: ' + (e.response ? JSON.stringify(e.response.data) : e.message)); 
+        }
     }
 
     // 3. Pollinations.ai (Infinite Stability AI)
     if(!imageUrl) {
         try {
-            console.log('   ㄴ [AI] Pollinations 엔진 가동...');
+            console.log('   ㄴ [AI] Pollinations 엔진 가동 (FLUX)...');
             imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt)}?width=1280&height=720&nologo=true&seed=${Math.floor(Math.random()*1000000)}&model=flux`;
         } catch(e) { }
     }
@@ -177,15 +185,23 @@ async function genImg(desc, model) {
 
     // 5. ImgBB Upload (Crucial: Use Base64 for reliability)
     try {
-        if(imgbbKey && imgbbKey.length > 5) {
-            const res = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+        if(imgbbKey && imgbbKey.length > 5 && imageUrl) {
+            // Pollinations 같은 엔진은 처음 호출 시 생성이 시작되므로 넉넉한 타임아웃과 헤더가 필요함
+            const res = await axios.get(imageUrl, { 
+                responseType: 'arraybuffer', 
+                timeout: 45000, 
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+            });
             const b64 = Buffer.from(res.data).toString('base64');
             const form = new FormData(); form.append('image', b64);
             const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders() });
             return ir.data.data.url;
         }
         return imageUrl;
-    } catch(e) { return imageUrl; }
+    } catch(e) { 
+        console.log('   ㄴ [ImgBB] 업로드 지연/실패 (원본 URL 사용): ' + e.message);
+        return imageUrl; 
+    }
 }
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
     console.log(`\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);
@@ -356,6 +372,6 @@ async function run() {
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.14', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.17', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

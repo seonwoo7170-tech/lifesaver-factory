@@ -107,19 +107,29 @@ async function searchSerper(query) {
         return r.data.organic.slice(0, 5).map(o => `${o.title}: ${o.snippet}`).join('\n');
     } catch(e) { return ''; }
 }
-async function genImg(desc) {
+async function genImg(desc, model) {
     if(!desc) return '';
     const kieKey = process.env.KIE_API_KEY;
     const runwareKey = process.env.RUNWARE_API_KEY;
     const imgbbKey = process.env.IMGBB_API_KEY;
-    console.log('   ㄴ [이미지] 전략적 비주얼 생성 중...');
+    
+    let engPrompt = desc;
+    if(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(desc)) {
+        try {
+            console.log('   ㄴ [이미지] 한글 프롬프트 감지 -> 영어 번역 중...');
+            const trans = await callAI(model, 'Translate this visual description to highly detailed English for AI image generation (Return ONLY the English text): ' + desc, 0);
+            engPrompt = trans.replace(/[^a-zA-Z0-9, ]/g, '').trim();
+        } catch(e) { engPrompt = desc.replace(/[^a-zA-Z, ]/g, ''); }
+    }
+    
+    console.log('   ㄴ [이미지] 전략적 비주얼 생성 중 (' + engPrompt.slice(0, 30) + '...)');
     let imageUrl = '';
 
     // 1. Runware (Ultra Fast & Quality)
     if(!imageUrl && runwareKey && runwareKey.length > 5) {
         try {
             const rr = await axios.post('https://api.runware.ai/v1', [
-                { action: 'generateImage', model: 'runware:100@1', positivePrompt: desc + ', detailed, 8k, professional photography', width: 1280, height: 720, number: 1 }
+                { action: 'generateImage', model: 'runware:100@1', positivePrompt: engPrompt + ', detailed, 8k, professional photography', width: 1280, height: 720, number: 1 }
             ], { headers: { Authorization: 'Bearer ' + runwareKey } });
             if(rr.data.data?.[0]?.imageURL) imageUrl = rr.data.data[0].imageURL;
         } catch(e) { console.log('   ㄴ [Runware] 지연... 다음 엔진 시도'); }
@@ -130,23 +140,27 @@ async function genImg(desc) {
         try {
             const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { 
                 model: 'z-image', 
-                input: { prompt: desc.replace(/[^a-zA-Z, ]/g, '') + ', high-end, editorial photography, 8k', aspect_ratio: '16:9' } 
+                input: { prompt: engPrompt + ', high-end, editorial photography, 8k', aspect_ratio: '16:9' } 
             }, { headers: { Authorization: 'Bearer ' + kieKey } });
             const tid = cr.data.data.taskId;
-            for(let a=0; a<10; a++) { 
+            for(let a=0; a<15; a++) { 
                 await new Promise(r => setTimeout(r, 6000));
                 const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey } });
-                if(pr.data.data.state === 'success') { imageUrl = JSON.parse(pr.data.data.resultJson).resultUrls[0]; break; }
-                if(pr.data.data.state === 'fail' || pr.data.data.state === 'failed') break;
+                const state = pr.data.data.state;
+                if(state === 'success') { 
+                    const resJson = typeof pr.data.data.resultJson === 'string' ? JSON.parse(pr.data.data.resultJson) : pr.data.data.resultJson;
+                    imageUrl = resJson.resultUrls[0]; break; 
+                }
+                if(state === 'fail' || state === 'failed') break;
             }
-        } catch(e) { }
+        } catch(e) { console.log('   ㄴ [Kie.ai] 오류 발생... 다음 엔진 시도'); }
     }
 
     // 3. Pollinations.ai (Infinite Stability AI)
     if(!imageUrl) {
         try {
             console.log('   ㄴ [AI] Pollinations 엔진 가동...');
-            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(desc)}?width=1280&height=720&nologo=true&seed=${Math.floor(Math.random()*1000000)}&model=flux`;
+            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt)}?width=1280&height=720&nologo=true&seed=${Math.floor(Math.random()*1000000)}&model=flux`;
         } catch(e) { }
     }
 
@@ -154,7 +168,7 @@ async function genImg(desc) {
     if(!imageUrl) {
         try {
             console.log('   ㄴ [스톡] 고품질 프리미엄 스톡 이미지 매칭...');
-            const keywords = desc.split(' ').slice(0, 3).join(',');
+            const keywords = engPrompt.split(' ').slice(0, 3).join(',');
             imageUrl = `https://loremflickr.com/1280/720/${encodeURIComponent(keywords)}?lock=${Math.floor(Math.random()*1000)}`;
         } catch(e) { 
             imageUrl = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280&auto=format&fit=crop'; // 우주 배경 기본값
@@ -241,7 +255,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 
     console.log('   ㄴ [확정 제목] ' + title);
 
-    const hero = await genImg(await callAI(model, 'Visual description for: ' + title));
+    const hero = await genImg(await callAI(model, 'Visual description for: ' + title), model);
     let body = STYLE + '<div class="vue-premium">';
     if(hero) body += '<img src="' + hero + '" style="width:100%; border-radius:15px; margin-bottom: 30px;">';
     body += '<div class="toc-box"><h2>📋 Expert Guide Contents</h2><ul>' + chapters.map((c,i)=>`<li><a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
@@ -275,7 +289,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 
             const promptMatch = sect.match(/\[IMAGE_PROMPT:\s*([\s\S]*?)\]/);
             if(promptMatch) {
-                const chapterImg = await genImg(promptMatch[1].trim());
+                const chapterImg = await genImg(promptMatch[1].trim(), model);
                 if(chapterImg) sect = sect.replace(promptMatch[0], `<img src="${chapterImg}" alt="${chapter}" style="width:100%; border-radius:12px; margin: 25px 0;">`);
                 else sect = sect.replace(promptMatch[0], '');
             }
@@ -342,6 +356,6 @@ async function run() {
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.13', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.14', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

@@ -177,14 +177,11 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 1. Return ONLY a valid JSON object.
 2. Format: {"title":"SEO_LONGTAIL_TITLE", "chapters":["Topic 1", ..., "Topic 7"]}
 3. TITLE RULE: The title MUST be a "Google SEO Long-tail Keyword" phrase. Think of high-intent search queries (e.g., "How to solve [Problem] with ${target}", "${target} vs Alternatives for [Audience]" or "Hidden side effects of ${target}"). DO NOT use generic clickbait like "완벽 가이드" or "비밀 노하우". Make it highly searchable, specific, and informative.
-4. CHAPTER STRATEGY (Force 7 distinct angles):
-   - Ch 1: Technical Foundations (The 'Why' and 'Science')
-   - Ch 2: Selection & Quality (Materials or Tools guide)
-   - Ch 3: Advanced Execution (Expert step-by-step)
-   - Ch 4: Risk Mitigation (Hidden pitfalls and Prevention)
-   - Ch 5: Economic Optimization (Cost vs Performance)
-   - Ch 6: Future Trends/Comparison (Modern context)
-   - Ch 7: Ultimate FAQ & Implementation Checklist
+4. CHAPTER STRATEGY (Vary the angles!):
+   - DO NOT use the same generic predictable structure for every post. 
+   - Analyze the deep search intent of "${target}". Is it a problem/solution? A product review? A tutorial? A comparison? Create 7 highly specific, dynamic chapters that perfectly match the intent.
+   - Ensure absolutely NO generic titles like "Introduction to..." or "Conclusion on...". Use captivating and informational headlines.
+   - Only Chapter 7 MUST be strictly reserved as an Ultimate FAQ/Checklist.
 5. RULE: NEVER repeat the main keyword in every chapter title. Use diverse phrasing.
 6. NO MARKDOWN, NO CHATTER. ONLY JSON.`;
     const bpRes = await callAI(model, bpPrompt);
@@ -205,15 +202,36 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
             `비용 대비 효과 극대화: ${target} 제대로 활용하는 실전 루틴`
         ];
         title = titleTemplates[Math.floor(Math.random() * titleTemplates.length)];
-        chapters = [
-            `${target}의 필수 개념과 숨겨진 원리 완벽 정리`,
-            `현실적인 ${target} 성능 세팅과 제품 선택 기준`,
-            `초보자도 따라하는 ${target} 전문가급 실전 노하우`,
-            `절대 실패하지 않는 ${target} 치명적 주의사항 3가지`,
-            `시간과 돈을 아껴주는 ${target} 비용 최적화 전략`,
-            `${target}의 미래 전망 및 경쟁 모델 철저 비교`,
-            `완벽한 ${target} 마무리를 위한 마스터 체크리스트` 
+        const fallbackChapters = [
+            [
+                `왜 똑같은 방법을 써도 결과가 다를까? 핵심 원인 분석`,
+                `실패를 피하는 최적화 세팅 첫걸음`,
+                `비용과 시간을 반으로 줄여주는 실전 루틴`,
+                `효율을 극대화하는 보조 도구 활용법`,
+                `현직자들이 절대 말해주지 않는 치명적 단점`,
+                `단기 성과가 아닌 장기적 관점에서의 유지보수 전략`,
+                `자주 묻는 핵심 질문과 마스터 실천 리스트`
+            ],
+            [
+                `초보자가 가장 많이 오해하는 기본 상식의 오류`,
+                `상황별로 딱 맞춰 고르는 맞춤형 솔루션 가이드`,
+                `직접 부딪혀보면서 찾아낸 가장 안전한 접근법`,
+                `생각보다 흔히 겪는 최악의 부작용 사례들`,
+                `예산을 낭비하지 않기 위해 버려야 할 우선순위`,
+                `경쟁 모델들과의 비교 분석을 통한 팩트 체크`,
+                `도입 전 반드시 점검해야 할 최종 에러 체크리스트`
+            ],
+            [
+                `본격적으로 시작하기 전에 짚고 넘어가야 할 3가지 팩트`,
+                `남들보다 2배 더 빠르게 숙련도를 올리는 방법`,
+                `투자 대비 만족도를 높이는 숨겨진 옵션들`,
+                `이미 문제가 생겼을 때 바로 적용 가능한 응급 처치`,
+                `업계 트렌드가 변화하면서 생겨난 새로운 대안들`,
+                `앞으로 5년 뒤에도 통할 불변의 최적화 규칙`,
+                `성공적인 마무리를 위한 FAQ 및 필수 점검 사항`
+            ]
         ];
+        chapters = fallbackChapters[Math.floor(Math.random() * fallbackChapters.length)];
     }
 
     console.log('   ㄴ [확정 제목] ' + title);
@@ -303,6 +321,6 @@ async function run() {
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.04', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.05', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

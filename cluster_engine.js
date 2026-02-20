@@ -188,20 +188,31 @@ async function genImg(desc, model) {
     // 5. ImgBB Upload (Crucial: Use Base64 for reliability)
     try {
         if(imgbbKey && imgbbKey.length > 5 && imageUrl) {
-            // Pollinations 같은 엔진은 처음 호출 시 생성이 시작되므로 넉넉한 타임아웃과 헤더가 필요함
-            const res = await axios.get(imageUrl, { 
-                responseType: 'arraybuffer', 
-                timeout: 45000, 
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
-            });
+            let res;
+            // 끈기 모드: 최대 3회 재시도 (Slow AI 대응)
+            for(let retry=1; retry<=3; retry++) {
+                try {
+                    res = await axios.get(imageUrl, { 
+                        responseType: 'arraybuffer', 
+                        timeout: 60000, 
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+                    });
+                    if(res.data) break;
+                } catch(e) {
+                    if(retry === 3) throw e;
+                    console.log(`   ㄴ [ImgBB] 리소스 획득 중... (${retry}/3)`);
+                    await new Promise(r => setTimeout(r, 5000));
+                }
+            }
             const b64 = Buffer.from(res.data).toString('base64');
             const form = new FormData(); form.append('image', b64);
             const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders() });
+            console.log('   ㄴ [ImgBB] 서버 전용/영구 보관 처리 완료! ✅');
             return ir.data.data.url;
         }
         return imageUrl;
     } catch(e) { 
-        console.log('   ㄴ [ImgBB] 업로드 지연/실패 (원본 URL 사용): ' + e.message);
+        console.log('   ㄴ [ImgBB] 영구 저장 실패 (임시 URL 사용): ' + e.message);
         return imageUrl; 
     }
 }
@@ -209,18 +220,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log(`\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);
     console.log('   ㄴ [1단계] 실시간 트렌드 분석 및 E-E-A-T 블루프린트 설계 중...');
     const searchData = await searchSerper(target);
-    const bpPrompt = `MISSION: Create a high-end, 7-part content strategy for: "${target}".
-
-1. Return ONLY a valid JSON object.
-2. Format: {"title":"SEO_LONGTAIL_TITLE", "chapters":["Topic 1", ..., "Topic 7"]}
-3. TITLE RULE: The title MUST be a "Google SEO Long-tail Keyword" phrase. Think of high-intent search queries (e.g., "How to solve [Problem] with ${target}", "${target} vs Alternatives for [Audience]" or "Hidden side effects of ${target}"). DO NOT use generic clickbait like "완벽 가이드" or "비밀 노하우". Make it highly searchable, specific, and informative.
-4. CHAPTER STRATEGY (Vary the angles!):
-   - DO NOT use the same generic predictable structure for every post. 
-   - Analyze the deep search intent of "${target}". Is it a problem/solution? A product review? A tutorial? A comparison? Create 7 highly specific, dynamic chapters that perfectly match the intent.
-   - Ensure absolutely NO generic titles like "Introduction to..." or "Conclusion on...". Use captivating and informational headlines.
-   - Only Chapter 7 MUST be strictly reserved as an Ultimate FAQ/Checklist.
-5. RULE: NEVER repeat the main keyword in every chapter title. Use diverse phrasing.
-6. NO MARKDOWN, NO CHATTER. ONLY JSON.`;
+    const bpPrompt = `MISSION: Create a high-end, 7-part content strategy for: "${target}".\n\n1. Return ONLY a valid JSON object.\n2. Format: {"title":"SEO_LONGTAIL_TITLE", "chapters":["Topic 1", ..., "Topic 7"]}\n3. TITLE RULE: The title MUST be a "Google SEO Long-tail Keyword" phrase. Think of high-intent search queries (e.g., "How to solve [Problem] with ${target}", "${target} vs Alternatives for [Audience]" or "Hidden side effects of ${target}"). DO NOT use generic clickbait like "완벽 가이드" or "비밀 노하우". Make it highly searchable, specific, and informative.\n4. CHAPTER STRATEGY (Vary the angles!):\n   - DO NOT use the same generic predictable structure for every post. \n   - Analyze the deep search intent of "${target}". Is it a problem/solution? A product review? A tutorial? A comparison? Create 7 highly specific, dynamic chapters that perfectly match the intent.\n   - Ensure absolutely NO generic titles like "Introduction to..." or "Conclusion on...". Use captivating and informational headlines.\n   - Only Chapter 7 MUST be strictly reserved as an Ultimate FAQ/Checklist.\n5. RULE: NEVER repeat the main keyword in every chapter title. Use diverse phrasing.\n6. NO MARKDOWN, NO CHATTER. ONLY JSON.`;
     const bpRes = await callAI(model, bpPrompt);
     let title, chapters;
     try {
@@ -374,6 +374,6 @@ async function run() {
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.18', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.20', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

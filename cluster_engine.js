@@ -112,7 +112,6 @@ async function genImg(desc, model) {
     const runwareKey = process.env.RUNWARE_API_KEY;
     const imgbbKey = process.env.IMGBB_API_KEY;
     
-    // [스텔스 지문 로테이션]
     const uas = [
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
@@ -132,7 +131,7 @@ async function genImg(desc, model) {
     
     let imageUrl = '';
 
-    // 1. Runware (유료 옵션: 있으면 우선 사용)
+    // 1. Runware (유료 옵션)
     if(runwareKey && runwareKey.length > 5) {
         try {
             const rr = await axios.post('https://api.runware.ai/v1', [
@@ -142,21 +141,50 @@ async function genImg(desc, model) {
         } catch(e) { }
     }
 
-    // 2. [0원 메인 엔진] Stealth Pollinations (FLUX)
+    // 2. [0원 프리미엄] AI Horde (Turbo 5분 밸런스)
     if(!imageUrl) {
         try {
-            console.log('   ㄴ [0원 엔진] Stealth 가동 (레이트 리밋 우회 자동화)...');
-            const seed = Math.floor(Math.random() * 10000000);
-            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt)}?width=1280&height=720&nologo=true&seed=${seed}&model=flux&v=${Date.now()}`;
+            console.log('   ㄴ [AI 1순위] AI Horde 터보 가동 (5분 밸런스 대기)...');
+            const hRes = await axios.post('https://aihorde.net/api/v2/generate/async', {
+                prompt: engPrompt + ', high quality, realistic photography, sharp focus',
+                params: { n: 1, steps: 20, width: 1280, height: 720, sampler_name: "k_euler_a" },
+                models: ["SDXL_turbo", "AlbedoBase XL", "ICBINP - I Can't Believe It's Not Photoreal"]
+            }, { headers: { 'apikey': '0000000000', 'Client-Agent': 'VUE_Action_Cluster:1.5.3' } });
+            
+            const tid = hRes.data.id;
+            if(tid) {
+                for(let i=0; i<30; i++) { // 최대 5분으로 최적화
+                    await new Promise(r => setTimeout(r, 10000));
+                    const chk = await axios.get('https://aihorde.net/api/v2/generate/check/' + tid);
+                    if(chk.data.done) {
+                        const status = await axios.get('https://aihorde.net/api/v2/generate/status/' + tid);
+                        if(status.data.generations?.[0]?.img) {
+                             imageUrl = status.data.generations[0].img;
+                             console.log('   ㄴ [AI Horde] 고속 생성 완료! ✅');
+                             break;
+                        }
+                    }
+                    process.stdout.write(`.` ); 
+                }
+            }
         } catch(e) { }
     }
 
-    // 3. [최후의 보루] Expert Smart Stock (AI 정밀 검색)
+    // 3. [AI 2순위] Pollinations 스텔스 재시도
+    if(!imageUrl) {
+        try {
+            console.log('   ㄴ [AI 2순위] Pollinations 스텔스 재시도...');
+            const stealthSeed = Math.floor(Math.random()*9999999);
+            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt)}?width=1280&height=720&nologo=true&seed=${stealthSeed}&model=flux&v=${stealthSeed}`;
+        } catch(e) { }
+    }
+
+    // 4. [최후의 보루] Expert Smart Stock
     if(!imageUrl) {
         try {
             console.log('   ㄴ [스톡 엔진] AI 정밀 키워드 매칭 전환...');
             const kRes = await callAI(model, 'Return ONLY 3 English keywords for high-quality professional photography related to: ' + engPrompt, 0);
-            const k = kRes.replace(/[^a-zA-Z0-9, ]/g, '').trim();
+            const k = kRes.replace(/[^a-zA-Z0-9, ]/g, '').trim().split(' ').join(',');
             imageUrl = `https://loremflickr.com/1280/720/${encodeURIComponent(k)}?lock=${Math.floor(Math.random()*1000)}`;
         } catch(e) { 
             imageUrl = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280&auto=format&fit=crop';
@@ -171,14 +199,14 @@ async function genImg(desc, model) {
                 try {
                     res = await axios.get(imageUrl, { 
                         responseType: 'arraybuffer', 
-                        timeout: 60000, 
+                        timeout: 120000, 
                         headers: { 'User-Agent': uas[Math.floor(Math.random()*uas.length)] }
                     });
                     if(res.data) break;
                 } catch(e) {
                     if(retry === 3) throw e;
-                    console.log(`   ㄴ [ImgBB] 0원 엔진 리소스 획득 중... (${retry}/3)`);
-                    await new Promise(r => setTimeout(r, 5000));
+                    console.log(`   ㄴ [ImgBB] 리소스 획득 중... (${retry}/3)`);
+                    await new Promise(r => setTimeout(r, 6000));
                 }
             }
             const b64 = Buffer.from(res.data).toString('base64');
@@ -189,7 +217,7 @@ async function genImg(desc, model) {
         }
         return imageUrl;
     } catch(e) { 
-        console.log('   ㄴ [ImgBB] 영구 저장 실패 (임시 URL 사용): ' + e.message);
+        console.log('   ㄴ [ImgBB] 영구 저장 실패: ' + e.message);
         return imageUrl; 
     }
 }
@@ -351,6 +379,6 @@ async function run() {
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.5.0', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.5.3', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

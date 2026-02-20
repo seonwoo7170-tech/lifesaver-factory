@@ -10,6 +10,12 @@ const MASTER_GUIDELINE = `
 
 [중요] 단계별 "멈춤"이나 "질문" 지침은 무시하고, 한 번의 호출에 해당 섹션을 즉시 끝까지 집필하십시오.
 
+[핵심 어투 및 뉘앙스 강제 - 자연스러운 대화체]
+- 논문이나 백과사전처럼 딱딱하고 기계적인 말투("~한다", "~이다", "~임")는 절대 금지합니다.
+- 독자와 마주 앉아 따뜻하게 조언을 해주는 듯한 '친근하고 상냥한 전문가의 말투'("~해요", "~습니다", "~그렇죠?", "~거든요")를 100% 사용하십시오.
+- 글을 전개할 때 중간중간 "앗!", "와,", "그런데 말이죠,", "사실,", "이 부분 진짜 중요해요!" 같은 자연스러운 감탄사나 추임새를 간간이 넣어 블로거 특유의 생동감을 극대화하세요.
+- 기계 번역투를 버리고, 한국인이 일상에서 쓰는 자연스러운 호흡으로 사람 냄새가 나게 작성하세요.
+
 [최우선 규칙 - 글자수 및 출력 방식 강제]
 1. 강제 목표량: 각 호출당 최소 1,500~2,000자 이상(한국어 기준)의 방대한 분량.
 2. 역할 분리(매우 중요): 당신은 전체 블로그 글을 한 번에 다 쓰는 것이 아닙니다. 오직 주어지는 'MISSION'에 해당하는 단 하나의 구역(본문 챕터 1개 또는 인트로 1개)만 텍스트로 작성해야 합니다. 무단으로 인트로, 목차 전체, 결론, FAQ를 한 번에 쏟아내지 마십시오.
@@ -248,14 +254,21 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     
     console.log('   ㄴ [4단계] [TURBO MODE] 7개 챕터 동시 집필 및 이미지 생성 중...');
     const colors = ['moccasin', 'lightpink', 'palegreen', 'skyblue', 'plum', 'lightsalmon', '#98d8c8'];
+    const vLogicPatterns = [
+        `V-LOGIC PATTERN A (원인분석형): Act like a forensic investigator. Dissect the core problem into 3 invisible root causes. Expose what people misunderstand and reveal the hidden truth.`,
+        `V-LOGIC PATTERN B (전문가 썰/경험담): Talk like a seasoned expert sharing a critical behind-the-scenes "war story" or case study. Build tension about the issue and reveal the answer like a plot twist.`,
+        `V-LOGIC PATTERN C (솔루션/해결형): Start by validating a deep pain point, explain why traditional ways fail, and propose a new elegant solution using step-by-step rigorous reasoning.`,
+        `V-LOGIC PATTERN D (대조/비교분석형): Frame the narrative as a battle between Old Way vs New Way, or Assumption vs Reality. Highlight the sheer difference in outcomes using stark contrast.`,
+        `V-LOGIC PATTERN E (미래 예측/트렌드형): Zoom out and talk about the shifting paradigm. Warn the reader about what's coming in the industry and why they must adapt their mindset immediately.`,
+        `V-LOGIC PATTERN F (전문가 인터뷰형): Write as if you are answering tough questions from an interviewer, using a highly authoritative tone, dropping industry jargon naturally and explaining it.`
+    ].sort(() => Math.random() - 0.5);
     const chapterTasks = chapters.map(async (chapter, i) => {
         try {
             console.log(`      ㄴ [병렬 가동] ${i+1}/7 '${chapter}' 집필 시작...`);
             let mission = (i === 6) 
                 ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: "${title}".\n\nRULES:\n1. Create 10-15 specialized Q&A pairs (FAQ style) with deep answers ABOUT "${target}".\n2. FAQ HEADERS: Wrap EVERY Question in a beautiful HTML <h2> tag (e.g., <h2 style="font-size:20px; color:#2c3e50; border-bottom:2px solid #3498db; padding-bottom:8px; margin-top:35px; margin-bottom:15px;">Q. [Question]</h2>). DO NOT use markdown (#).\n3. MULTIPLE PARAGRAPHS: Each Answer must be separated properly using <p style="margin-bottom: 20px;"> tags.\n4. CHECKLIST SECTION: After the FAQ, create the 'Master Action Checklist' (10+ items). It MUST start with this EXACT HTML header: <h2 style="background-color:#e8f5e9; border-radius:8px; color:#2e7d32; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #4CAF50;">✅ 실전 마스터 액션 체크리스트</h2>. Put the checklist items inside an HTML <ul> tag, and wrap EVERY single item in a <li style="margin-bottom:15px; font-size:16px; line-height:1.6;"> tag for proper line breaks. NEVER use raw text lists or markdown.\n5. MASSIVE CONTENT (2,000+ chars).`
-                : `MISSION: Write a massive, data-driven BODY for: "${chapter}" (Main Article: "${title}", Core Topic: "${target}").\n\nRULES:\n1. QUANTITY: Write HUGE amounts of text (2,000+ characters minimum). \n2. TABLE: MUST include a 4-column x 4-row HTML Table with unique numerical data/evidence.\n3. ANALOGY: Use at least 2 metaphors from the Analogies library.\n4. NO STORY: No "I/Me" stories. No "In conclusion" or "To sum up".\n5. FOCUS: The content MUST be strictly about "${chapter}" in the context of "${target}". Do not drift to general topics.\n6. STRICTLY FORBIDDEN: NEVER use ** or * or # or \` or HTML <h1>, <h2>, <h3> tags. Use HTML <strong> if needed.\n7. START IMMEDIATELY with dense information. NO HEADERS (#).`;
-            
-            let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\n${mission}\n\nRULES:\n1. NO TOC, NO JSON.\n2. NO GREETINGS. Context: ${intro.slice(0, 500)}.\n3. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
+                : `MISSION: Write a massive, data-driven BODY for: "${chapter}" (Main Article: "${title}", Core Topic: "${target}").\n\nCRITICAL NARRATIVE STYLE:\nYou MUST strictly write this chapter using the following structural logic and tone: ${vLogicPatterns[i % vLogicPatterns.length]}\n\nRULES:\n1. QUANTITY: Write HUGE amounts of text (2,000+ characters minimum). \n2. TABLE: MUST include a 4-column x 4-row HTML Table with unique numerical data/evidence.\n3. ANALOGY: Use at least 2 metaphors from the Analogies library.\n4. OUTCOME: Stop using predictable boring structures. Follow the assigned V-LOGIC PATTERN above!\n5. FOCUS: The content MUST be strictly about "${chapter}" in the context of "${target}". Do not drift to general topics.\n6. STRICTLY FORBIDDEN: NEVER use ** or * or # or \` or HTML <h1>, <h2>, <h3> tags. Use HTML <strong> if needed.\n7. START IMMEDIATELY with dense information. NO HEADERS (#).`;
+            let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\n${mission}\n\nRULES:\n1. NO TOC, NO JSON.\n2. NO GREETINGS. DO NOT rewrite or reference the intro. Go straight to the professional sub-topic content.\n3. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
             if (i !== 6) sect = sect.replace(/^#{1,6}\s+.*$/gm, '').replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '');
             else sect = sect.replace(/^#{1,6}\s+.*$/gm, '');
 
@@ -323,6 +336,6 @@ async function run() {
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.07', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.11', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

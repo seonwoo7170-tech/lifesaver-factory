@@ -176,7 +176,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 
 1. Return ONLY a valid JSON object.
 2. Format: {"title":"SEO_LONGTAIL_TITLE", "chapters":["Topic 1", ..., "Topic 7"]}
-3. TITLE RULE: Create a highly engaging, unique 35-45 char title SPECIFICALLY about "${target}". Do NOT just append "완벽 해결법" or "시크릿 실전 노하우" to it. Be creative. Use emotional triggers or numbers.
+3. TITLE RULE: The title MUST be a "Google SEO Long-tail Keyword" phrase. Think of high-intent search queries (e.g., "How to solve [Problem] with ${target}", "${target} vs Alternatives for [Audience]" or "Hidden side effects of ${target}"). DO NOT use generic clickbait like "완벽 가이드" or "비밀 노하우". Make it highly searchable, specific, and informative.
 4. CHAPTER STRATEGY (Force 7 distinct angles):
    - Ch 1: Technical Foundations (The 'Why' and 'Science')
    - Ch 2: Selection & Quality (Materials or Tools guide)
@@ -192,17 +192,17 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     try {
         const c = clean(bpRes, 'obj');
         const parsed = JSON.parse(c);
-        title = (parsed.title && parsed.title.length > 20 && parsed.title !== target) ? parsed.title : `${target}: 상위 1% 전문가들이 숨겨온 압도적 실전 가이드`;
+        title = (parsed.title && parsed.title.length > 20 && parsed.title !== target) ? parsed.title : `현직 전문가가 알려주는 ${target} 실패 피하는 3가지 현실적인 방법`;
         chapters = (parsed.chapters && parsed.chapters.length >= 7) ? parsed.chapters : [];
         if(chapters.length < 7) throw new Error('Missing chapters');
     } catch(e) { 
         console.log('   ⚠️ [시스템] 블루프린트 설계 보정 중...');
         const titleTemplates = [
-            `전문가들이 숨겨온 ${target} 실전 세팅의 모든 것 (2026 최신)`,
-            `${target} 아직도 모르세요? 시행착오를 제로로 만드는 기술`,
-            `${target} 완벽 가이드: 상위 1%만이 아는 숨겨진 노하우`,
-            `더 이상 실패 없는 ${target}: 비용을 아끼는 기적의 팁`,
-            `${target} 총정리: 몰라서 손해 보지 말고 지금 확인하세요`
+            `${target} 장단점 및 비용 완벽 분석 (2026년 기준 현실적인 선택법)`,
+            `현직 전문가가 알려주는 ${target} 실패 피하는 3가지 현실적인 방법`,
+            `${target}과 다른 대안 비교: 나에게 맞는 최적의 솔루션 찾기`,
+            `${target} 도입 전 반드시 알아야 할 현실적인 부작용과 해결책`,
+            `비용 대비 효과 극대화: ${target} 제대로 활용하는 실전 루틴`
         ];
         title = titleTemplates[Math.floor(Math.random() * titleTemplates.length)];
         chapters = [
@@ -234,11 +234,12 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         try {
             console.log(`      ㄴ [병렬 가동] ${i+1}/7 '${chapter}' 집필 시작...`);
             let mission = (i === 6) 
-                ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: "${title}".\n\nRULES:\n1. Create 15-20 specialized Q&A pairs (FAQ style) with deep answers ABOUT "${target}".\n2. MULTIPLE PARAGRAPHS: Each Q&A pair must be separated properly using <p style="margin-bottom: 20px;"> tags.\n3. Add a 'Master Action Checklist' (10+ items) specifically for "${target}".\n4. MASSIVE CONTENT (2,000+ chars).\n5. NO HEADERS (#), NO HTML h1, h2, h3 tags.`
+                ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: "${title}".\n\nRULES:\n1. Create 10-15 specialized Q&A pairs (FAQ style) with deep answers ABOUT "${target}".\n2. FAQ HEADERS: Wrap EVERY Question in a beautiful HTML <h2> tag (e.g., <h2 style="font-size:20px; color:#2c3e50; border-bottom:2px solid #3498db; padding-bottom:8px; margin-top:35px; margin-bottom:15px;">Q. [Question]</h2>). DO NOT use markdown (#).\n3. MULTIPLE PARAGRAPHS: Each Answer must be separated properly using <p style="margin-bottom: 20px;"> tags.\n4. Add a 'Master Action Checklist' (10+ items) specifically for "${target}".\n5. MASSIVE CONTENT (2,000+ chars).`
                 : `MISSION: Write a massive, data-driven BODY for: "${chapter}" (Main Article: "${title}", Core Topic: "${target}").\n\nRULES:\n1. QUANTITY: Write HUGE amounts of text (2,000+ characters minimum). \n2. TABLE: MUST include a 4-column x 4-row HTML Table with unique numerical data/evidence.\n3. ANALOGY: Use at least 2 metaphors from the Analogies library.\n4. NO STORY: No "I/Me" stories. No "In conclusion" or "To sum up".\n5. FOCUS: The content MUST be strictly about "${chapter}" in the context of "${target}". Do not drift to general topics.\n6. STRICTLY FORBIDDEN: NEVER use ** or * or # or \` or HTML <h1>, <h2>, <h3> tags. Use HTML <strong> if needed.\n7. START IMMEDIATELY with dense information. NO HEADERS (#).`;
             
-            let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\n${mission}\n\nRULES:\n1. NO HEADERS (#, ##), NO TOC, NO JSON.\n2. NO GREETINGS. Context: ${intro.slice(0, 500)}.\n3. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
-            sect = sect.replace(/^#{1,6}\s+.*$/gm, '').replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '');
+            let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\n${mission}\n\nRULES:\n1. NO TOC, NO JSON.\n2. NO GREETINGS. Context: ${intro.slice(0, 500)}.\n3. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
+            if (i !== 6) sect = sect.replace(/^#{1,6}\s+.*$/gm, '').replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '');
+            else sect = sect.replace(/^#{1,6}\s+.*$/gm, '');
 
             const promptMatch = sect.match(/\[IMAGE_PROMPT:\s*(.*?)\]/);
             if(promptMatch) {
@@ -300,6 +301,6 @@ async function run() {
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.00', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.02', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

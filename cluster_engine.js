@@ -11,15 +11,13 @@ const MASTER_GUIDELINE = `
 [중요] 단계별 "멈춤"이나 "질문" 지침은 무시하고, 한 번의 호출에 해당 섹션을 즉시 끝까지 집필하십시오.
 
 [최우선 규칙 - 글자수 및 출력 방식 강제]
-1. 강제 목표량: 한국어 12,000~13,500자 / 영어 5,000 words 이상. (한 글자도 부족해선 안 됨)
-2. 구성: [H1 제목] → [목차 박스] → [인트로] → [7개 본문 섹션] → [25~30개 FAQ] → [면책조항] → [클로징] → [함께 보면 좋은 정보] → [태그] → [Schema].
+1. 강제 목표량: 각 호출당 최소 1,500~2,000자 이상(한국어 기준)의 방대한 분량.
+2. 역할 분리(매우 중요): 당신은 전체 블로그 글을 한 번에 다 쓰는 것이 아닙니다. 오직 주어지는 'MISSION'에 해당하는 단 하나의 구역(본문 챕터 1개 또는 인트로 1개)만 텍스트로 작성해야 합니다. 무단으로 인트로, 목차 전체, 결론, FAQ를 한 번에 쏟아내지 마십시오.
 3. 섹션당 필수 요소:
-   - 최소 1,500자 이상의 풍성한 내용.
-   - <p style="margin-bottom: 20px;"> 태그 4~6문단 (한 문단당 2~3문장 제한으로 모바일 가독성 극대화).
-   - 고유한 수치 데이터를 포함한 4열 4행 표(Table) 1개 필수.
-   - 사실적 사진 묘사를 담은 이미지 프롬프트 1개 필수.
-4. 제목 규칙: "키워드 : 제목" 형식을 절대 사용하지 마십시오. 대신 사용자의 클릭을 유발하고 구글 검색 상위 노출에 최적화된 '롱테일(Long-tail) 매혹적 제목'을 생성하십시오. (예: "노트북 수리: 방법" (X) -> "초보자도 5분만에 성공하는 압도적인 노트북 수리 및 관리 꿀팁 7가지" (O))
-5. 마크다운 금지: 마크다운 문법(예: **, ##, -, [], \` 등)을 절대 사용하지 마십시오. 모든 텍스트는 순수 텍스트 또는 지침에 명시된 HTML 태그(<p>, <table>, <strong> 등)로만 작성하십시오.
+   - 본문은 오직 <p style="margin-bottom: 20px;"> 태그 4~6문단 이상으로 구성(한 문단당 2~3문장 제한).
+   - [본문 챕터 작성 시] 고유한 데이터를 포함한 4열 4행 표 HTML 1개.
+   - [본문 챕터 작성 시] 사실적 사진 묘사를 담은 [IMAGE_PROMPT: 묘사] 문구 1개.
+4. 제목 생성 금지: 마크다운(##, **) 및 HTML 제목 태그(<h1>, <h2>, <h3> 등)를 절대 자체적으로 생성하지 마십시오. 엔진이 제목을 알아서 붙입니다. 내용 텍스트만 꽉 채우십시오.
 
 
 `;
@@ -36,9 +34,9 @@ const NARRATIVE_HINTS = `[VUE SIGNATURE: 인트로 서사 라이브러리 (20개
 [V-LOGIC 패턴] 패턴 A~O (해결형, 스토리텔링, 체크리스트 등 상황에 맞춰 융합 설계)
 
 [HTML 가이드]
-- h2 배경색 7종 순차 적용 (moccasin, lightpink, palegreen, skyblue, plum, lightsalmon, #98d8c8)
-- <p style="margin-bottom: 20px;"> 태그 강제 사용.
-- JSON-LD Article/FAQPage Schema 필수 포함.
+- 절대로 <h1>, <h2>, <h3> 등의 제목 태그를 만들지 마십시오.
+- 단락 구분은 반드시 <p style="margin-bottom: 20px;"> 태그를 사용해야 합니다.
+- JSON-LD Article/FAQ Schema는 제일 마지막 'FAQ 생성 미션'에서만 추가하십시오.
 ================================================================`;
 
 const STYLE = `<style>
@@ -48,6 +46,11 @@ const STYLE = `<style>
   .h2-premium { background-color: palegreen; border-radius: 8px; color: #000; font-size: 22px; font-weight: bold; margin-top: 50px; padding: 14px; border-left: 8px solid #333; }
   .toc-box { background-color: #f8f9fa; border: 2px solid #333; border-radius: 12px; padding: 25px; margin: 30px 0; }
   .link-box { background-color: #212529; color: white; padding: 30px; text-align: center; border-radius: 15px; margin: 40px 0; border: 1px solid #444; }
+  .vue-premium table { width: 100%; border-collapse: collapse; margin: 30px 0; font-size: 15px; text-align: center; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+  .vue-premium th { background-color: #fce4ec; color: #333; font-weight: bold; padding: 15px; border-bottom: 2px solid #f8bbd0; }
+  .vue-premium td { padding: 12px 15px; border-bottom: 1px solid #fce4ec; background-color: #fffafb; color: #555; }
+  .vue-premium tr:nth-child(even) td { background-color: #fdf5f7; }
+  .vue-premium tr:hover td { background-color: #f8bbd0; color: #000; transition: all 0.2s ease; }
 </style>`;
 
 function clean(raw, defType = 'obj') {
@@ -223,10 +226,12 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         try {
             console.log(`      ㄴ [병렬 가동] ${i+1}/7 '${chapter}' 집필 시작...`);
             let mission = (i === 6) 
-                ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: "${title}".\n\nRULES:\n1. Create 15-20 specialized Q&A pairs (FAQ style) with deep answers.\n2. Add a 'Master Action Checklist' (10+ items).\n3. MASSIVE CONTENT (2,000+ chars).\n4. NO HEADERS (#), NO TOC.`
-                : `MISSION: Write a massive, data-driven BODY for: \"${chapter}\" (Article: \"${title}\").\n\nRULES:\n1. QUANTITY: Write HUGE amounts of text (2,000+ characters minimum). \n2. TABLE: MUST include a 4-column x 4-row HTML Table with unique numerical data/evidence.\n3. ANALOGY: Use at least 2 metaphors from the Analogies library.\n4. NO STORY: No \"I/Me\" stories. No \"In conclusion\" or \"To sum up\".\n5. NO MARKDOWN: Never use ** or # or \`. Use HTML <strong> if needed.\n6. START IMMEDIATELY with dense information. NO HEADERS (#).`;
+                ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: \"${title}\".\n\nRULES:\n1. Create 15-20 specialized Q&A pairs (FAQ style) with deep answers.\n2. Add a 'Master Action Checklist' (10+ items).\n3. MASSIVE CONTENT (2,000+ chars).\n4. NO HEADERS (#), NO HTML h1, h2, h3 tags.`
+                : `MISSION: Write a massive, data-driven BODY for: \"${chapter}\" (Article: \"${title}\").\n\nRULES:\n1. QUANTITY: Write HUGE amounts of text (2,000+ characters minimum). \n2. TABLE: MUST include a 4-column x 4-row HTML Table with unique numerical data/evidence.\n3. ANALOGY: Use at least 2 metaphors from the Analogies library.\n4. NO STORY: No \"I/Me\" stories. No \"In conclusion\" or \"To sum up\".\n5. STRICTLY FORBIDDEN: NEVER use ** or * or # or \` or HTML <h1>, <h2>, <h3> tags. Use HTML <strong> if needed.\n6. START IMMEDIATELY with dense information. NO HEADERS (#).`;
             
             let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\\n\\n${mission}\\n\\nRULES:\\n1. NO HEADERS (#, ##), NO TOC, NO JSON.\\n2. NO GREETINGS. Context: ${summary}.\\n3. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
+            sect = sect.replace(/^#{1,6}\s+.*$/gm, '').replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '');
+
             const promptMatch = sect.match(/\[IMAGE_PROMPT:\s*(.*?)\]/);
             if(promptMatch) {
                 const chapterImg = await genImg(promptMatch[1]);

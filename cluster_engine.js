@@ -197,7 +197,14 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         if(chapters.length < 7) throw new Error('Missing chapters');
     } catch(e) { 
         console.log('   ⚠️ [시스템] 블루프린트 설계 보정 중...');
-        title = `${target} 완벽 대비: 시행착오를 제로로 만드는 테크닉 대공개 (2026)`;
+        const titleTemplates = [
+            `전문가들이 숨겨온 \${target} 실전 세팅의 모든 것 (2026 최신)`,
+            `\${target} 아직도 모르세요? 시행착오를 제로로 만드는 기술`,
+            `\${target} 완벽 가이드: 상위 1%만이 아는 숨겨진 노하우`,
+            `더 이상 실패 없는 \${target}: 비용을 아끼는 기적의 팁`,
+            `\${target} 총정리: 몰라서 손해 보지 말고 지금 확인하세요`
+        ];
+        title = titleTemplates[Math.floor(Math.random() * titleTemplates.length)];
         chapters = [
             `${target}의 필수 개념과 숨겨진 원리 완벽 정리`,
             `현실적인 ${target} 성능 세팅과 제품 선택 기준`,
@@ -250,8 +257,8 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         body += `<h2 id="s${r.i+1}" style="background-color:${colors[r.i]}; border-radius:8px; color:black; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #333;">🎯 ${r.chapter}</h2>${r.sect}`;
     });
     
-    console.log('   ㄴ [5단계] FAQ 및 Schema 데이터 생성 중...');
-    let footer = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nMISSION: Create 25-30 massive FAQ, Closing, Tags, and JSON-LD Schema for "${title}".\n\nRULES:\n1. NO MARKDOWN (**, #). Use HTML tags.\n2. NO JSON outside the <script type="application/ld+json"> block.`), 'text');
+    console.log('   ㄴ [5단계] Closing, Tags, Schema 데이터 생성 중...');
+    let footer = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nMISSION: Create a powerful Closing, 10+ comma-separated Tags, and a JSON-LD FAQ Schema (with 15+ generated Q&A pairs for SEO) for "${title}".\n\nRULES:\n1. DO NOT write an HTML FAQ section (it is already written).\n2. NO MARKDOWN (**, #). Use HTML tags for Closing.\n3. NO JSON outside the <script type="application/ld+json"> block.\n4. START IMMEDIATELY with the Closing <p> tag. NO CHATTER (e.g., 'OK. 시작합니다').\n5. OUTPUT EXACTLY: Closing HTML, Tags HTML, and the JSON-LD script limit.`), 'text');
     body += footer + '</div>';
     
     const res = await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, published: pTime.toISOString() } });
@@ -273,7 +280,14 @@ async function run() {
         const parsed = JSON.parse(subRes);
         subTopics = Array.isArray(parsed) ? parsed : (parsed.topics || []);
         if(subTopics.length < 2) throw new Error();
-    } catch(e) { subTopics = [mainSeed + ' 필수 기초', mainSeed + ' 실전 활용', mainSeed + ' 심화 가이드', mainSeed + ' 문제 해결']; }
+    } catch(e) { 
+        const fallbacks = [
+            [mainSeed + ' 완벽 입문 가이드', mainSeed + ' 성능 최적화 세팅', mainSeed + ' 치명적인 주의사항', mainSeed + ' 최신 시장 동향 분석'],
+            [mainSeed + ' 기초 지식과 원리', mainSeed + ' 고급 테크닉 및 꿀팁', mainSeed + ' 주요 부작용과 예방법', mainSeed + ' 대체 가능한 솔루션 비교'],
+            [mainSeed + ' 제대로 알고 시작하기', mainSeed + ' 상위 1%의 실전 활용법', mainSeed + ' 비용 절감을 위한 핵심 팁', mainSeed + ' 2026년 이후의 미래 전망']
+        ];
+        subTopics = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    }
     let subLinks = []; let cTime = new Date();
     for(let i=0; i < subTopics.length; i++) {
         cTime.setMinutes(cTime.getMinutes()+180);

@@ -109,9 +109,16 @@ async function searchSerper(query) {
 }
 async function genImg(desc, model) {
     if(!desc) return '';
-    const kieKey = process.env.KIE_API_KEY;
     const runwareKey = process.env.RUNWARE_API_KEY;
     const imgbbKey = process.env.IMGBB_API_KEY;
+    
+    // [스텔스 지문 로테이션]
+    const uas = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1.2 Mobile/15E148 Safari/604.1'
+    ];
     
     let engPrompt = desc;
     if(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(desc)) {
@@ -121,86 +128,56 @@ async function genImg(desc, model) {
             engPrompt = trans.replace(/[^a-zA-Z0-9, ]/g, '').trim();
         } catch(e) { engPrompt = desc.replace(/[^a-zA-Z, ]/g, ''); }
     }
+    engPrompt = engPrompt.slice(0, 800);
     
-    engPrompt = engPrompt.slice(0, 800); // Failsafe for API limits
-    
-    console.log('   ㄴ [이미지] 전략적 비주얼 생성 중 (' + engPrompt.slice(0, 30) + '...)');
     let imageUrl = '';
 
-    // 1. Runware (Ultra Fast & Quality)
-    if(!imageUrl && runwareKey && runwareKey.length > 5) {
+    // 1. Runware (유료 옵션: 있으면 우선 사용)
+    if(runwareKey && runwareKey.length > 5) {
         try {
             const rr = await axios.post('https://api.runware.ai/v1', [
                 { action: 'generateImage', model: 'runware:100@1', positivePrompt: engPrompt + ', detailed, 8k, professional photography', width: 1280, height: 720, number: 1 }
             ], { headers: { Authorization: 'Bearer ' + runwareKey } });
             if(rr.data.data?.[0]?.imageURL) imageUrl = rr.data.data[0].imageURL;
-        } catch(e) { console.log('   ㄴ [Runware] 지연... 다음 엔진 시도'); }
-    }
-
-    // 2. Kie.ai (Premium Fallback)
-    if(!imageUrl && kieKey && kieKey.length > 5) {
-        try {
-            console.log('   ㄴ [Kie.ai] z-image 호출 (비율: 16:9)...');
-            const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { 
-                model: 'z-image', 
-                input: { prompt: engPrompt + ', high-end, editorial photography, 8k', aspect_ratio: '16:9' } 
-            }, { headers: { Authorization: 'Bearer ' + kieKey } });
-            
-            // 경로 유연하게 처리 (data.taskId 또는 data.data.taskId)
-            const tid = cr.data.taskId || cr.data.data?.taskId;
-            if(tid) {
-                for(let a=0; a<15; a++) { 
-                    await new Promise(r => setTimeout(r, 6000));
-                    const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey } });
-                    const state = pr.data.state || pr.data.data?.state;
-                    if(state === 'success') { 
-                        const resData = pr.data.resultJson || pr.data.data?.resultJson;
-                        const resJson = typeof resData === 'string' ? JSON.parse(resData) : resData;
-                        imageUrl = resJson.resultUrls[0]; break; 
-                    }
-                    if(state === 'fail' || state === 'failed') break;
-                }
-            } else { console.log('   ㄴ [Kie.ai] 태스크 ID 누락. 응답: ' + JSON.stringify(cr.data).slice(0, 100)); }
-        } catch(e) { 
-            console.log('   ㄴ [Kie.ai] 실패: ' + (e.response ? JSON.stringify(e.response.data) : e.message)); 
-        }
-    }
-
-    // 3. Pollinations.ai (Infinite Stability AI)
-    if(!imageUrl) {
-        try {
-            console.log('   ㄴ [AI] Pollinations 엔진 가동 (FLUX)...');
-            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt)}?width=1280&height=720&nologo=true&seed=${Math.floor(Math.random()*1000000)}&model=flux`;
         } catch(e) { }
     }
 
-    // 4. Stock Image Fallback (Absolute Safety Net)
+    // 2. [0원 메인 엔진] Stealth Pollinations (FLUX)
     if(!imageUrl) {
         try {
-            console.log('   ㄴ [스톡] 고품질 프리미엄 스톡 이미지 매칭...');
-            const keywords = engPrompt.split(' ').slice(0, 3).join(',');
-            imageUrl = `https://loremflickr.com/1280/720/${encodeURIComponent(keywords)}?lock=${Math.floor(Math.random()*1000)}`;
+            console.log('   ㄴ [0원 엔진] Stealth 가동 (레이트 리밋 우회 자동화)...');
+            const seed = Math.floor(Math.random() * 10000000);
+            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt)}?width=1280&height=720&nologo=true&seed=${seed}&model=flux&v=${Date.now()}`;
+        } catch(e) { }
+    }
+
+    // 3. [최후의 보루] Expert Smart Stock (AI 정밀 검색)
+    if(!imageUrl) {
+        try {
+            console.log('   ㄴ [스톡 엔진] AI 정밀 키워드 매칭 전환...');
+            const kRes = await callAI(model, 'Return ONLY 3 English keywords for high-quality professional photography related to: ' + engPrompt, 0);
+            const k = kRes.replace(/[^a-zA-Z0-9, ]/g, '').trim();
+            imageUrl = `https://loremflickr.com/1280/720/${encodeURIComponent(k)}?lock=${Math.floor(Math.random()*1000)}`;
         } catch(e) { 
-            imageUrl = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280&auto=format&fit=crop'; // 우주 배경 기본값
+            imageUrl = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280&auto=format&fit=crop';
         }
     }
 
-    // 5. ImgBB Upload (Crucial: Use Base64 for reliability)
+    // [영구 저장 이식]
     try {
         if(imgbbKey && imgbbKey.length > 5 && imageUrl) {
             let res;
-            // 끈기 모드: 최대 3회 재시도 (Slow AI 대응)
             for(let retry=1; retry<=3; retry++) {
                 try {
                     res = await axios.get(imageUrl, { 
                         responseType: 'arraybuffer', 
                         timeout: 60000, 
-                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+                        headers: { 'User-Agent': uas[Math.floor(Math.random()*uas.length)] }
                     });
                     if(res.data) break;
                 } catch(e) {
                     if(retry === 3) throw e;
-                    console.log(`   ㄴ [ImgBB] 리소스 획득 중... (${retry}/3)`);
+                    console.log(`   ㄴ [ImgBB] 0원 엔진 리소스 획득 중... (${retry}/3)`);
                     await new Promise(r => setTimeout(r, 5000));
                 }
             }
@@ -374,6 +351,6 @@ async function run() {
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.20', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.5.0', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

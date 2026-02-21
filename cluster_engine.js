@@ -125,59 +125,54 @@ async function genImg(desc, model) {
     console.log('   ㄴ [AI 비주얼] 이미지 생성 시퀀스 가동... (' + desc.substring(0,40) + '...)');
 
     // Cloudinary 업로드 함수 (URL 또는 base64 모두 지원)
-    async function uploadToCloudinary(fileBuffer, mimeType) {
-        if(!cloudName || !cloudKey || !cloudSecret || !fileBuffer) return null;
+    async function uploadToCloudinary(fileData, mimeType) {
+        if(!cloudName || !cloudKey || !cloudSecret || !fileData) return null;
         try {
             const crypto = require('crypto');
             const ts = Math.round(Date.now() / 1000);
             const sig = crypto.createHash('sha1').update('timestamp=' + ts + cloudSecret).digest('hex');
             const form = new FormData();
-            form.append('file', fileBuffer, { filename: 'upload.jpg', contentType: mimeType || 'image/jpeg' });
+            if(typeof fileData === 'string') {
+                // URL 문자열: Cloudinary가 서버에서 URL 직접 페치
+                form.append('file', fileData);
+            } else {
+                // Buffer: 바이너리 직접 업로드
+                form.append('file', fileData, { filename: 'upload.jpg', contentType: mimeType || 'image/jpeg' });
+            }
             form.append('timestamp', String(ts));
             form.append('api_key', cloudKey);
             form.append('signature', sig);
-            const cr = await axios.post(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, form, { headers: form.getHeaders(), timeout: 120000 });
+            const cr = await axios.post(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, form, { headers: form.getHeaders(), timeout: 30000 });
             if(cr.data && cr.data.secure_url) { console.log('   ㄴ [Cloudinary] 영구 CDN 보관 성공! ✅'); return cr.data.secure_url; }
-        } catch(e) {
-            const detail = e.response ? JSON.stringify(e.response.data) : e.message;
-            console.log('   ⚠️ [Cloudinary] 업로드 실패: ' + detail);
-        }
+        } catch(e) { console.log('   ⚠️ [Cloudinary] 업로드 실패: ' + e.message); }
         return null;
     }
-
-    // Pollinations + wsrv.nl 프록시 다운로드 → Cloudinary 바이너리 업로드
-    const models = ['flux', 'turbo', 'flux-realism'];
-    const seed = Math.floor(Math.random() * 1000000);
-    let polUrl = null;
-    for(const pm of models) {
-        try {
-            const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt)}?model=${pm}&width=1024&height=768&seed=${seed}&nologo=true&enhance=true`;
-            console.log('   ㄴ [Pollinations] ⚡ ' + pm + ' 모델 시도 중...');
-            const waitMs = pm === 'flux' ? 22000 : 12000;
-            await new Promise(r => setTimeout(r, waitMs));
-            // wsrv.nl 프록시로 바이너리 다운로드 (Cloudflare 우회)
-            const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=jpg&q=85`;
-            console.log('   ㄴ [wsrv.nl] 프록시 통해 이미지 다운로드 중...');
-            const imgRes = await axios.get(proxyUrl, { responseType: 'arraybuffer', timeout: 60000, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)' } });
-            const byteLen = imgRes.data ? imgRes.data.byteLength : 0;
-            if(imgRes.status === 200 && byteLen > 5000) {
-                console.log('   ㄴ [wsrv.nl] 다운로드 성공! (' + byteLen + ' bytes) Cloudinary 업로드 시도...');
-                const cdnUrl = await uploadToCloudinary(Buffer.from(imgRes.data), 'image/jpeg');
+    // 1순위: Lexica.art AI 이미지 검색 (무료, 서버IP 차단없음)
+    try {
+        const lexQuery = encodeURIComponent(engPrompt.substring(0, 100));
+        console.log('   ㄴ [Lexica.art] AI 이미지 검색 시도...');
+        const lexRes = await axios.get(`https://lexica.art/api/v1/search?q=${lexQuery}`, { timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' } });
+        if(lexRes.data && lexRes.data.images && lexRes.data.images.length > 0) {
+            const imgs = lexRes.data.images.filter(img => img.width >= 512);
+            if(imgs.length > 0) {
+                const pick = imgs[Math.floor(Math.random() * Math.min(imgs.length, 10))];
+                const imgUrl = `https://image.lexica.art/full_jpg/${pick.id}`;
+                console.log('   ㄴ [Lexica.art] AI 이미지 획득 성공! ✅');
+                const cdnUrl = await uploadToCloudinary(imgUrl);
                 if(cdnUrl) return cdnUrl;
-            } else { console.log('   ⚠️ [wsrv.nl] 다운로드 불완전: ' + byteLen + ' bytes'); }
-            polUrl = url; break;
-        } catch(e) { console.log('   ⚠️ [Pollinations/wsrv] ' + pm + ' 실패: ' + e.message); }
-    }
-    if(polUrl) {
-        console.log('   ㄴ [Pollinations] URL 직접 삽입 (브라우삨에서 정상 표시됩니다)');
-        return polUrl;
-    }
+                return imgUrl;
+            }
+        }
+    } catch(le) { console.log('   ⚠️ [Lexica.art] 실패: ' + le.message); }
 
-    // 최후 보루: Unsplash 무료 스톡사진
+    // 2순위: Pollinations URL 반환 (브라우저에서 직접 로딩)
+    const seed = Math.floor(Math.random() * 1000000);
+    const polUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt.substring(0,300))}?model=flux&width=1024&height=768&seed=${seed}&nologo=true`;
+    console.log('   ㄴ [Pollinations] URL 직접 삽입');
+
+    // 3순위: Unsplash 스톡사진
     const kw = encodeURIComponent(desc.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().substring(0, 50));
-    const unsplashUrl = `https://source.unsplash.com/1024x768/?${kw}`;
-    console.log('   ㄴ [Unsplash] 무료 스톡 사진 폴백 ✅');
-    return unsplashUrl;
+    return polUrl || `https://source.unsplash.com/1024x768/?${kw}`;
 }
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
     console.log(`\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);
@@ -191,21 +186,21 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         if(!parsed.chapters || parsed.chapters.length < 7) throw new Error('챕터 부족');
         chapters = parsed.chapters;
     } catch(e) { 
-        console.log('   ⚠️ [블루프린트 보정] AI 제목/챕터 재생성 시도...');
+        console.log('   ⚠️ [블루프린트 보정] AI 제목/첵터 재생성 시도...');
         try {
-            const retry = await callAI(model, `"${target}"를 주제로 구글 SEO에 최적화된 블로그 제목 1개와 7개 소제목을 만들어 주세요. 반드시 JSON 형식으로만 답하세요: {\"title\":\"...\",\"chapters\":[\"...\"]}`);
+            const retry = await callAI(model, `"${target}" topic: return ONLY JSON {\"title\":\"Korean SEO title\",\"chapters\":[\"ch1\",\"ch2\",\"ch3\",\"ch4\",\"ch5\",\"ch6\",\"ch7\"]}`);
             const rp = JSON.parse(clean(retry, 'obj'));
-            title = (rp.title && rp.title.length > 5) ? rp.title : target + ' 완벽 가이드 - 전문가가 알려주는 핵심 정리';
+            title = (rp.title && rp.title.length > 5) ? rp.title : target + ' 완백 가이드 - 전문가가 알려주는 핵심 정리';
             if(rp.chapters && rp.chapters.length >= 7) { chapters = rp.chapters; }
         } catch(e2) {
             console.log('   ⚠️ [재생성 실패] 키워드를 제목으로 사용합니다.');
-            title = target + ' 완벽 정리 | 초보자도 바로 따라하는 실전 가이드';
+            title = target + ' 완백 정리 | 초보자도 바로 따라하는 실전 가이드';
         }
         if(!chapters || chapters.length < 7) {
             chapters = [
                 `${target}란 무엇인가? 핵심 개념 완전 정복`,
                 `${target} 시작 전 반드시 알아야 할 3가지`,
-                `실전에서 바로 쓰는 ${target} 핵심 기술`,
+                `실전에서 바로 쓰는 ${target} 핸심 기술`,
                 `${target}에서 가장 많이 하는 실수와 해결법`,
                 `비용 대비 효과를 극대화하는 ${target} 활용법`,
                 `${target} 심층 분석: 놓치면 아쉬운 노하우`,
@@ -230,7 +225,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         let sect = clean(await callAI(model, `STRICT: ${MASTER_GUIDELINE}\n\n${mission}. MUST include one [IMAGE_PROMPT: desc] tag.`), 'text');
         
         sect = sect.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        const promptMatch = sect.match(/\[\s*IMAGE_PROMPT\s*[:：]\s*(.*?)\s*\]/i);
+        const promptMatch = sect.match(/\[\s*IMAGE_PROMPT\s*[:: ]\s*(.*?)\s*\]/i);
         if(promptMatch) {
             const img = await genImg(promptMatch[1].trim(), model);
             if(img) sect = sect.replace(promptMatch[0], `<img src="${img}" alt="${chapter}" style="width:100%; border-radius:12px; margin: 25px 0;">`);
@@ -239,12 +234,12 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         
         body += `<h2 id="s${i+1}" style="background-color:${colors[i]}; border-radius:8px; color:black; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #333;">🎯 ${chapter}</h2>${sect}`;
         if (extraLinks && extraLinks[i]) {
-            body += `<div class="link-box"><h3 style="color:#00e5ff;">💡 관련 심층 가이드</h3><p><strong>${extraLinks[i].title}</strong> 바로가기</p><a href="${extraLinks[i].url}" target="_blank">👉 자세히 보기</a></div>`;
+            body += `<div class="link-box"><h3 style="color:#00e5ff;">💡 관련 심층 가이드</h3><p><strong>${extraLinks[i].title}</strong><br><a href="${extraLinks[i].url}" style="color:#00e5ff;">→ 자세히 보기</a></p></div>`;
         }
     }
     
     let footer = clean(await callAI(model, `Closing, 15 Tags, and JSON-LD FAQ for: ${title}. NO markdown. No chatter.`), 'text');
-    body += footer + '<div style="background-color:#fff3cd; padding:20px; border-radius:10px; margin-top:40px;"><p><b>⚠️ [면책 조항]</b> 본 내용은 참고용입니다.</p></div></div>';
+    body += footer + '<div style="background-color:#fff3cd; padding:20px; border-radius:10px; margin-top:40px;"><p><b>⚠️ 주의:</b> 본 포스팅은 AI가 작성한 콘텐츠입니다. 수시로 업데이트될 수 있으며, 중요 결정은 전문가와 상담 후 진행하세요.</p></div></div>';
     
     const res = await blogger.posts.insert({ blogId: bId, requestBody: { title: title, content: body, published: pTime.toISOString() } });
     console.log('   ㄴ ✅ 발행 완료! 주소: ' + res.data.url);
@@ -264,17 +259,19 @@ async function run() {
     console.log('   💎 메인 씨드: ' + mainSeed);
     let subTopics = [];
     try {
-        subTopics = JSON.parse(clean(await callAI(model, `Generate 4 sub-topics for "${mainSeed}" as JSON string array.`), 'arr'));
-    } catch(e) { subTopics = [mainSeed + ' 가이드', mainSeed + ' 팁']; }
+        subTopics = JSON.parse(clean(await callAI(model, `Generate 4 sub-topics for "${mainSeed}" as JSON string array. Return ONLY array.`), 'arr'));
+        if(!Array.isArray(subTopics) || subTopics.length < 2) subTopics = [mainSeed + ' 가이드', mainSeed + ' 팁'];
+    } catch(e) { subTopics = [mainSeed + ' 가이드', mainSeed + ' 팡']; }
 
     let subLinks = []; let cTime = new Date();
     for(let i=0; i < subTopics.length; i++) {
         cTime.setMinutes(cTime.getMinutes()+180);
-        subLinks.push(await writeAndPost(model, subTopics[i], config.blog_lang, blogger, config.blog_id, new Date(cTime), [], i+1, subTopics.length + 1));
+        subLinks.push(await writeAndPost(model, subTopics[i], config.blog_lang, blogger, config.blog_id, new Date(cTime), [], i+1, subTopics.length+1));
     }
     cTime.setMinutes(cTime.getMinutes()+180);
-    await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, subTopics.length + 1, subTopics.length + 1);
+    await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, subTopics.length+1, subTopics.length+1);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.7.1', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    const updConfig = { ...config, clusters: pool };
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: '[VUE] cluster progress update', content: Buffer.from(JSON.stringify(updConfig, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

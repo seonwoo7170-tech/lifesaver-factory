@@ -153,10 +153,9 @@ async function genImg(desc, model) {
             
             if(pRes && pRes.data) {
                 const b64 = Buffer.from(pRes.data).toString('base64');
-                const body = new URLSearchParams();
-                body.append('image', b64);
-                const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, body.toString(), { 
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, 
+                const form = new FormData(); form.append('image', b64);
+                const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { 
+                    headers: form.getHeaders(), 
                     timeout: 60000 
                 });
                 if(ir.data && ir.data.data && ir.data.data.url) {

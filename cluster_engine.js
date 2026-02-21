@@ -2,306 +2,378 @@ const { google } = require('googleapis');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs');
 const axios = require('axios');
-const cloudinary = require('cloudinary').v2;
+const FormData = require('form-data');
 
-cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET });
+const MASTER_GUIDELINE = `
+[VUE POST v2.5 The Origin Master - Premium Content Strategy]
+당신은 Studio VUE의 블로그 마케팅 전문가로서, 구글의 E-E-A-T 원칙과 애드센스 수익 극대화 전략을 결합한 '인간보다 더 인간다운' 프리미엄 콘텐츠를 전개합니다.
 
-const THEMES = [
-  { name: 'Sky', color: '#6366f1', text: '#1e293b', bg: '#f8faff' },
-  { name: 'Emerald', color: '#10b981', text: '#064e3b', bg: '#f0fdf4' },
-  { name: 'Rose', color: '#f43f5e', text: '#4c0519', bg: '#fff1f2' },
-  { name: 'Amber', color: '#f59e0b', text: '#451a03', bg: '#fffbeb' },
-  { name: 'Indigo', color: '#4f46e5', text: '#1e1b4b', bg: '#eef2ff' }
-];
-const theme = THEMES[Math.floor(Math.random()*THEMES.length)];
+[중요] 단계별 "멈춤"이나 "질문" 지침은 무시하고, 한 번의 호출에 해당 섹션을 즉시 끝까지 집필하십시오.
+
+[핵심 어투 및 뉘앙스 강제 - 자연스러운 대화체]
+- 논문이나 백과사전처럼 딱딱하고 기계적인 말투("~한다", "~이다", "~임")는 절대 금지합니다.
+- 독자와 마주 앉아 따뜻하게 조언을 해주는 듯한 '친근하고 상냥한 전문가의 말투'("~해요", "~습니다", "~그렇죠?", "~거든요")를 100% 사용하십시오.
+- 글을 전개할 단락 중간에 "앗!", "와,", "그런데 말이죠,", "사실,", "이 부분 진짜 중요해요!" 같은 감탄사나 추임새를 간간이 넣어 생동감을 극대화하세요. (단, 매번 첫 문장을 똑같은 감탄사로 기계적으로 시작하는 '앵무새 패턴'은 절대 금지합니다!)
+- 기계 번역투를 버리고, 한국인이 일상에서 쓰는 자연스러운 호흡으로 사람 냄새가 나게 작성하세요.
+
+[최우선 규칙 - 글자수 및 출력 방식 강제]
+1. 강제 목표량: 각 호출당 최소 1,500~2,000자 이상(한국어 기준)의 방대한 분량.
+2. 역할 분리(매우 중요): 당신은 전체 블로그 글을 한 번에 다 쓰는 것이 아닙니다. 오직 주어지는 'MISSION'에 해당하는 단 하나의 구역(본문 챕터 1개 또는 인트로 1개)만 텍스트로 작성해야 합니다. 무단으로 인트로, 목차 전체, 결론, FAQ를 한 번에 쏟아내지 마십시오.
+3. 섹션당 필수 요소:
+   - 본문은 오직 <p style="margin-bottom: 20px;"> 태그 4~6문단 이상으로 구성(한 문단당 2~3문장 제한).
+   - [본문 챕터 작성 시] 고유한 데이터를 포함한 4열 4행 표 HTML 1개.
+   - [본문 챕터 작성 시] 사실적 사진 묘사를 담은 [IMAGE_PROMPT: 묘사] 문구 1개.
+4. 제목 생성 금지: 마크다운(##, **) 및 HTML 제목 태그(<h1>, <h2>, <h3> 등)를 절대 자체적으로 생성하지 마십시오. 엔진이 제목을 알아서 붙입니다. 내용 텍스트만 꽉 채우십시오.
+
+[비유 표현 전문 - 각 섹션마다 1개 이상 필수 사용]
+1. 다이어트 / 2. 마법봉 / 3. 좀비 / 4. 레고 블록 / 5. 요리 레시피 / 6. 퍼즐 조각 / 7. 마라톤 / 8. 돼지 저금통 / 9. 체스판 / 10. 텃밭 가꾸기 / 11. 운전면허 / 12. 첫 월급 / 13. 이사 / 14. 여행 계획 / 15. 냉장고 정리 / 16. 옷장 정리 / 17. 은행 적금 / 18. 게임 레벨업 / 19. 대청소 / 20. 장보기 리스트
+
+[V-LOGIC 패턴] 패턴 A~O (해결형, 스토리텔링, 체크리스트 등 상황에 맞춰 융합 설계)
+
+[HTML 가이드]
+- 절대로 <h1>, <h2>, <h3> 등의 제목 태그를 만들지 마십시오.
+- 단락 구분은 반드시 <p style="margin-bottom: 20px;"> 태그를 사용해야 합니다.
+- JSON-LD Article/FAQ Schema는 제일 마지막 'FAQ 생성 미션'에서만 추가하십시오.
+`;
+const NARRATIVE_HINTS = `[VUE SIGNATURE: 인트로 서사 라이브러리 (20개 전문)]
+① "제가 직접 해본 결과, 역시 이론보다는 실전이 제일 중요하더라고요. 책에서 배울 때와는 전혀 다른 현장의 느낌이 있었거든요. 그래서 오늘은 제가 겪은 진짜 이야기를 들려드리려 합니다."
+② "솔직히 처음엔 저도 이 방법을 전혀 몰라서 한참 동안이나 고생하고 시간만 낭비했습니다. 누가 옆에서 한마디만 해줬어도 좋았을 텐데 말이죠. 여러분은 저 같은 실수를 안 하셨으면 좋겠습니다."
+③ "이 글을 읽는 분들도 아마 저처럼 시행착오를 겪고 계실 텐데, 그 막막한 마음 제가 누구보다 잘 압니다. 저도 처음에 컴퓨터 앞에 앉아 한숨만 푹푹 내쉬던 기억이 선하거든요."
+④ "직접 몸으로 부딪쳐보니까 이제야 뭐가 정답이고 오답인지 확실히 알겠더라고요. 역시 정답은 멀리 있는 게 아니라 우리가 놓치기 쉬운 아주 가까운 기본기에 숨어 있었습니다."
+⑤ "수많은 전문가들이 놓치는 부분인데요, 사실 이게 진짜 핵심 중의 핵심입니다. 겉모양만 적당히 따라 하다가 결국 본질을 놓치고 시간만 날리시는 분들을 너무 많이 봐서 안타까워요."
+
+`;
 
 const STYLE = `<style>
-  @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap');
-  .vue-premium { font-family: 'Pretendard', sans-serif; color: #1e293b; line-height: 1.8; max-width: 900px; margin: 40px auto; padding: 0 40px; word-break: keep-all; font-size: 14px; letter-spacing: -0.3px; text-align: left; }
-  .vue-premium * { font-family: 'Pretendard', sans-serif !important; letter-spacing: -0.3px !important; }
-  .h2-container { margin-top: 60px; margin-bottom: 30px; text-align: left; }
-  .h2-container h2 { font-size: 20px !important; font-weight: 800; color: #0f172a !important; background: ${theme.bg}; border-left: 8px solid ${theme.color}; padding: 12px 20px; border-radius: 8px; display: block; line-height: 1.4 !important; margin: 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-  .vue-premium h3 { font-size: 17px !important; color: #0f172a !important; margin-top: 45px; margin-bottom: 18px; font-weight: 700; border-bottom: 2px solid ${theme.color}40; padding-bottom: 6px; line-height: 1.4 !important; }
-  .vue-premium p { font-size: 14px !important; line-height: 1.8 !important; margin-bottom: 30px; text-align: left; color: #334155 !important; }
-  .vue-premium b, .vue-premium strong { font-weight: 800; color: #0f172a !important; background: linear-gradient(120deg, ${theme.color}20 0%, ${theme.color}40 100%); padding: 0 2px; }
-  .spacer-div { height: 100px; margin: 80px 0; border-top: 1px solid #e2e8f0; position: relative; }
-  .spacer-div::after { content: 'Strategic Authority Content'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 20px; color: #94a3b8; font-size: 10px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; }
-  .info-box { background: ${theme.bg}; border: 1px solid ${theme.color}20; border-radius: 24px; padding: 40px; margin: 60px 0; }
-  .info-box ul { list-style: none; padding: 0; margin: 20px 0 0 0; }
-  .info-box li { margin-bottom: 12px; font-weight: 600; }
-  .info-box a { color: #475569 !important; text-decoration: none; border-bottom: 1px solid transparent; transition: all 0.2s; }
-  .info-box a:hover { color: ${theme.color} !important; border-bottom-color: ${theme.color}; }
-  .table-box { width: 100%; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; margin: 60px 0; }
-  .vue-premium table { width: 100%; border-collapse: collapse; text-align: center; }
-  .vue-premium th { background: #f8fafc; color: #0f172a !important; padding: 20px; font-weight: 800; border-bottom: 4px solid ${theme.color}; }
-  .vue-premium td { padding: 18px; border-bottom: 1px solid #f1f5f9; color: #475569 !important; }
-  .smart-link-card { background: #1e293b; color: #fff !important; padding: 40px; text-align: center; border-radius: 20px; margin: 80px 0; border: 1px solid ${theme.color}50; }
-  .smart-link-card a { color: ${theme.color} !important; font-size: 24px !important; font-weight: 900; text-decoration: none; display: block; margin-top: 15px; }
-  .premium-footer { border-top: 3px solid #f1f5f9; padding-top: 60px; margin-top: 120px; text-align: center; color: #94a3b8 !important; font-size: 14px !important; font-weight: 600; }
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Pretendard:wght@400;700&display=swap');
+  .vue-premium { font-family: 'Pretendard', sans-serif; color: #333; line-height: 1.8; max-width: 850px; margin: 0 auto; padding: 20px; word-break: keep-all; }
+  .vue-premium img { max-width: 100%; height: auto; border-radius: 15px; margin: 25px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: block; }
+  .h2-premium { background-color: palegreen; border-radius: 8px; color: #000; font-size: 22px; font-weight: bold; margin-top: 50px; padding: 14px; border-left: 8px solid #333; }
+  .toc-box { background-color: #f8f9fa; border: 2px solid #333; border-radius: 12px; padding: 25px; margin: 30px 0; }
+  .link-box { background-color: #212529; color: white; padding: 30px; text-align: center; border-radius: 15px; margin: 40px 0; border: 1px solid #444; }
+  .vue-premium table { width: 100%; border-collapse: collapse; margin: 30px 0; font-size: 15px; text-align: center; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+  .vue-premium th { background-color: #fce4ec; color: #333; font-weight: bold; padding: 15px; border-bottom: 2px solid #f8bbd0; }
+  .vue-premium td { padding: 12px 15px; border-bottom: 1px solid #fce4ec; background-color: #fffafb; color: #555; }
+  .vue-premium tr:nth-child(even) td { background-color: #fdf5f7; }
+  .vue-premium tr:hover td { background-color: #f8bbd0; color: #000; transition: all 0.2s ease; }
 </style>`;
 
-function clean(raw, type = 'obj') {
-    if (!raw) return type === 'obj' ? '{}' : '[]';
-    let t = raw.replace(/```(json|html|js|md)?/gi, '').trim();
-    const s = t.indexOf(type === 'obj' ? '{' : '[');
-    const e = t.lastIndexOf(type === 'obj' ? '}' : ']');
-    if (s !== -1 && e !== -1) return t.substring(s, e + 1);
-    return type === 'obj' ? '{}' : '[]';
-}
-
-function chiefAuditor(raw, titleHead = '') {
-    if(!raw) return '';
-    let t = raw.replace(/```(json|html|js|md)?/gi, '').trim();
-    t = t.replace(/<(!DOCTYPE|html|body|head|meta|link).*?>/gi, '').replace(/<\/(html|body|head|title|meta)>/gi, '');
-    t = t.replace(/<title[\s\S]*?<\/title>/gi, '').replace(/style="[^"]*"/gi, '');
-    t = t.replace(/\\n/g, String.fromCharCode(10));
-    t = t.replace(/\[IMAGE_PROMPT:[\s\S]*?\]/gi, '').replace(/\[IMAGE_PROMPT\][\s\S]*?\[\/IMAGE_PROMPT\]/gi, '');
-    t = t.replace(/\*\*+(.*?)\*\*+/g, '<b>$1</b>'); 
-    t = t.replace(/^\s*#+.*$/gm, ''); t = t.replace(/^[-*]{3,}$/gm, '');
-    
-    t = t.replace(/<(h[1-6])>\s*(\d+\.)*\d*\.?\s*(.*?)\s*<\/\1>/gi, '<$1>$3</$1>');
-    t = t.replace(/<li>\s*(\d+\.)*\d*\.?\s*(.*?)\s*<\/li>/gi, '<li>$2</li>');
-    t = t.replace(/<(h[1-6])>\s*<b>(.*?)<\/b>\s*<\/\1>/gi, '<$1>$2</$1>');
-    t = t.replace(/<b>\s*<h[1-6]>(.*?)<\/h[1-6]>\s*<\/b>/gi, '<h3>$1</h3>');
-    t = t.replace(/<h[4-6]>(.*?)<\/h[4-6]>/gi, '<h3>$1</h3>');
-    
-    t = t.replace(/^(결론|요약|서론|설명|참고|정보|Data|Introduction|Summary|Conclusion|사실|진짜|와|앗)[:\s]*/gmi, '');
-    t = t.replace(/^[^<가-힣a-zA-Z0-9]+(?=[가-힣a-zA-Z])/gm, '');
-
-    const trash = [ /물론이죠/gi, /도움이 되길/gi, /요약하자면/gi, /결론적으로/gi, /준비했습니다/gi, /작성하겠습니다/gi, /살펴보겠습니다/gi, /참고해주세요/gi, /본 섹션에서는/gi, /위즈덤픽/gi, /마스터/gi, /설계자/gi, /Paragon/gi, /^그럼 지금부터.*$/gm, /^이상으로.*$/gm, /^아래는.*$/gm, /^먼저.*$/gm, /^다음으로.*$/gm, /^첫째로.*$/gm, /^마지막으로.*$/gm ];
-    trash.forEach(p => t = t.replace(p, ''));
-    t = t.replace(/^[\s,\.\n\r\*\#\-\>\•]+/g, '');
-    t = t.replace(/<p>\s*<\/p>|<p>&nbsp;<\/p>/gi, '');
-
-    let pArr = t.split(/<\/p>/gi);
-    let audited = "";
-    pArr.forEach((p, idx) => {
-        if (p.trim()) { audited += p + '</p>'; if ((idx + 1) % 4 === 0 && idx < pArr.length - 2) audited += '<div class="spacer-div"></div>'; }
-    });
-    t = audited.replace(/<table/gi, '<div class="table-box no-adsense"><table');
-    t = t.replace(/<\/table>/gi, '</table></div>');
-    return t.trim();
+function clean(raw, defType = 'obj') {
+    if(!raw) return defType === 'text' ? '' : (defType === 'obj' ? '{}' : '[]');
+    let t = raw.replace(/```(json|html|javascript|js)?/gi, '').trim();
+    if (defType === 'text') return t;
+    try {
+        const start = t.indexOf('{');
+        const end = t.lastIndexOf('}');
+        const startArr = t.indexOf('[');
+        const endArr = t.lastIndexOf(']');
+        
+        let jsonStr = '';
+        if (defType === 'obj' && start !== -1 && end !== -1) jsonStr = t.substring(start, end + 1);
+        else if (defType === 'arr' && startArr !== -1 && endArr !== -1) jsonStr = t.substring(startArr, endArr + 1);
+        else {
+            const s = start !== -1 ? start : startArr;
+            const e = Math.max(end, endArr);
+            if(s !== -1 && e !== -1) jsonStr = t.substring(s, e + 1);
+        }
+        
+        if (jsonStr) {
+            jsonStr = jsonStr.replace(/[\x00-\x1F]/g, char => char === '\n' ? '\\n' : char === '\r' ? '\\r' : char === '\t' ? '\\t' : '');
+            jsonStr = jsonStr.replace(/```json|```/gi, '').trim();
+            return jsonStr;
+        }
+    } catch(e) { }
+    return defType === 'obj' ? '{"title":"' + t.replace(/["\\\n]/g, '') + '", "chapters":[]}' : '[]';
 }
 
 async function callAI(model, prompt, retry = 0) {
     try {
-        const r = await model.generateContent('[SYSTEM: ACT AS A TOP-TIER COLUMNIST. STRICTLY FOLLOW GOOGLE E-E-A-T. NO CHAT.]\n' + prompt);
+        const r = await model.generateContent('[SYSTEM: ACT AS A TOP-TIER COLUMNIST. STRICTLY FOLLOW GOOGLE E-E-A-T: EXPERIENCE, EXPERTISE, AUTHORITATIVENESS, TRUSTWORTHINESS. NO CHAT.]\n' + prompt);
         return r.response.text().trim();
     } catch (e) {
-        const errStr = String(e.message + e.stack + (e.status||''));
-        const is429 = errStr.includes('429') || errStr.includes('Resource exhausted') || e.status === 429 || (e.response && e.response.status === 429);
-        if (is429 && retry < 5) {
-            const wait = Math.pow(2, retry) * 20000; 
-            console.log(`   ⚠️ [Gemini Quota] 429 감지. ${wait/1000}초 후 자동 재시도... (${retry+1}/5)`);
-            await new Promise(res => setTimeout(res, wait));
+        if ((e.message.includes('429') || e.message.includes('Resource exhausted')) && retry < 5) {
+            const waitTime = Math.pow(2, retry) * 20000; 
+            console.log(`   ⚠️ [Rate Limit] 429 감지. ${waitTime/1000}초 후 재시도 합니다... (${retry+1}/5)`);
+            await new Promise(res => setTimeout(res, waitTime));
             return callAI(model, prompt, retry + 1);
         }
         throw e;
     }
 }
-
 async function searchSerper(query) {
     if(!process.env.SERPER_API_KEY) return '';
     try {
         const r = await axios.post('https://google.serper.dev/search', { q: query, gl: 'kr', hl: 'ko' }, { headers: { 'X-API-KEY': process.env.SERPER_API_KEY } });
-        return (r.data.organic || []).slice(0, 5).map(o => `${o.title}: ${o.snippet}`).join(String.fromCharCode(10));
+        return r.data.organic.slice(0, 5).map(o => `${o.title}: ${o.snippet}`).join('\n');
     } catch(e) { return ''; }
 }
-
 async function genImg(desc, model) {
     if(!desc) return '';
+    const kieKey = process.env.KIE_API_KEY;
+    const runwareKey = process.env.RUNWARE_API_KEY;
     const imgbbKey = process.env.IMGBB_API_KEY;
-    try {
-        const trans = await callAI(model, 'Translate this visual description to a concise but detailed English for AI image generation. Return ONLY the English text: ' + desc);
-        const eng = trans.replace(/[^a-zA-Z0-9, ]/g, '').trim().slice(0, 800);
-        console.log('   ㄴ [Visual] Pollinations 렌더링 시작: ' + eng.slice(0, 30));
-        const pollinUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(eng)}?width=1280&height=720&nologo=true&seed=${Math.floor(Math.random()*100000)}`;
-        
-        if(imgbbKey && imgbbKey.length > 5) {
-            console.log('   ㄴ [Storage] ImgBB 영구 보관 업로드 중...');
-            const res = await axios.get(pollinUrl, { responseType: 'arraybuffer', timeout: 60000 });
-            const b64 = Buffer.from(res.data).toString('base64');
-            const form = new (require('form-data'))(); form.append('image', b64);
-            const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders(), timeout: 60000 });
-            if(ir.data?.data?.url) {
-                console.log('   ㄴ [Storage] 영구 저장 성공 ✅');
-                return ir.data.data.url;
-            }
-        }
-        return pollinUrl;
-    } catch(e) { 
-        console.log('   ⚠️ [Visual] 생성 실패 (Unsplash 대체): ' + e.message);
-        return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280&auto=format&fit=crop';
+    
+    let engPrompt = desc;
+    if(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(desc)) {
+        try {
+            console.log('   ㄴ [이미지] 한글 프롬프트 감지 -> 영어 번역 중...');
+            const trans = await callAI(model, 'Translate this visual description to a concise but detailed English for AI image generation. (STRICT: Return ONLY the English text, and stay under 400 characters): ' + desc, 0);
+            engPrompt = trans.replace(/[^a-zA-Z0-9, ]/g, '').trim();
+        } catch(e) { engPrompt = desc.replace(/[^a-zA-Z, ]/g, ''); }
     }
-}
+    
+    engPrompt = engPrompt.slice(0, 800); // Failsafe for API limits
+    
+    console.log('   ㄴ [이미지] 전략적 비주얼 생성 중 (' + engPrompt.slice(0, 30) + '...)');
+    let imageUrl = '';
 
-async function publishToBlogger(blogger, blogId, requestBody, retry = 0) {
-    try {
-        return await blogger.posts.insert({ blogId, requestBody });
-    } catch (e) {
-        const errCode = e.code || e.status || (e.response && e.response.status) || (e.cause && (e.cause.code || e.cause.status));
-        const is429 = errCode === 429 || String(e.message).includes('Quota') || String(e.message).includes('exhausted');
-        if (is429 && retry < 5) {
-            const wait = Math.pow(2, retry) * 60000; 
-            console.log(`   ⚠️ [Blogger Quota] 할당량 제한 감지. ${wait/1000}초 후 재시도... (${retry+1}/5)`);
-            await new Promise(r => setTimeout(r, wait));
-            return publishToBlogger(blogger, blogId, requestBody, retry + 1);
-        }
-        throw e;
+    // 1. Runware (Ultra Fast & Quality)
+    if(!imageUrl && runwareKey && runwareKey.length > 5) {
+        try {
+            const rr = await axios.post('https://api.runware.ai/v1', [
+                { action: 'generateImage', model: 'runware:100@1', positivePrompt: engPrompt + ', detailed, 8k, professional photography', width: 1280, height: 720, number: 1 }
+            ], { headers: { Authorization: 'Bearer ' + runwareKey } });
+            if(rr.data.data?.[0]?.imageURL) imageUrl = rr.data.data[0].imageURL;
+        } catch(e) { console.log('   ㄴ [Runware] 지연... 다음 엔진 시도'); }
     }
-}
 
-async function writeAndPost(model, target, blogger, bId) {
-    console.log(`\n🔱 [Sovereign Engine] v2.2.16 가동 | Anti-Quota 철통 방어 시스템 기동`);
-    console.log(`⚙️ [Config] 대상 키워드 확정: "${target}"`);
-    const SIGNATURES = [
-      '제가 직접 해본 결과, 역시 이론보다는 실전이 제일 중요하더라고요. 책에서 배울 때와는 전혀 다른 현장의 느낌이 있었거든요. 그래서 오늘은 제가 겪은 진짜 이야기를 들려드리려 합니다.',
-      '솔직히 처음엔 저도 이 방법을 전혀 몰라서 한참 동안이나 고생하고 시간만 낭비했습니다. 누가 옆에서 한마디만 해줬어도 좋았을 텐데 말이죠. 여러분은 저 같은 실수를 안 하셨으면 좋겠습니다.',
-      '이 글을 읽는 분들도 아마 저처럼 시행착오를 겪고 계실 텐데, 그 막막한 마음 제가 누구보다 잘 압니다. 저도 처음에 컴퓨터 앞에 앉아 한숨만 푹푹 내쉬던 기억이 선하거든요.',
-      '직접 몸으로 부딪쳐보니까 이제야 뭐가 정답이고 오답인지 확실히 알겠더라고요. 역시 정답은 멀리 있는 게 아니라 우리가 놓치기 쉬운 아주 가까운 기본기에 숨어 있었습니다.',
-      '수많은 전문가들이 놓치는 부분인데요, 사실 이게 진짜 핵심 중의 핵심입니다. 겉모양만 적당히 따라 하다가 결국 본질을 놓치고 시간만 날리시는 분들을 너무 많이 봐서 안타까워요.',
-      '저도 예전엔 이것 때문에 밤잠 설쳐가며 고민했던 기억이 아직도 선하네요. 그때 제 노트를 다시 들춰보니 참 엉터리로 하고 있었다는 걸 깨닫게 되었답니다.',
-      '수십 번의 테스트와 뼈아픈 실패 끝에 알게 된 사실을 오늘 가감 없이 모두 공개할게요. 이건 제가 수백만 원짜리 유료 강의에서도 듣지 못했던 진짜 팁입니다.',
-      '몇 년 전 제 초보 시절 모습이 생각나서 더 꼼꼼하고 자세하게 정리해봤습니다. 그때 저에게 이 가이드북이 있었다면 제 인생이 1년은 더 빨라졌을 거예요.',
-      '주변 동료들이나 블로그 이웃분들에게 최근 가장 자주 받는 질문들을 하나로 모아봤어요. 다들 공통적으로 궁금해하시는 부분이 정확히 여기더라고요.',
-      '처음 이걸 접했을 때의 그 막막하고 답답한 당혹감이 아직도 생생합니다. 내가 과연 해낼 수 있을까 하는 의구심이 들었지만, 결국 정답을 찾아냈죠.',
-      '블로그 이웃분들이 메일이랑 댓글로 끊임없이 물어보셔서 오늘 날 잡고 제대로 정리했습니다. 하나하나 답변드리기 어려워 아예 이 글로 종결지으려고 해요.',
-      '저도 처음엔 인터넷 검색만 주구장창 했었는데, 알고 보니 다 광고거나 뻔한 소리더라고요. 그래서 제가 직접 해외 자료까지 뒤져가며 검증된 것만 추렸습니다.',
-      '실제로 제가 한 달 동안 이 데이터를 밤낮으로 추적하고 분석해본 결과입니다. 주관적인 느낌이 아니라 철저하게 수치로 검증된 사실이니 믿으셔도 좋아요.',
-      '이거 모르면 나중에 분명 돈 낭비, 시간 낭비로 땅을 치고 후회하게 될 핵심 포인트예요. 지금 당장 이해되지 않더라도 이 부분은 꼭 메모해 두셔야 합니다.',
-      '가까운 친한 친구나 동생에게 설명해주듯이 하나하나 아주 자세히 알려드릴게요. 복잡한 용어 다 빼고, 초등학생도 이해할 수 있을 만큼 쉽게 풀어내겠습니다.',
-      '처음엔 엄청 어렵게 느껴지지만, 원리만 딱 깨우치면 생각보다 별거 아니거든요. 자전거 배우는 거랑 똑같아요. 한 번 균형만 잡으면 평생 안 잊어버리죠.',
-      '의외로 기본적인 걸 놓쳐서 매달 큰 손해를 보고 계시는 분들이 정말 많더라고요. 제가 그분들의 계정을 직접 진단해보고 찾아낸 공통적인 오류를 짚어드릴게요.',
-      '어디에도 제대로 된 설명이 없어서 제가 직접 논문이랑 전공 서적까지 파헤쳐서 정리했어요. 아마 구글에도 이만큼 디테일한 정보는 찾기 힘드실 겁니다.',
-      '이건 저만 알고 싶었던 특급 비법인데, 특별히 우리 스튜디오 VUE 구독자분들께만 공유합니다. 너무 많이 알려지면 경쟁력이 떨어질까 봐 조심스럽긴 하네요.',
-      '실패를 여러 번 경험하고 눈물 젖은 빵을 먹어보고 나서야 깨달은 진짜 꿀팁입니다. 누군가에게는 인생의 터닝포인트가 될 수도 있는 정보라고 확신해요.'
-    ];
-    const METAPHORS = [
-      '다이어트: 내일로 미루면 결과는 절대로 나오지 않습니다. 오늘 당장 시작하는 10분이 중요해요.',
-      '마법봉: 마치 마법봉처럼 우리 앞에 놓인 복잡한 문제들을 한 번에 해결해 주는 도구입니다.',
-      '좀비: 사라지지 않고 계속해서 우리를 괴롭히는 좀비 같은 문제들을 뿌리부터 잘라야 합니다.',
-      '레고 블록: 레고 블록을 하나씩 맞추듯 기초부터 차근차근 쌓아나가는 게 가장 빠른 지름길이에요.',
-      '요리 레시피: 명품 요리 레시피를 따르듯이 정해진 순서와 계량만 지키면 실패할 확률은 0%입니다.',
-      '퍼즐 조각: 퍼즐 조각이 단 하나라도 빠지면 결국 전체 그림이 완성되지 않듯이 디테일이 중요합니다.',
-      '마라톤: 이건 100m 단거리 질주가 아니라 호흡이 길고 페이스 조절이 필요한 마라톤과 같습니다.',
-      '돼지 저금통: 저금통에 동전을 한 푼 두 푼 모으듯 작은 습관들이 모여 나중에 큰 보상을 줍니다.',
-      '체스판: 체스판 위에서 말 하나하나를 신중하게 움직이듯 전략적으로 앞수를 내다봐야 합니다.',
-      '텃밭 가꾸기: 작은 텃밭을 정성껏 가꾸는 마음으로 매일 물을 주고 돌봐줘야 가을에 결실을 봅니다.',
-      '운전면허: 주행 시험처럼 긴장을 늦추는 순간 큰 실수가 나오죠. 항상 하던 대로 침착함이 필수입니다.',
-      '첫 월급: 첫 월급을 받았을 때의 그 기분 좋은 성취감을 이 성과를 통해 다시 느껴보세요.',
-      '이사: 낯선 곳으로 이사할 때처럼 설레면서도 짐 목록을 하나하나 다 체크하는 꼼꼼함이 필요해요.',
-      '여행 계획: 여행을 떠나기 전 엑셀로 일정표를 짜는 것만큼이나 미리 준비하는 과정이 즐겁습니다.',
-      '냉장고 정리: 유통기한 지난 재료를 버리듯 오래된 지식은 버리고 신선한 정보를 채워야 성공합니다.',
-      '옷장 정리: 한 번 싹 비워내야 내게 진짜 필요한 옷이 뭔지 보이는 법이죠. 비우는 연습이 필요해요.',
-      '은행 적금: 지금의 고통은 미래의 만기 적금과 같습니다. 나중에는 반드시 이자까지 붙어 돌아와요.',
-      '게임 레벨업: 능력치를 하나씩 올리고 새로운 스킬을 배우는 재미를 이 과정에서 꼭 느껴보십시오.',
-      '대청소: 묵은 먼지를 털어내고 나면 느껴지는 상쾌함처럼, 글을 다 썼을 때의 쾌감은 최고입니다.',
-      '장보기 리스트: 마트에 가기 전 리스트를 적듯, 글을 쓰기 전 개요를 적는 게 성공의 80%입니다.'
-    ];
-    const LOGICS = [
-      '패턴 A (문제 해결형): 후킹 인트로 -> 고통받는 문제 제기 -> 근본적 원인 분석 -> 단계별 해결 가이드 -> 적용 후 변화 수치 -> 팁 박스 -> FAQ',
-      '패턴 B (스토리텔링형): 개인적인 실패담 -> 절망적인 상황 묘사 -> 우연히 마주친 깨달음 -> 새로운 전략 수립 -> 현재의 성공 스토리 -> 마무리 조언',
-      '패턴 C (역피라미드형): 충격적인 결론부터 요약 -> 왜 이게 정답인지 설명 -> 증거 자료 및 대안 분석 -> 실전 적용 방법 -> 기대효과 -> FAQ',
-      '패턴 D (Q&A 대화형): 독자들이 실제로 보낸 질문 5가지 -> 전문가의 1:1 심층 답변 -> 보충 설명 박스 -> 독자 후기 공유 -> 최종 요약 정리',
-      '패턴 E (단계별 가이드형): 시작 전 필수 체크리스트 -> Step 1부터 Step 7까지의 세부 공략 -> 단계별 핵심 주의사항 -> 완료 후 검토법 -> FAQ',
-      '패턴 F (비교 분석형): 비교 대상 A vs B 소개 -> 항목별 촘촘한 비교 표 삽입 -> 가성비와 가심비 분석 -> 상황별 최종 추천 모델 -> 선택 가이드',
-      '패턴 G (체크리스트형): 왜 우리가 잊어버리는지 분석 -> 10가지 필수 점크 항목 -> 항목별 심층 이유 설명 -> 흔한 실수 방지책 -> FAQ',
-      '패턴 H (오해 타파형): 세상의 잘못된 상식 3가지 제시 -> 사실은 이렇습니다(Fact Check) -> 오해가 생긴 배경 -> 진실된 정보 -> 전문가 팁',
-      '패턴 I (경험 리뷰형): 구매/사용 계기 -> 첫인상의 솔직한 느낌 -> 장점 3가지 상세 -> 단점 2가지 가감 없이 공개 -> 최종 롱텀 사용평 -> FAQ',
-      '패턴 J (초보자 입문형): 이것의 정확한 개념 정의 -> 왜 지금 당장 해야 하는지 -> 0원으로 시작하는 구체적 로드맵 -> 단계별 성장 꿀팁 -> 마무리',
-      '패턴 K (비용 분석형): 초기 투자 비용 세부 내역 -> 유지비 및 감가상각 계산 -> 가성비 최고의 효율 지점 찾기 -> 최종 결론 -> FAQ',
-      '패턴 L (타임라인 히스토리형): 과거의 낡은 방식 -> 우리를 바꾼 전환점 -> 현재의 대세 트렌드 -> 3년 뒤 미래 전망 -> 지금 바로 준비할 것',
-      '패턴 M (상황별 솔루션형): 혼자일 때 해결책 -> 여럿일 때 해결책 -> 위급할 때 해결책 -> 공통적으로 지켜야 할 철칙 -> FAQ',
-      '패턴 N (장단점 양방향 분석): 치명적인 단점 3가지 미리 보기 -> 그것마저 압도하는 강력한 장점 5가지 -> 솔직한 끝맺음 -> 누구에게 추천하는가',
-      '패턴 O (트러블슈팅 응급처치): 증상별 자가 진단 -> 당장 실행할 응급 조치 -> 원인 규명 및 영구적 해결법 -> 재발 방지용 생활 수칙 -> FAQ'
-    ];
-    
-    console.log('� [Search] Serper API 가동 - 실시간 트렌드 및 시장 데이터 분석 중...');
-    const searchData = await searchSerper(target);
-    console.log('🏗️ [Blueprint] Gemini 2.0 Flash 호출 - 7개 섹션 및 SEO 웅장한 제목 설계 중...');
-    const bpRes = await callAI(model, `[MASTER] 키워드 "${target}" 리포터 제목(2026년 기준)과 7개 장 목차 JSON. **절대 마크다운/HTML 태그 금지.** 제목은 h2 48px에 걸맞은 웅장하고 검색 의도가 명확한 롱테일 키워드로. JSON: { "title":"", "chapters":[] }`);
-    const bp = JSON.parse(clean(bpRes, 'obj'));
-    const title = (bp.title || target).replace(/<[^>]*>/g, '').replace(/202[0-5]/g, '2026').replace(/^[\d\.\*\-\s>]+/, '');
-    console.log(`✅ [Blueprint] 설계 완료: "${title}"`);
-    const chapters = (bp.chapters || []).map(c => (typeof c === 'object' ? (c.title || c.chapter || c.name || String(c)) : String(c)).replace(/^[\d\.\*\-\s>]+/, ''));
-    
-    let body = STYLE + '<div class="vue-premium">';
-    body += '<div class="info-box"><b>CORE INSIGHT INDEX</b><ul>' + chapters.map((c,i)=>`<li><a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
-    
-    let ctx = "";
-    for(let i=0; i<chapters.length; i++) {
-        const isFAQ = (i === chapters.length - 1);
-        const currentLogic = LOGICS[i % LOGICS.length];
-        const currentMetaphor = METAPHORS[i % METAPHORS.length];
-        
-        console.log(`✍️ [S${i+1}/7] "${chapters[i]}" 집필 시작`);
-        if(!isFAQ) {
-            console.log(`   ㄴ [Pattern] ${currentLogic.split(':')[0]}`);
-            console.log(`   ㄴ [Metaphor] ${currentMetaphor.split(':')[0]}`);
+    // 2. Kie.ai (Premium Fallback)
+    if(!imageUrl && kieKey && kieKey.length > 5) {
+        try {
+            console.log('   ㄴ [Kie.ai] z-image 호출 (비율: 16:9)...');
+            const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { 
+                model: 'z-image', 
+                input: { prompt: engPrompt + ', high-end, editorial photography, 8k', aspect_ratio: '16:9' } 
+            }, { headers: { Authorization: 'Bearer ' + kieKey } });
+            
+            // 경로 유연하게 처리 (data.taskId 또는 data.data.taskId)
+            const tid = cr.data.taskId || cr.data.data?.taskId;
+            if(tid) {
+                for(let a=0; a<15; a++) { 
+                    await new Promise(r => setTimeout(r, 6000));
+                    const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey } });
+                    const state = pr.data.state || pr.data.data?.state;
+                    if(state === 'success') { 
+                        const resData = pr.data.resultJson || pr.data.data?.resultJson;
+                        const resJson = typeof resData === 'string' ? JSON.parse(resData) : resData;
+                        imageUrl = resJson.resultUrls[0]; break; 
+                    }
+                    if(state === 'fail' || state === 'failed') break;
+                }
+            } else { console.log('   ㄴ [Kie.ai] 태스크 ID 누락. 응답: ' + JSON.stringify(cr.data).slice(0, 100)); }
+        } catch(e) { 
+            console.log('   ㄴ [Kie.ai] 실패: ' + (e.response ? JSON.stringify(e.response.data) : e.message)); 
         }
-        
-        let sig = i === 0 ? `[VUE_SIGNATURE] "${SIGNATURES[Math.floor(Math.random()*SIGNATURES.length)]}"\n` : '';
-        let sectPrompt = isFAQ ? 
-            `[SEO/STRATEGY] 전체 내용 추론(${ctx}) 기반 전문가 FAQ 30개 작성.\n\n[RULE]\n1. 난이도 배분: 상-10개 (심층 원리), 중-10개 (실전 응용), 하-10개 (기능/기초).\n2. **절대 번호/마크다운 금지**. HTML <ul><li>로만 작성.\n3. 마지막에 script 태그를 포함한 JSON-LD FAQ/Article 스키마를 반드시 삽입하라.` :
-            `[EDITORIAL] ${sig}챕터명: ${chapters[i]}. 1,500자 이상 심층 분석.\n\n[시스템 지침]\n1. **V-LOGIC 패턴**: 반드시 "${currentLogic}" 패턴을 충실히 따를 것.\n2. **비유 표현**: "${currentMetaphor}"를 문맥에 녹여내어 독자의 이해를 돕고 문학적 가치를 높일 것.\n3. **문체**: 전문가의 단호한 확신(~합니다, ~하십시오). 중간에 '앗!', '와,', '사실,', '이게 진짜예요' 등 추임새를 적절히 배치.\n4. **시각 요소**: <b> 및 <strong>으로 핵심 강조. 4x4 HTML Table을 통해 데이터/증거 제시. [IMAGE_PROMPT] 필수 포함.`;
-        
-        console.log('   ㄴ [AI] 본문 및 데이터 테이블 생성 중 (Gemini 2.0 Flash)...');
-        const sectRaw = await callAI(model, sectPrompt);
-        
-        console.log('   ㄴ [Auditor] 무결점 정화 필터 가동 (AI 잔재 소거 및 타이포그래피 정규화)');
-        let sect = chiefAuditor(sectRaw, chapters[i]);
-        const sumRes = await callAI(model, `핵심 요약(수치/데이터 포함): ${sect.substring(0, 1000)}`);
-        ctx += ` [S${i+1}: ${sumRes}]`;
-        
-        if(!isFAQ && (i === 0 || i === 2 || i === 4)) { 
-            const pMatch = sectRaw.match(/\[IMAGE_PROMPT:\s*([\s\S]*?)\]/);
-            if(pMatch) { 
-                console.log('   ㄴ [Visual] 이미지 생성 프롬프트 감지. 고퀄리티 렌더링 중...');
-                const u = await genImg(pMatch[1].trim(), model); 
-                if(u) { 
-                    sect = sect + `<img src="${u}" alt="${target} Premium Narrative">`; 
-                    console.log('   ㄴ [Visual] 이미지 생성 및 본문 삽입 완료.');
+    }
+
+    // 3. Pollinations.ai (Infinite Stability AI)
+    if(!imageUrl) {
+        try {
+            console.log('   ㄴ [AI] Pollinations 엔진 가동 (FLUX)...');
+            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt)}?width=1280&height=720&nologo=true&seed=${Math.floor(Math.random()*1000000)}&model=flux`;
+        } catch(e) { }
+    }
+
+    // 4. Stock Image Fallback (Absolute Safety Net)
+    if(!imageUrl) {
+        try {
+            console.log('   ㄴ [스톡] 고품질 프리미엄 스톡 이미지 매칭...');
+            const keywords = engPrompt.split(' ').slice(0, 3).join(',');
+            imageUrl = `https://loremflickr.com/1280/720/${encodeURIComponent(keywords)}?lock=${Math.floor(Math.random()*1000)}`;
+        } catch(e) { 
+            imageUrl = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280&auto=format&fit=crop'; // 우주 배경 기본값
+        }
+    }
+
+    // 5. ImgBB Upload (Crucial: Use Base64 for reliability)
+    try {
+        if(imgbbKey && imgbbKey.length > 5 && imageUrl) {
+            let res;
+            // 끈기 모드: 최대 3회 재시도 (Slow AI 대응)
+            for(let retry=1; retry<=3; retry++) {
+                try {
+                    res = await axios.get(imageUrl, { 
+                        responseType: 'arraybuffer', 
+                        timeout: 60000, 
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+                    });
+                    if(res.data) break;
+                } catch(e) {
+                    if(retry === 3) throw e;
+                    console.log(`   ㄴ [ImgBB] 리소스 획득 중... (${retry}/3)`);
+                    await new Promise(r => setTimeout(r, 5000));
                 }
             }
+            const b64 = Buffer.from(res.data).toString('base64');
+            const form = new FormData(); form.append('image', b64);
+            const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders() });
+            console.log('   ㄴ [ImgBB] 서버 전용/영구 보관 처리 완료! ✅');
+            return ir.data.data.url;
         }
-        body += `<div class="h2-container" id="s${i+1}"><h2>${chapters[i]}</h2></div>` + sect;
-        console.log(`✅ [S${i+1}] 완료. 컨텍스트 데이터 업데이트.`);
+        return imageUrl;
+    } catch(e) { 
+        console.log('   ㄴ [ImgBB] 영구 저장 실패 (임시 URL 사용): ' + e.message);
+        return imageUrl; 
     }
-    
-    // Smart Link: External Authority Reference
-    console.log('🔗 [Smart Link] 외부 공신력 자료 탐색 중 (Serper 데이터 기반)...');
-    const extLinkRes = await callAI(model, `[SEARCH_RANK] Search results for "${target}":\n${searchData}\n\nFind the most authoritative, officially relevant EXTERNAL URL (News, Wiki, or Official Doc) from this list. Return ONLY JSON: {"title":"", "url":""}. No Chatter.`);
-    try {
-        const ext = JSON.parse(clean(extLinkRes, 'obj'));
-        if(ext.url && ext.url.startsWith('http')) {
-            body += `<div class="smart-link-card">` +
-                    `<p style="margin:0 0 15px 0; color:${theme.color}; font-weight:900; letter-spacing:2px;">💎 VUE MASTER RECOMMENDATION</p>` +
-                    `<p style="margin-bottom:20px; color:#cbd5e1;">${ext.title}에 대한 더 깊고 공신력 있는 정보를 원하신다면 아래 공식 자료를 참고해 보십시오.</p>` +
-                    `<a href="${ext.url}" target="_blank">👉 공식 심층 자료 보러가기</a>` +
-                    `</div>`;
-            console.log(`✅ [Smart Link] 참조 카드 생성 완료: "${ext.title}"`);
-        }
-    } catch(e) { console.log('⚠️ [Smart Link] 생성 건너뜀 (유효한 링크 없음)'); }
-
-    body += `<div class="premium-footer">© 2026 Sovereign Intelligence Collective Archive. All rights reserved.</div></div>`;
-    console.log('🚀 [Publish] Blogger API 전송 및 최종 라이브러리 등록 중...');
-    const finalPost = await publishToBlogger(blogger, bId, { title, content: body, labels: ["Elite Strategy", target] });
-    console.log(`\n✨ [Success] Sovereign v2.2.16 출고 완료! URL: ${finalPost.data.url}`);
 }
-
-async function run() {
+async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
+    console.log(`\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);
+    console.log('   ㄴ [1단계] 실시간 트렌드 분석 및 E-E-A-T 블루프린트 설계 중...');
+    const searchData = await searchSerper(target);
+    const bpPrompt = `MISSION: Create a high-end, 7-part content strategy for: "${target}".\n\n1. Return ONLY a valid JSON object.\n2. Format: {"title":"SEO_LONGTAIL_TITLE", "chapters":["Topic 1", ..., "Topic 7"]}\n3. TITLE RULE: The title MUST be a "Google SEO Long-tail Keyword" phrase. Think of high-intent search queries (e.g., "How to solve [Problem] with ${target}", "${target} vs Alternatives for [Audience]" or "Hidden side effects of ${target}"). DO NOT use generic clickbait like "완벽 가이드" or "비밀 노하우". Make it highly searchable, specific, and informative.\n4. CHAPTER STRATEGY (Vary the angles!):\n   - DO NOT use the same generic predictable structure for every post. \n   - Analyze the deep search intent of "${target}". Is it a problem/solution? A product review? A tutorial? A comparison? Create 7 highly specific, dynamic chapters that perfectly match the intent.\n   - Ensure absolutely NO generic titles like "Introduction to..." or "Conclusion on...". Use captivating and informational headlines.\n   - Only Chapter 7 MUST be strictly reserved as an Ultimate FAQ/Checklist.\n5. RULE: NEVER repeat the main keyword in every chapter title. Use diverse phrasing.\n6. NO MARKDOWN, NO CHATTER. ONLY JSON.`;
+    const bpRes = await callAI(model, bpPrompt);
+    let title, chapters;
     try {
-        const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
-        const gai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = gai.getGenerativeModel({ model: 'gemini-2.0-flash' });
-        const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
-        auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
-        const blogger = google.blogger({ version: 'v3', auth });
-        const seeds = config.clusters || []; if(!seeds.length) return;
-        const target = seeds.shift();
-        await writeAndPost(model, target, blogger, config.blog_id);
-        const g = await axios.get(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-        await axios.put(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { message: 'Deep Sync', content: Buffer.from(JSON.stringify({...config, clusters: seeds}, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    } catch(e) { console.error('🔥 CRITICAL ERROR:', e); process.exit(1); }
+        const c = clean(bpRes, 'obj');
+        const parsed = JSON.parse(c);
+        title = (parsed.title && parsed.title.length > 20 && parsed.title !== target) ? parsed.title : `현직 전문가가 알려주는 ${target} 실패 피하는 3가지 현실적인 방법`;
+        chapters = (parsed.chapters && parsed.chapters.length >= 7) ? parsed.chapters : [];
+        if(chapters.length < 7) throw new Error('Missing chapters');
+    } catch(e) { 
+        console.log('   ⚠️ [시스템] 블루프린트 설계 보정 중...');
+        const titleTemplates = [
+            `${target} 장단점 및 비용 완벽 분석 (2026년 기준 현실적인 선택법)`,
+            `현직 전문가가 알려주는 ${target} 실패 피하는 3가지 현실적인 방법`,
+            `${target}과 다른 대안 비교: 나에게 맞는 최적의 솔루션 찾기`,
+            `${target} 도입 전 반드시 알아야 할 현실적인 부작용과 해결책`,
+            `비용 대비 효과 극대화: ${target} 제대로 활용하는 실전 루틴`
+        ];
+        title = titleTemplates[Math.floor(Math.random() * titleTemplates.length)];
+        const fallbackChapters = [
+            [
+                `왜 똑같은 방법을 써도 결과가 다를까? 핵심 원인 분석`,
+                `실패를 피하는 최적화 세팅 첫걸음`,
+                `비용과 시간을 반으로 줄여주는 실전 루틴`,
+                `효율을 극대화하는 보조 도구 활용법`,
+                `현직자들이 절대 말해주지 않는 치명적 단점`,
+                `단기 성과가 아닌 장기적 관점에서의 유지보수 전략`,
+                `자주 묻는 핵심 질문과 마스터 실천 리스트`
+            ],
+            [
+                `초보자가 가장 많이 오해하는 기본 상식의 오류`,
+                `상황별로 딱 맞춰 고르는 맞춤형 솔루션 가이드`,
+                `직접 부딪혀보면서 찾아낸 가장 안전한 접근법`,
+                `생각보다 흔히 겪는 최악의 부작용 사례들`,
+                `예산을 낭비하지 않기 위해 버려야 할 우선순위`,
+                `경쟁 모델들과의 비교 분석을 통한 팩트 체크`,
+                `도입 전 반드시 점검해야 할 최종 에러 체크리스트`
+            ],
+            [
+                `본격적으로 시작하기 전에 짚고 넘어가야 할 3가지 팩트`,
+                `남들보다 2배 더 빠르게 숙련도를 올리는 방법`,
+                `투자 대비 만족도를 높이는 숨겨진 옵션들`,
+                `이미 문제가 생겼을 때 바로 적용 가능한 응급 처치`,
+                `업계 트렌드가 변화하면서 생겨난 새로운 대안들`,
+                `앞으로 5년 뒤에도 통할 불변의 최적화 규칙`,
+                `성공적인 마무리를 위한 FAQ 및 필수 점검 사항`
+            ]
+        ];
+        chapters = fallbackChapters[Math.floor(Math.random() * fallbackChapters.length)];
+    }
+
+    console.log('   ㄴ [확정 제목] ' + title);
+
+    const hero = await genImg(await callAI(model, 'Visual description for: ' + title), model);
+    let body = STYLE + '<div class="vue-premium">';
+    if(hero) body += '<img src="' + hero + '" style="width:100%; border-radius:15px; margin-bottom: 30px;">';
+    body += '<div class="toc-box"><h2>📋 Expert Guide Contents</h2><ul>' + chapters.map((c,i)=>`<li><a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
+    
+    console.log('   ㄴ [3단계] 2026 E-E-A-T 기반 고품격 서론 집필 중...');
+    let intro = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nNARRATIVE TEMPLATES: ${NARRATIVE_HINTS}\n\nMISSION: Write a massive, engaging intro for: ${title}.\n\nRULES:\n1. START with one of the NARRATIVE TEMPLATES style.\n2. START the response with <p style="margin-bottom: 20px;"> tag.\n3. NO MARKDOWN (**), NO HEADERS (#), NO TOC.\n4. ONLY BODY HTML/TEXT. No salutations.\n5. Context: ${searchData}`), 'text');
+
+    body += intro; let summary = intro.slice(-500);
+    
+    console.log('   ㄴ [4단계] [TURBO MODE] 7개 챕터 동시 집필 및 이미지 생성 중...');
+    const colors = ['moccasin', 'lightpink', 'palegreen', 'skyblue', 'plum', 'lightsalmon', '#98d8c8'];
+    const vLogicPatterns = [
+        `V-LOGIC PATTERN A (원인분석형): Act like a forensic investigator. Dissect the core problem into 3 invisible root causes. Expose what people misunderstand and reveal the hidden truth.`,
+        `V-LOGIC PATTERN B (전문가 썰/경험담): Talk like a seasoned expert sharing a critical behind-the-scenes "war story" or case study. Build tension about the issue and reveal the answer like a plot twist.`,
+        `V-LOGIC PATTERN C (솔루션/해결형): Start by validating a deep pain point, explain why traditional ways fail, and propose a new elegant solution using step-by-step rigorous reasoning.`,
+        `V-LOGIC PATTERN D (대조/비교분석형): Frame the narrative as a battle between Old Way vs New Way, or Assumption vs Reality. Highlight the sheer difference in outcomes using stark contrast.`,
+        `V-LOGIC PATTERN E (미래 예측/트렌드형): Zoom out and talk about the shifting paradigm. Warn the reader about what's coming in the industry and why they must adapt their mindset immediately.`,
+        `V-LOGIC PATTERN F (전문가 인터뷰형): Write as if you are answering tough questions from an interviewer, using a highly authoritative tone, dropping industry jargon naturally and explaining it.`
+    ].sort(() => Math.random() - 0.5);
+    const chapterTasks = chapters.map(async (chapter, i) => {
+        try {
+            console.log(`      ㄴ [병렬 가동] ${i+1}/7 '${chapter}' 집필 시작...`);
+            let mission = (i === 6) 
+                ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: "${title}".\n\nRULES:\n1. Create 10-15 specialized Q&A pairs (FAQ style) with deep answers ABOUT "${target}".\n2. FAQ HEADERS: Wrap EVERY Question in a beautiful HTML <h2> tag (e.g., <h2 style="font-size:20px; color:#2c3e50; border-bottom:2px solid #3498db; padding-bottom:8px; margin-top:35px; margin-bottom:15px;">Q. [Question]</h2>). DO NOT use markdown (#).\n3. MULTIPLE PARAGRAPHS: Each Answer must be separated properly using <p style="margin-bottom: 20px;"> tags.\n4. CHECKLIST SECTION: After the FAQ, create the 'Master Action Checklist' (10+ items). It MUST start with this EXACT HTML header: <h2 style="background-color:#e8f5e9; border-radius:8px; color:#2e7d32; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #4CAF50;">✅ 실전 마스터 액션 체크리스트</h2>. Put the checklist items inside an HTML <ul> tag, and wrap EVERY single item in a <li style="margin-bottom:15px; font-size:16px; line-height:1.6;"> tag for proper line breaks. NEVER use raw text lists or markdown.\n5. MASSIVE CONTENT (2,000+ chars).`
+                : `MISSION: Write a massive, data-driven BODY for: "${chapter}" (Main Article: "${title}", Core Topic: "${target}").\n\nCRITICAL NARRATIVE STYLE:\nYou MUST strictly write this chapter using the following structural logic and tone: ${vLogicPatterns[i % vLogicPatterns.length]}\n\nRULES:\n1. QUANTITY: Write HUGE amounts of text (2,000+ characters minimum). \n2. TABLE: MUST include a 4-column x 4-row HTML Table with unique numerical data/evidence.\n3. ANALOGY: Use at least 2 metaphors from the Analogies library.\n4. OUTCOME: Stop using predictable boring structures. Follow the assigned V-LOGIC PATTERN above!\n5. FOCUS: The content MUST be strictly about "${chapter}" in the context of "${target}". Do not drift to general topics.\n6. STRICTLY FORBIDDEN: NEVER use ** or * or # or \` or HTML <h1>, <h2>, <h3> tags. Use HTML <strong> if needed.\n7. START IMMEDIATELY with dense information. NO HEADERS (#).\n8. MEGA RULE: NEVER start this chapter with the same opening words or filler phrases (like '앗!', '가장 먼저', '사실') used in other chapters. Make the first sentence 100% unique and unpredictable.`;
+            let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\n${mission}\n\nRULES:\n1. NO TOC, NO JSON.\n2. NO GREETINGS. DO NOT rewrite or reference the intro. Go straight to the professional sub-topic content.\n3. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
+            if (i !== 6) sect = sect.replace(/^#{1,6}\s+.*$/gm, '').replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '');
+            else sect = sect.replace(/^#{1,6}\s+.*$/gm, '');
+
+            sect = sect.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+            const promptMatch = sect.match(/\[IMAGE_PROMPT:\s*([\s\S]*?)\]/);
+            if(promptMatch) {
+                const chapterImg = await genImg(promptMatch[1].trim(), model);
+                if(chapterImg) sect = sect.replace(promptMatch[0], `<img src="${chapterImg}" alt="${chapter}" style="width:100%; border-radius:12px; margin: 25px 0;">`);
+                else sect = sect.replace(promptMatch[0], '');
+            }
+            sect = sect.replace(/\[IMAGE_PROMPT:[\s\S]*?\]/g, '');
+            return { i, chapter, sect };
+        } catch(e) {
+            return { i, chapter, sect: `<p>본 챕터의 내용을 준비 중입니다. 잠시만 기다려 주세요.</p>` };
+        }
+    });
+
+    const results = await Promise.all(chapterTasks);
+    results.sort((a, b) => a.i - b.i).forEach(r => {
+        body += `<h2 id="s${r.i+1}" style="background-color:${colors[r.i]}; border-radius:8px; color:black; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #333;">🎯 ${r.chapter}</h2>${r.sect}`;
+        if (extraLinks && extraLinks[r.i]) {
+            body += `<div class="link-box">` +
+                    `<h3 style="color:#00e5ff; margin-top:0; margin-bottom:15px; font-size:18px;">💡 관련 심층 가이드</h3>` +
+                    `<p style="margin-bottom: 20px; font-size:15px; color:#ddd;"><strong>${extraLinks[r.i].title}</strong>에 대한 구체적인 솔루션과 팁을 별도로 정리해 두었습니다. 자세한 내용이 궁금하시다면 아래 링크를 참고해 주세요.</p>` +
+                    `<a href="${extraLinks[r.i].url}" target="_blank" style="display:inline-block; padding:12px 30px; background-color:#00e5ff; color:#000; text-decoration:none; font-weight:bold; border-radius:8px; font-size:16px;">👉 심층 가이드 보러가기</a>` +
+                    `</div>`;
+        }
+    });
+    
+    console.log('   ㄴ [5단계] Closing, Tags, Schema 데이터 생성 중...');
+    let footer = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nMISSION: Create a powerful Closing, 10+ comma-separated Tags, and a JSON-LD FAQ Schema (with 15+ generated Q&A pairs for SEO) for "${title}".\n\nRULES:\n1. DO NOT write an HTML FAQ section (it is already written).\n2. NO MARKDOWN (**, #). Use HTML tags for Closing.\n3. NO JSON outside the <script type="application/ld+json"> block.\n4. START IMMEDIATELY with the Closing <p> tag. NO CHATTER (e.g., 'OK. 시작합니다').\n5. NO IMAGE_PROMPT. Do NOT generate any images here.\n6. OUTPUT EXACTLY: Closing HTML, Tags HTML, and the JSON-LD script limit.`), 'text');
+    footer = footer.replace(/\[IMAGE_PROMPT:[\s\S]*?\]/g, '');
+    
+    // 마무리 섹션에도 통일성 있는 명품 h2 배지를 강제로 주입합니다.
+    const closingH2 = `<h2 style="background-color:#ffe0b2; border-radius:8px; color:black; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #333;">🚀 핵심 요약 및 최종 마무리</h2>`;
+    const disclaimerHtml = `<div style="background-color:#fff3cd; padding:20px; border-radius:10px; font-size:14px; color:#856404; margin-top:40px; border:1px solid #ffeeba; line-height:1.6;"><p style="margin:0;"><b>⚠️ [면책 조항]</b> 본 포스팅은 단순 정보 제공을 목적으로 작성되었으며, 개인의 상황에 따라 결과가 다를 수 있습니다. 본 블로그는 포스팅 내용의 정확성이나 신뢰성에 대해 보증하지 않으며, 이로 인해 발생하는 어떠한 직간접적인 손해에 대해서도 법적 책임을 지지 않습니다. 중요한 의사 결정 시에는 반드시 전문가의 상담을 받으시거나 신중하게 판단하시기 바랍니다.</p></div>`;
+    body += closingH2 + footer + disclaimerHtml + '</div>';
+    
+    const res = await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, published: pTime.toISOString() } });
+    console.log('   ㄴ ✅ 발행 완료! 주소: ' + res.data.url);
+    return { title, url: res.data.url };
+}
+async function run() {
+    const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
+    auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
+    const blogger = google.blogger({ version: 'v3', auth });
+    const pool = config.clusters || []; if(!pool.length) return;
+    const mainSeed = pool.splice(Math.floor(Math.random()*pool.length), 1)[0];
+    let subRes = clean(await callAI(model, 'Topic: "' + mainSeed + '".\nGenerate 4 sub-topics as a simple JSON array of strings: ["A", "B", "C", "D"]. ONLY JSON. NO Chat.'), 'arr');
+    let subTopics = [];
+    try {
+        const parsed = JSON.parse(subRes);
+        subTopics = Array.isArray(parsed) ? parsed : (parsed.topics || []);
+        if(subTopics.length < 2) throw new Error();
+    } catch(e) { 
+        const fallbacks = [
+            [mainSeed + ' 완벽 입문 가이드', mainSeed + ' 성능 최적화 세팅', mainSeed + ' 치명적인 주의사항', mainSeed + ' 최신 시장 동향 분석'],
+            [mainSeed + ' 기초 지식과 원리', mainSeed + ' 고급 테크닉 및 꿀팁', mainSeed + ' 주요 부작용과 예방법', mainSeed + ' 대체 가능한 솔루션 비교'],
+            [mainSeed + ' 제대로 알고 시작하기', mainSeed + ' 상위 1%의 실전 활용법', mainSeed + ' 비용 절감을 위한 핵심 팁', mainSeed + ' 2026년 이후의 미래 전망']
+        ];
+        subTopics = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    }
+    let subLinks = []; let cTime = new Date();
+    for(let i=0; i < subTopics.length; i++) {
+        cTime.setMinutes(cTime.getMinutes()+180);
+        subLinks.push(await writeAndPost(model, subTopics[i], config.blog_lang, blogger, config.blog_id, new Date(cTime), [], i+1, 5));
+    }
+    cTime.setMinutes(cTime.getMinutes()+180);
+    await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
+    const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.4.20', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

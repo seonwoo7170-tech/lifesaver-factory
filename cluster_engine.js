@@ -145,35 +145,46 @@ async function genImg(desc, model) {
     }
 
     if(imgbbKey && imgbbKey.length > 5) {
-        console.log('   ㄴ [보관 시스템] ImgBB 순정 수집 프로세스 가동...');
+        console.log('   ㄴ [보관 시스템] ImgBB 영구 저장 프로세스 가동...');
         for(let attempt=1; attempt<=3; attempt++) {
             try {
                 if(finalUrl.includes('pollinations')) {
-                    const wait = attempt === 1 ? 18000 : 8000;
-                    console.log(`   ㄴ [엔진 예열] Pollinations 대기 중... (${wait/1000}초, 시도 ${attempt}/3)`);
+                    const wait = attempt === 1 ? 20000 : 10000;
+                    console.log(`   ㄴ [엔진 예열] Pollinations 생성 대기 중... (${wait/1000}초, 시도 ${attempt}/3)`);
                     await new Promise(r => setTimeout(r, wait));
                 }
-                const pRes = await axios.get(finalUrl, { responseType: 'arraybuffer', timeout: 90000, headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8' } });
+                const pRes = await axios.get(finalUrl, {
+                    responseType: 'arraybuffer', timeout: 90000, validateStatus: (s) => s < 600,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8',
+                        'Referer': 'https://pollinations.ai/',
+                        'sec-fetch-dest': 'image', 'sec-fetch-mode': 'no-cors'
+                    }
+                });
                 const cType = pRes.headers['content-type'] || '';
-                console.log(`   ㄴ [수집 확인] 상태: ${pRes.status}, 타입: ${cType}, 크기: ${pRes.data ? pRes.data.byteLength : 0} bytes`);
-                if(pRes.status === 200 && pRes.data && pRes.data.byteLength > 5000 && cType.includes('image')) {
-                    const form = new FormData();
-                    form.append('image', pRes.data, { filename: 'upload.jpg', contentType: 'image/jpeg' });
-                    const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { 
-                        headers: form.getHeaders(),
-                        timeout: 60000 
-                    });
-                    if(ir.data && ir.data.data && ir.data.data.url) {
-                        console.log('   ㄴ [ImgBB] 영구 보관 성공! ✅');
-                        return ir.data.data.url;
-                    } else { console.log('   ⚠️ [ImgBB] 응답 이상: ' + JSON.stringify(ir.data)); }
-                } else { console.log('   ⚠️ [수집 불완전] 유효 이미지 아님, 재시도...'); }
-            } catch(e) { 
-                console.log(`   ⚠️ [저장 실패] 시도 ${attempt}/3: ` + (e.response ? JSON.stringify(e.response.data) : e.message));
-                await new Promise(res => setTimeout(res, 5000)); 
+                const byteLen = pRes.data ? pRes.data.byteLength : 0;
+                console.log(`   ㄴ [수집 확인] 상태: ${pRes.status}, 타입: ${cType}, 크기: ${byteLen} bytes`);
+                if(pRes.status !== 200 || byteLen < 5000 || !cType.includes('image')) {
+                    const errMsg = pRes.data ? Buffer.from(pRes.data).toString('utf8').substring(0,120) : '데이터 없음';
+                    console.log(`   ⚠️ [수집 불완전] 원인: ${errMsg}`);
+                    continue;
+                }
+                const form = new FormData();
+                form.append('image', pRes.data, { filename: 'upload.jpg', contentType: 'image/jpeg' });
+                const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders(), timeout: 60000 });
+                if(ir.data && ir.data.data && ir.data.data.url) {
+                    console.log('   ㄴ [ImgBB] 영구 보관 성공! ✅');
+                    return ir.data.data.url;
+                } else { console.log('   ⚠️ [ImgBB] 업로드 응답 이상: ' + JSON.stringify(ir.data)); }
+            } catch(e) {
+                const errDetail = e.response ? Buffer.from(e.response.data).toString('utf8').substring(0,120) : e.message;
+                console.log(`   ⚠️ [저장 실패] 시도 ${attempt}/3 - 원인: ${errDetail}`);
+                await new Promise(res => setTimeout(res, 5000));
             }
         }
-        console.log('   ⚠️ [ImgBB] 3회 실패. 원본 URL 사용합니다.');
+        console.log('   ⚠️ [ImgBB] 3회 모두 실패. Pollinations 원본 URL을 사용합니다.');
     }
     return finalUrl;
 }

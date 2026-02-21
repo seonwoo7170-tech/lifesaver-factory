@@ -10,14 +10,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: npm install googleapis @google/generative-ai axios form-data crypto cloudinary
+      - run: npm install googleapis @google/generative-ai axios form-data
       - env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           KIE_API_KEY: ${{ secrets.KIE_API_KEY }}
+          RUNWARE_API_KEY: ${{ secrets.RUNWARE_API_KEY }}
           SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
-          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
           BLOG_ID: ${{ secrets.BLOG_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}

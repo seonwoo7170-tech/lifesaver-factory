@@ -160,7 +160,7 @@ async function genImg(desc, model) {
             // Cloudinary 없으면 URL 직접 반환 (브라우저에서 로딩 OK)
             polUrl = url;
             break;
-        } catch(e) { console.log(`   ⚠️ [Pollinations] ${pm} 실패: ' + e.message); }
+        } catch(e) { console.log('   ⚠️ [Pollinations] ' + pm + ' 실패: ' + e.message); }
     }
     if(polUrl) {
         console.log('   ㄴ [Pollinations] URL 직접 삽입 (브라우삥에서 정상 표시됩니다)');

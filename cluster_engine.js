@@ -6,7 +6,7 @@ const FormData = require('form-data');
 
 const MASTER_GUIDELINE = `
 [VUE POST v2.5 The Origin Master - Premium Content Strategy]
-당신은 Studio VUE의 블로그 마케팅 전문가로서, 구글의 E-E-A-T 원칙과 애드센스 수익 극대화 전략을 결합한 '인간보다 더 인간다운' 프리미엄 콘텐츠를 전개합니다.
+당신은 블로그 마케팅 전문가로서, 구글의 E-E-A-T 원칙과 애드센스 수익 극대화 전략을 결합한 '인간보다 더 인간다운' 프리미엄 콘텐츠를 전개합니다.
 
 [중요] 단계별 "멈춤"이나 "질문" 지침은 무시하고, 한 번의 호출에 해당 섹션을 즉시 끝까지 집필하십시오.
 
@@ -136,12 +136,13 @@ async function genImg(desc, model) {
     engPrompt = engPrompt.slice(0, 800);
     
     let imageUrl = '';
+    let imageBuffer = null;
 
     // 1. Pollinations AI (Flux 고속 엔진 - 기본 1순위)
     if(!imageUrl) {
         try {
             console.log('   ㄴ [고속 엔진] Pollinations(Flux) 호출 중...');
-            const pUrl = `https://pollinations.ai/p/${encodeURIComponent(engPrompt + ', high quality, realistic, cinematic')}`;
+            const pUrl = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(engPrompt + ', high quality, realistic, cinematic');
             const pParams = {
                 model: 'flux',
                 width: 1024,
@@ -151,9 +152,11 @@ async function genImg(desc, model) {
                 enhance: true
             };
             const pHeaders = pollKey ? { 'Authorization': `Bearer ${pollKey}` } : {};
-            const pRes = await axios.get(pUrl, { params: pParams, headers: pHeaders, timeout: 20000 });
+            const pRes = await axios.get(pUrl, { params: pParams, headers: pHeaders, timeout: 20000, responseType: 'arraybuffer' });
             if(pRes.status === 200) {
-                imageUrl = pRes.config.url; // Pollinations는 URL 자체가 이미지임
+                const queryStr = Object.keys(pParams).map(k => k + '=' + encodeURIComponent(pParams[k])).join('&');
+                imageUrl = pUrl + '?' + queryStr;
+                imageBuffer = pRes.data;
                 console.log('   ㄴ [Pollinations] 3초 만에 이미지 획득 성공! ⚡');
             }
         } catch(e) {
@@ -226,22 +229,26 @@ async function genImg(desc, model) {
     // [영구 저장 이식]
     try {
         if(imgbbKey && imgbbKey.length > 5 && imageUrl) {
-            let res;
-            for(let retry=1; retry<=3; retry++) {
-                try {
-                    res = await axios.get(imageUrl, { 
-                        responseType: 'arraybuffer', 
-                        timeout: 120000, 
-                        headers: { 'User-Agent': uas[Math.floor(Math.random()*uas.length)] }
-                    });
-                    if(res.data) break;
-                } catch(e) {
-                    if(retry === 3) throw e;
-                    console.log(`   ㄴ [ImgBB] 리소스 획득 중... (${retry}/3)`);
-                    await new Promise(r => setTimeout(r, 6000));
+            let resData = imageBuffer;
+            if(!resData) {
+                let res;
+                for(let retry=1; retry<=3; retry++) {
+                    try {
+                        res = await axios.get(imageUrl, { 
+                            responseType: 'arraybuffer', 
+                            timeout: 120000, 
+                            headers: { 'User-Agent': uas[Math.floor(Math.random()*uas.length)] }
+                        });
+                        if(res.data) break;
+                    } catch(e) {
+                        if(retry === 3) throw e;
+                        console.log(`   ㄴ [ImgBB] 리소스 획득 중... (${retry}/3)`);
+                        await new Promise(r => setTimeout(r, 6000));
+                    }
                 }
+                resData = res.data;
             }
-            const b64 = Buffer.from(res.data).toString('base64');
+            const b64 = Buffer.from(resData).toString('base64');
             const form = new FormData(); form.append('image', b64);
             const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders() });
             console.log('   ㄴ [ImgBB] 서버 전용/영구 보관 처리 완료! ✅');
@@ -267,7 +274,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         chapters = (parsed.chapters && parsed.chapters.length >= 7) ? parsed.chapters : [];
         if(chapters.length < 7) throw new Error('Missing chapters');
     } catch(e) { 
-        console.log('   ⚠️ [시스템] 블루프린트 설계 보정 중...');
+        console.log('   ⚠️ [SYSTEM] 블루프린트 설계 보정 중...');
         const titleTemplates = [
             `${target} 장단점 및 비용 완벽 분석 (2026년 기준 현실적인 선택법)`,
             `현직 전문가가 알려주는 ${target} 실패 피하는 3가지 현실적인 방법`,
@@ -323,8 +330,8 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log('   ㄴ [4단계] [STEALTH MODE] 7개 챕터 순차적 집필 및 이미지 생성 중...');
     const colors = ['moccasin', 'lightpink', 'palegreen', 'skyblue', 'plum', 'lightsalmon', '#98d8c8'];
     const vLogicPatterns = [
-        `V-LOGIC PATTERN A (원인분석형): Act like a forensic investigator. Dissect the core problem into 3 invisible root causes. Expose what people misunderstand and reveal the hidden truth.`,
-        `V-LOGIC PATTERN B (전문가 썰/경험담): Talk like a seasoned expert sharing a critical behind-the-scenes "war story" or case study. Build tension about the issue and reveal the answer like a plot twist.`,
+        `V-LOGIC PATTERN A (문제/해결형): Start by deeply analyzing the reader's pain point, empathize with it violently, and then introduce the perfect step-by-step solution as a beacon of hope.`,
+        `V-LOGIC PATTERN B (경험/스토리형): Begin with a personal anecdote 'I used to fail miserably at this until I realized...' Then breakdown the exact transition and the secret that changed everything.`,
         `V-LOGIC PATTERN C (솔루션/해결형): Start by validating a deep pain point, explain why traditional ways fail, and propose a new elegant solution using step-by-step rigorous reasoning.`,
         `V-LOGIC PATTERN D (대조/비교분석형): Frame the narrative as a battle between Old Way vs New Way, or Assumption vs Reality. Highlight the sheer difference in outcomes using stark contrast.`,
         `V-LOGIC PATTERN E (미래 예측/트렌드형): Zoom out and talk about the shifting paradigm. Warn the reader about what's coming in the industry and why they must adapt their mindset immediately.`,

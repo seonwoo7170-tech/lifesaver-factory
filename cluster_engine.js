@@ -224,12 +224,12 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
             
             let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: \${MASTER_GUIDELINE}\\n\\n\${mission}\\n\\nRULES:\\n1. NO TOC, NO JSON.\\n2. STICK TO THE TOPIC: Do not stray back to things already covered in previous parts.\\n3. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
             
-            if (i !== 6) sect = sect.replace(/^#{1,6}\\s+.*$/gm, '').replace(/<h[1-6][^>]*>.*?<\\/h[1-6]>/gi, '');
-            else sect = sect.replace(/^#{1,6}\\s+.*$/gm, '');
+            if (i !== 6) sect = sect.replace(/^#{1,6}\s+.*$/gm, '').replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '');
+            else sect = sect.replace(/^#{1,6}\s+.*$/gm, '');
 
-            sect = sect.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
+            sect = sect.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-            const promptMatch = sect.match(/\[s*IMAGE_PROMPTs*[:：]s*(.*?)s*\]/i);
+            const promptMatch = sect.match(/\[\s*IMAGE_PROMPT\s*[:：]\s*(.*?)\s*\]/i);
             if(promptMatch) {
                 const chapterImg = await genImg(promptMatch[1].trim(), model);
                 if(chapterImg) {
@@ -239,7 +239,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
                     sect = sect.replace(promptMatch[0], '');
                 }
             }
-            sect = sect.replace(/\[s*IMAGE_PROMPTs*[:：].*?\]/gi, '');
+            sect = sect.replace(/\[\s*IMAGE_PROMPT\s*[:：].*?\]/gi, '');
 
             results.push({ rIdx: i, chapter, sect });
         } catch(e) {
@@ -260,7 +260,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     
     console.log('   ㄴ [5단계] Closing, Tags, Schema 데이터 생성 중...');
     let footer = clean(await callAI(model, `STRICT INSTRUCTIONS: \${MASTER_GUIDELINE}\\n\\nMISSION: Create a powerful Closing, 10+ comma-separated Tags, and a JSON-LD FAQ Schema (with 15+ generated Q&A pairs for SEO) for \"\${title}\".\\n\\nRULES:\\n1. DO NOT write an HTML FAQ section (it is already written).\\n2. NO MARKDOWN (**, #). Use HTML tags for Closing.\\n3. NO JSON outside the <script type=\"application/ld+json\"> block.\\n4. START IMMEDIATELY with the Closing <p> tag. NO CHATTER.\\n5. NO IMAGE_PROMPT.\\n6. OUTPUT EXACTLY: Closing HTML, Tags HTML, and the JSON-LD script limit.`), 'text');
-    footer = footer.replace(/\\\\\[\\s*IMAGE_PROMPT\\s*[:：].*?\\\\\]/gi, '');
+    footer = footer.replace(/\[\s*IMAGE_PROMPT\s*[:：].*?\]/gi, '');
     
     const closingH2 = `<h2 style=\"background-color:#ffe0b2; border-radius:8px; color:black; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #333;\">🚀 핵심 요약 및 최종 마무리</h2>`;
     const disclaimerHtml = `<div style=\"background-color:#fff3cd; padding:20px; border-radius:10px; font-size:14px; color:#856404; margin-top:40px; border:1px solid #ffeeba; line-height:1.6;\"><p style=\"margin:0;\"><b>⚠️ [면책 조항]</b> 본 포스팅은 단순 정보 제공을 목적으로 작성되었으며, 개인의 상황에 따라 결과가 다를 수 있습니다. 본 블로그는 포스팅 내용의 정확성이나 신뢰성에 대해 보증하지 않으며, 이로 인해 발생하는 어떠한 직간접적인 손해에 대해서도 법적 책임을 지지 않습니다. 중요한 의사 결정 시에는 반드시 전문가의 상담을 받으시거나 신중하게 판단하시기 바랍니다.</p></div>`;

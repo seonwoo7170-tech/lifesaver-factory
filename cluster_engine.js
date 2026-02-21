@@ -55,6 +55,7 @@ function chiefAuditor(raw, titleHead = '') {
     t = t.replace(/<(!DOCTYPE|html|body|head|meta|link).*?>/gi, '').replace(/<\/(html|body|head|title|meta)>/gi, '');
     t = t.replace(/<title[\s\S]*?<\/title>/gi, '').replace(/style="[^"]*"/gi, '');
     t = t.replace(/\\n/g, String.fromCharCode(10));
+    t = t.replace(/\[IMAGE_PROMPT:[\s\S]*?\]/gi, '').replace(/\[IMAGE_PROMPT\][\s\S]*?\[\/IMAGE_PROMPT\]/gi, '');
     t = t.replace(/\*\*+(.*?)\*\*+/g, '<b>$1</b>'); 
     t = t.replace(/^\s*#+.*$/gm, ''); t = t.replace(/^[-*]{3,}$/gm, '');
     
@@ -105,18 +106,48 @@ async function searchSerper(query) {
 
 async function genImg(desc, model) {
     if(!desc) return '';
+    const imgbbKey = process.env.IMGBB_API_KEY;
     try {
         const trans = await callAI(model, 'Translate this visual description to a concise but detailed English for AI image generation. Return ONLY the English text: ' + desc);
         const eng = trans.replace(/[^a-zA-Z0-9, ]/g, '').trim().slice(0, 800);
-        console.log('   ㄴ [이미지] Pollinations 가동: ' + eng.slice(0, 30));
-        return `https://image.pollinations.ai/prompt/${encodeURIComponent(eng)}?width=1280&height=720&nologo=true&seed=${Math.floor(Math.random()*100000)}`;
+        console.log('   ㄴ [Visual] Pollinations 렌더링 시작: ' + eng.slice(0, 30));
+        const pollinUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(eng)}?width=1280&height=720&nologo=true&seed=${Math.floor(Math.random()*100000)}`;
+        
+        if(imgbbKey && imgbbKey.length > 5) {
+            console.log('   ㄴ [Storage] ImgBB 영구 보관 업로드 중...');
+            const res = await axios.get(pollinUrl, { responseType: 'arraybuffer', timeout: 60000 });
+            const b64 = Buffer.from(res.data).toString('base64');
+            const form = new (require('form-data'))(); form.append('image', b64);
+            const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders(), timeout: 60000 });
+            if(ir.data?.data?.url) {
+                console.log('   ㄴ [Storage] 영구 저장 성공 ✅');
+                return ir.data.data.url;
+            }
+        }
+        return pollinUrl;
     } catch(e) { 
+        console.log('   ⚠️ [Visual] 생성 실패 (Unsplash 대체): ' + e.message);
         return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280&auto=format&fit=crop';
     }
 }
 
+async function publishToBlogger(blogger, blogId, requestBody, retry = 0) {
+    try {
+        return await blogger.posts.insert({ blogId, requestBody });
+    } catch (e) {
+        const is429 = e.code === 429 || (e.response && e.response.status === 429) || e.message.includes('Quota');
+        if (is429 && retry < 3) {
+            const wait = Math.pow(2, retry) * 60000; 
+            console.log(`   ⚠️ [Blogger Quota] 429 감지. ${wait/1000}초 후 재시도... (${retry+1}/3)`);
+            await new Promise(r => setTimeout(r, wait));
+            return publishToBlogger(blogger, blogId, requestBody, retry + 1);
+        }
+        throw e;
+    }
+}
+
 async function writeAndPost(model, target, blogger, bId) {
-    console.log(`\n🔱 [Sovereign Engine] v2.2.8 가동 | 지침서 100% 동기화 시스템 시작`);
+    console.log(`\n🔱 [Sovereign Engine] v2.2.10 가동 | Master Visualizer 시스템 기동`);
     console.log(`⚙️ [Config] 대상 키워드 확정: "${target}"`);
     const SIGNATURES = [
       '제가 직접 해본 결과, 역시 이론보다는 실전이 제일 중요하더라고요. 책에서 배울 때와는 전혀 다른 현장의 느낌이 있었거든요. 그래서 오늘은 제가 겪은 진짜 이야기를 들려드리려 합니다.',
@@ -249,8 +280,8 @@ async function writeAndPost(model, target, blogger, bId) {
 
     body += `<div class="premium-footer">© 2026 Sovereign Intelligence Collective Archive. All rights reserved.</div></div>`;
     console.log('🚀 [Publish] Blogger API 전송 및 최종 라이브러리 등록 중...');
-    const finalPost = await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, labels: ["Elite Strategy", target] } });
-    console.log(`\n✨ [Success] Sovereign v2.2.8 출고 완료! URL: ${finalPost.data.url}`);
+    const finalPost = await publishToBlogger(blogger, bId, { title, content: body, labels: ["Elite Strategy", target] });
+    console.log(`\n✨ [Success] Sovereign v2.2.10 출고 완료! URL: ${finalPost.data.url}`);
 }
 
 async function run() {

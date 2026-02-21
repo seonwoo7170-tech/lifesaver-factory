@@ -106,12 +106,11 @@ async function searchSerper(query) {
 }
 async function genImg(desc, model) {
     if(!desc) return '';
-    console.log('   ㄴ [고속 엔진] Pollinations(Flux) 전용 모드 가동 중...');
+    console.log('   ㄴ [고속 엔진] Pollinations(Flux) 전용 비주얼 생성 모드 가동 중...');
 
     let engPrompt = desc;
     if(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(desc)) {
         try {
-            console.log('   ㄴ [이미지] 한글 프롬프트 감지 -> 영어 번역 중...');
             const trans = await callAI(model, 'Translate this visual description to a concise but detailed English for AI image generation. (STRICT: Return ONLY the English text, and stay under 400 characters): ' + desc, 0);
             engPrompt = trans.replace(/[^a-zA-Z0-9, ]/g, '').trim();
         } catch(e) { engPrompt = desc.replace(/[^a-zA-Z, ]/g, ''); }
@@ -121,61 +120,56 @@ async function genImg(desc, model) {
     const pParams = `model=flux&width=1024&height=768&seed=${Math.floor(Math.random() * 1000000)}&nologo=true&enhance=true`;
     const pUrl = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(engPrompt + ', high quality, realistic, cinematic') + '?' + pParams;
     
-    // [영구 보존] 이미지를 다운로드 받아 ImgBB에 업로드합니다.
     const imgbbKey = process.env.IMGBB_API_KEY;
     if(imgbbKey && imgbbKey.length > 5) {
-        try {
-            console.log('   ㄴ [고속 엔진] 데이터 다운로드 및 ImgBB 포맷 검증 중...');
-            
-            const proxyList = [
-                pUrl, 
-                `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(pUrl)}`, 
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(pUrl)}` 
-            ];
-            
-            let pRes = null;
-            for(let i=0; i<proxyList.length; i++) {
-                try {
-                    const fetchUrl = proxyList[i];
-                    const tempRes = await axios.get(fetchUrl, { 
-                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
-                        timeout: 30000, 
-                        responseType: 'arraybuffer',
-                        validateStatus: s => s === 200
+        // [안정화 로직] 최대 3회 재시도를 통해 HTML 반환 에러를 방어합니다.
+        for(let attempt=1; attempt<=3; attempt++) {
+            try {
+                if(attempt > 1) console.log(`   ㄴ [안정화] 이미지 렌더링 대기 후 재시도 중... (${attempt}/3)`);
+                await new Promise(res => setTimeout(res, 2000 * attempt)); 
+                
+                const proxyList = [
+                    pUrl, 
+                    `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(pUrl)}`, 
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(pUrl)}` 
+                ];
+                
+                let pRes = null;
+                for(let i=0; i<proxyList.length; i++) {
+                    try {
+                        const tempRes = await axios.get(proxyList[i], { 
+                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+                            timeout: 30000, 
+                            responseType: 'arraybuffer',
+                            validateStatus: s => s === 200
+                        });
+                        const cType = String(tempRes.headers['content-type']).toLowerCase();
+                        if(tempRes.data && cType.includes('image') && tempRes.data.length > 15000) {
+                            pRes = tempRes;
+                            break;
+                        }
+                    } catch(e) { }
+                }
+
+                if(pRes && pRes.data) {
+                    const form = new FormData();
+                    form.append('image', pRes.data, { filename: 'image.jpg', contentType: 'image/jpeg' });
+                    const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { 
+                        headers: form.getHeaders(), 
+                        timeout: 60000 
                     });
-                    const cType = String(tempRes.headers['content-type']).toLowerCase();
-                    if(tempRes.data && cType.includes('image') && tempRes.data.length > 20000) {
-                        pRes = tempRes;
-                        break;
+                    if(ir.data && ir.data.data && ir.data.data.url) {
+                        console.log('   ㄴ [ImgBB] 영구 보관용 변환 성공! ✅');
+                        return ir.data.data.url;
                     }
-                } catch(e) { }
+                }
+            } catch(e) { 
+                if(attempt === 3) console.log(`   ㄴ [주의] 서버 지연으로 인해 다이렉트 링크로 긴급 전환합니다.`);
             }
-            
-            if(pRes && pRes.data) {
-                const form = new FormData();
-                form.append('image', pRes.data, { filename: 'image.jpg', contentType: 'image/jpeg' });
-                const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { 
-                    headers: form.getHeaders(), 
-                    timeout: 60000 
-                });
-                if(ir.data && ir.data.data && ir.data.data.url) {
-                    console.log('   ㄴ [ImgBB] 영구 보관용 변환 성공! ✅');
-                    return ir.data.data.url;
-                } else { throw new Error('ImgBB 응답 포맷 오류'); }
-            } else {
-                throw new Error('모든 프록시에서 이미지 다운로드 실패 (HTML 반환 됨)');
-            }
-        } catch(e) {
-            let errMsg = e.message;
-            if (e.response && e.response.data) {
-                try { errMsg = JSON.parse(e.response.data.toString()).error.message; }
-                catch(ex) { errMsg = `Status ${e.response.status}`; }
-            }
-            console.log('   ㄴ [ImgBB] 업로드 지연/실패 (' + errMsg + '). 다이렉트 원본 링크로 즉시 대체합니다.');
         }
     }
     
-    console.log('   ㄴ [Pollinations] 0.1초 고속 다이렉트 이미지 링크 획득 성공! ⚡');
+    console.log('   ㄴ [Pollinations] 고속 다이렉트 이미지 링크 획득 성공! ⚡');
     return pUrl;
 }
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {

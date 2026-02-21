@@ -17,12 +17,12 @@ const theme = THEMES[Math.floor(Math.random()*THEMES.length)];
 
 const STYLE = `<style>
   @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap');
-  .vue-premium { font-family: 'Pretendard', sans-serif; color: #1e293b; line-height: 2.0; max-width: 900px; margin: 40px auto; padding: 0 40px; word-break: keep-all; font-size: 16px; letter-spacing: -0.5px; text-align: left; }
-  .vue-premium * { font-family: 'Pretendard', sans-serif !important; letter-spacing: -0.5px !important; }
-  .h2-container { margin-top: 120px; margin-bottom: 60px; text-align: left; }
-  .h2-container h2 { font-size: 48px !important; font-weight: 800; color: #0f172a !important; border-bottom: 12px solid ${theme.color}40; padding-bottom: 10px; display: inline-block; line-height: 1.1 !important; margin: 0; }
-  .vue-premium h3 { font-size: 32px !important; color: #0f172a !important; margin-top: 80px; margin-bottom: 35px; font-weight: 700; border-left: 12px solid ${theme.color}; padding: 15px 25px; background: linear-gradient(to right, ${theme.bg}, transparent); border-radius: 8px 30px 30px 8px; line-height: 1.3 !important; }
-  .vue-premium p { font-size: 16px !important; line-height: 2.0 !important; margin-bottom: 40px; text-align: left; color: #334155 !important; }
+  .vue-premium { font-family: 'Pretendard', sans-serif; color: #1e293b; line-height: 1.8; max-width: 900px; margin: 40px auto; padding: 0 40px; word-break: keep-all; font-size: 14px; letter-spacing: -0.3px; text-align: left; }
+  .vue-premium * { font-family: 'Pretendard', sans-serif !important; letter-spacing: -0.3px !important; }
+  .h2-container { margin-top: 60px; margin-bottom: 30px; text-align: left; }
+  .h2-container h2 { font-size: 20px !important; font-weight: 800; color: #0f172a !important; background: ${theme.bg}; border-left: 8px solid ${theme.color}; padding: 12px 20px; border-radius: 8px; display: block; line-height: 1.4 !important; margin: 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+  .vue-premium h3 { font-size: 17px !important; color: #0f172a !important; margin-top: 45px; margin-bottom: 18px; font-weight: 700; border-bottom: 2px solid ${theme.color}40; padding-bottom: 6px; line-height: 1.4 !important; }
+  .vue-premium p { font-size: 14px !important; line-height: 1.8 !important; margin-bottom: 30px; text-align: left; color: #334155 !important; }
   .vue-premium b, .vue-premium strong { font-weight: 800; color: #0f172a !important; background: linear-gradient(120deg, ${theme.color}20 0%, ${theme.color}40 100%); padding: 0 2px; }
   .spacer-div { height: 100px; margin: 80px 0; border-top: 1px solid #e2e8f0; position: relative; }
   .spacer-div::after { content: 'Strategic Authority Content'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 20px; color: #94a3b8; font-size: 10px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; }
@@ -147,7 +147,7 @@ async function publishToBlogger(blogger, blogId, requestBody, retry = 0) {
 }
 
 async function writeAndPost(model, target, blogger, bId) {
-    console.log(`\n🔱 [Sovereign Engine] v2.2.10 가동 | Master Visualizer 시스템 기동`);
+    console.log(`\n🔱 [Sovereign Engine] v2.2.15 가동 | 14px 기반 고밀도 텍스트 밸런싱`);
     console.log(`⚙️ [Config] 대상 키워드 확정: "${target}"`);
     const SIGNATURES = [
       '제가 직접 해본 결과, 역시 이론보다는 실전이 제일 중요하더라고요. 책에서 배울 때와는 전혀 다른 현장의 느낌이 있었거든요. 그래서 오늘은 제가 겪은 진짜 이야기를 들려드리려 합니다.',
@@ -214,9 +214,9 @@ async function writeAndPost(model, target, blogger, bId) {
     console.log('� [Search] Serper API 가동 - 실시간 트렌드 및 시장 데이터 분석 중...');
     const searchData = await searchSerper(target);
     console.log('🏗️ [Blueprint] Gemini 2.0 Flash 호출 - 7개 섹션 및 SEO 웅장한 제목 설계 중...');
-    const bpRes = await callAI(model, `[MASTER] 키워드 "${target}" 리포트 제목과 7개 장 목차 JSON. **절대 마크다운 금지.** 제목은 h2 48px에 걸맞은 웅장하고 검색 의도가 명확한 롱테일 키워드로. JSON: { "title":"", "chapters":[] }`);
+    const bpRes = await callAI(model, `[MASTER] 키워드 "${target}" 리포터 제목(2026년 기준)과 7개 장 목차 JSON. **절대 마크다운/HTML 태그 금지.** 제목은 h2 48px에 걸맞은 웅장하고 검색 의도가 명확한 롱테일 키워드로. JSON: { "title":"", "chapters":[] }`);
     const bp = JSON.parse(clean(bpRes, 'obj'));
-    const title = (bp.title || target).replace(/^[\d\.\*\-\s>]+/, '');
+    const title = (bp.title || target).replace(/<[^>]*>/g, '').replace(/202[0-5]/g, '2026').replace(/^[\d\.\*\-\s>]+/, '');
     console.log(`✅ [Blueprint] 설계 완료: "${title}"`);
     const chapters = (bp.chapters || []).map(c => (typeof c === 'object' ? (c.title || c.chapter || c.name || String(c)) : String(c)).replace(/^[\d\.\*\-\s>]+/, ''));
     
@@ -281,7 +281,7 @@ async function writeAndPost(model, target, blogger, bId) {
     body += `<div class="premium-footer">© 2026 Sovereign Intelligence Collective Archive. All rights reserved.</div></div>`;
     console.log('🚀 [Publish] Blogger API 전송 및 최종 라이브러리 등록 중...');
     const finalPost = await publishToBlogger(blogger, bId, { title, content: body, labels: ["Elite Strategy", target] });
-    console.log(`\n✨ [Success] Sovereign v2.2.10 출고 완료! URL: ${finalPost.data.url}`);
+    console.log(`\n✨ [Success] Sovereign v2.2.15 출고 완료! URL: ${finalPost.data.url}`);
 }
 
 async function run() {

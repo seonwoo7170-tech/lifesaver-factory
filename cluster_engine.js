@@ -40,6 +40,15 @@ const STYLE = `<style>
   .premium-footer { border-top: 3px solid #f1f5f9; padding-top: 60px; margin-top: 120px; text-align: center; color: #94a3b8 !important; font-size: 14px !important; font-weight: 600; }
 </style>`;
 
+function clean(raw, type = 'obj') {
+    if (!raw) return type === 'obj' ? '{}' : '[]';
+    let t = raw.replace(/```(json|html|js|md)?/gi, '').trim();
+    const s = t.indexOf(type === 'obj' ? '{' : '[');
+    const e = t.lastIndexOf(type === 'obj' ? '}' : ']');
+    if (s !== -1 && e !== -1) return t.substring(s, e + 1);
+    return type === 'obj' ? '{}' : '[]';
+}
+
 function chiefAuditor(raw, titleHead = '') {
     if(!raw) return '';
     let t = raw.replace(/```(json|html|js|md)?/gi, '').trim();
@@ -90,7 +99,7 @@ async function searchSerper(query) {
     if(!process.env.SERPER_API_KEY) return '';
     try {
         const r = await axios.post('https://google.serper.dev/search', { q: query, gl: 'kr', hl: 'ko' }, { headers: { 'X-API-KEY': process.env.SERPER_API_KEY } });
-        return r.data.organic.slice(0, 5).map(o => `${o.title}: ${o.snippet}`).join(String.fromCharCode(10));
+        return (r.data.organic || []).slice(0, 5).map(o => `${o.title}: ${o.snippet}`).join(String.fromCharCode(10));
     } catch(e) { return ''; }
 }
 
@@ -107,7 +116,8 @@ async function genImg(desc, model) {
 }
 
 async function writeAndPost(model, target, blogger, bId) {
-    console.log(`\n🔱 [Purist Sovereign] v2.2.5 가동 | 20선 서사/15선 패턴 완벽 동기화 시작`);
+    console.log(`\n🔱 [Sovereign Engine] v2.2.8 가동 | 지침서 100% 동기화 시스템 시작`);
+    console.log(`⚙️ [Config] 대상 키워드 확정: "${target}"`);
     const SIGNATURES = [
       '제가 직접 해본 결과, 역시 이론보다는 실전이 제일 중요하더라고요. 책에서 배울 때와는 전혀 다른 현장의 느낌이 있었거든요. 그래서 오늘은 제가 겪은 진짜 이야기를 들려드리려 합니다.',
       '솔직히 처음엔 저도 이 방법을 전혀 몰라서 한참 동안이나 고생하고 시간만 낭비했습니다. 누가 옆에서 한마디만 해줬어도 좋았을 텐데 말이죠. 여러분은 저 같은 실수를 안 하셨으면 좋겠습니다.',
@@ -170,11 +180,13 @@ async function writeAndPost(model, target, blogger, bId) {
       '패턴 O (트러블슈팅 응급처치): 증상별 자가 진단 -> 당장 실행할 응급 조치 -> 원인 규명 및 영구적 해결법 -> 재발 방지용 생활 수칙 -> FAQ'
     ];
     
-    console.log('💎 [전략 분석] 실시간 Serper 트렌드 획득 및 외부 참조 Smart Link 탐색...');
+    console.log('� [Search] Serper API 가동 - 실시간 트렌드 및 시장 데이터 분석 중...');
     const searchData = await searchSerper(target);
+    console.log('🏗️ [Blueprint] Gemini 2.0 Flash 호출 - 7개 섹션 및 SEO 웅장한 제목 설계 중...');
     const bpRes = await callAI(model, `[MASTER] 키워드 "${target}" 리포트 제목과 7개 장 목차 JSON. **절대 마크다운 금지.** 제목은 h2 48px에 걸맞은 웅장하고 검색 의도가 명확한 롱테일 키워드로. JSON: { "title":"", "chapters":[] }`);
-    const bp = JSON.parse(chiefAuditor(bpRes));
+    const bp = JSON.parse(clean(bpRes, 'obj'));
     const title = (bp.title || target).replace(/^[\d\.\*\-\s>]+/, '');
+    console.log(`✅ [Blueprint] 설계 완료: "${title}"`);
     const chapters = (bp.chapters || []).map(c => (typeof c === 'object' ? (c.title || c.chapter || c.name || String(c)) : String(c)).replace(/^[\d\.\*\-\s>]+/, ''));
     
     let body = STYLE + '<div class="vue-premium">';
@@ -183,41 +195,62 @@ async function writeAndPost(model, target, blogger, bId) {
     let ctx = "";
     for(let i=0; i<chapters.length; i++) {
         const isFAQ = (i === chapters.length - 1);
-        console.log(`💎 [다부서 동시 사역] ${i+1}/7: "${chapters[i]}"`);
+        const currentLogic = LOGICS[i % LOGICS.length];
+        const currentMetaphor = METAPHORS[i % METAPHORS.length];
+        
+        console.log(`✍️ [S${i+1}/7] "${chapters[i]}" 집필 시작`);
+        if(!isFAQ) {
+            console.log(`   ㄴ [Pattern] ${currentLogic.split(':')[0]}`);
+            console.log(`   ㄴ [Metaphor] ${currentMetaphor.split(':')[0]}`);
+        }
         
         let sig = i === 0 ? `[VUE_SIGNATURE] "${SIGNATURES[Math.floor(Math.random()*SIGNATURES.length)]}"\n` : '';
         let sectPrompt = isFAQ ? 
             `[SEO/STRATEGY] 전체 내용 추론(${ctx}) 기반 전문가 FAQ 30개 작성.\n\n[RULE]\n1. 난이도 배분: 상-10개 (심층 원리), 중-10개 (실전 응용), 하-10개 (기능/기초).\n2. **절대 번호/마크다운 금지**. HTML <ul><li>로만 작성.\n3. 마지막에 script 태그를 포함한 JSON-LD FAQ/Article 스키마를 반드시 삽입하라.` :
-            `[EDITORIAL] ${sig}챕터명: ${chapters[i]}. 1,500자 이상 심층 분석.\n\n[시스템 지침]\n1. **V-LOGIC 패턴**: 이번 섹션은 반드시 "${LOGICS[i % LOGICS.length]}" 패턴을 충실히 따를 것.\n2. **비유 표현**: "${METAPHORS[i % METAPHORS.length]}"를 문맥에 녹여내어 독자의 이해를 돕고 문학적 가치를 높일 것.\n3. **문체**: 전문가의 단호한 확신(~합니다, ~하십시오). 중간에 '앗!', '와,', '사실,', '이게 진짜예요' 등 추임새를 적절히 배치.\n4. **시각 요소**: <b> 및 <strong>으로 핵심 강조. 4x4 HTML Table을 통해 데이터/증거 제시. [IMAGE_PROMPT] 필수 포함.`;
+            `[EDITORIAL] ${sig}챕터명: ${chapters[i]}. 1,500자 이상 심층 분석.\n\n[시스템 지침]\n1. **V-LOGIC 패턴**: 반드시 "${currentLogic}" 패턴을 충실히 따를 것.\n2. **비유 표현**: "${currentMetaphor}"를 문맥에 녹여내어 독자의 이해를 돕고 문학적 가치를 높일 것.\n3. **문체**: 전문가의 단호한 확신(~합니다, ~하십시오). 중간에 '앗!', '와,', '사실,', '이게 진짜예요' 등 추임새를 적절히 배치.\n4. **시각 요소**: <b> 및 <strong>으로 핵심 강조. 4x4 HTML Table을 통해 데이터/증거 제시. [IMAGE_PROMPT] 필수 포함.`;
         
+        console.log('   ㄴ [AI] 본문 및 데이터 테이블 생성 중 (Gemini 2.0 Flash)...');
         const sectRaw = await callAI(model, sectPrompt);
+        
+        console.log('   ㄴ [Auditor] 무결점 정화 필터 가동 (AI 잔재 소거 및 타이포그래피 정규화)');
         let sect = chiefAuditor(sectRaw, chapters[i]);
         const sumRes = await callAI(model, `핵심 요약(수치/데이터 포함): ${sect.substring(0, 1000)}`);
         ctx += ` [S${i+1}: ${sumRes}]`;
         
         if(!isFAQ && (i === 0 || i === 2 || i === 4)) { 
             const pMatch = sectRaw.match(/\[IMAGE_PROMPT:\s*([\s\S]*?)\]/);
-            if(pMatch) { const u = await genImg(pMatch[1].trim(), model); if(u) sect = sect + `<img src="${u}" alt="${target} Premium Narrative">`; }
+            if(pMatch) { 
+                console.log('   ㄴ [Visual] 이미지 생성 프롬프트 감지. 고퀄리티 렌더링 중...');
+                const u = await genImg(pMatch[1].trim(), model); 
+                if(u) { 
+                    sect = sect + `<img src="${u}" alt="${target} Premium Narrative">`; 
+                    console.log('   ㄴ [Visual] 이미지 생성 및 본문 삽입 완료.');
+                }
+            }
         }
         body += `<div class="h2-container" id="s${i+1}"><h2>${chapters[i]}</h2></div>` + sect;
+        console.log(`✅ [S${i+1}] 완료. 컨텍스트 데이터 업데이트.`);
     }
     
     // Smart Link: External Authority Reference
+    console.log('🔗 [Smart Link] 외부 공신력 자료 탐색 중 (Serper 데이터 기반)...');
     const extLinkRes = await callAI(model, `[SEARCH_RANK] Search results for "${target}":\n${searchData}\n\nFind the most authoritative, officially relevant EXTERNAL URL (News, Wiki, or Official Doc) from this list. Return ONLY JSON: {"title":"", "url":""}. No Chatter.`);
     try {
-        const ext = JSON.parse(chiefAuditor(extLinkRes));
+        const ext = JSON.parse(clean(extLinkRes, 'obj'));
         if(ext.url && ext.url.startsWith('http')) {
             body += `<div class="smart-link-card">` +
                     `<p style="margin:0 0 15px 0; color:${theme.color}; font-weight:900; letter-spacing:2px;">💎 VUE MASTER RECOMMENDATION</p>` +
                     `<p style="margin-bottom:20px; color:#cbd5e1;">${ext.title}에 대한 더 깊고 공신력 있는 정보를 원하신다면 아래 공식 자료를 참고해 보십시오.</p>` +
                     `<a href="${ext.url}" target="_blank">👉 공식 심층 자료 보러가기</a>` +
                     `</div>`;
+            console.log(`✅ [Smart Link] 참조 카드 생성 완료: "${ext.title}"`);
         }
-    } catch(e) { }
+    } catch(e) { console.log('⚠️ [Smart Link] 생성 건너뜀 (유효한 링크 없음)'); }
 
     body += `<div class="premium-footer">© 2026 Sovereign Intelligence Collective Archive. All rights reserved.</div></div>`;
-    await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, labels: ["Elite Strategy", target] } });
-    console.log(`\n✨ [올인원 사역 성공] v2.2.5 Purist Sovereign 출고 완료.`);
+    console.log('🚀 [Publish] Blogger API 전송 및 최종 라이브러리 등록 중...');
+    const finalPost = await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, labels: ["Elite Strategy", target] } });
+    console.log(`\n✨ [Success] Sovereign v2.2.8 출고 완료! URL: ${finalPost.data.url}`);
 }
 
 async function run() {
@@ -233,6 +266,6 @@ async function run() {
         await writeAndPost(model, target, blogger, config.blog_id);
         const g = await axios.get(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
         await axios.put(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { message: 'Deep Sync', content: Buffer.from(JSON.stringify({...config, clusters: seeds}, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    } catch(e) { process.exit(1); }
+    } catch(e) { console.error('🔥 CRITICAL ERROR:', e); process.exit(1); }
 }
 run();

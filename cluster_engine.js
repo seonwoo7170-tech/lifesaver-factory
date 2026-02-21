@@ -88,8 +88,12 @@ async function callAI(model, prompt, retry = 0) {
         const r = await model.generateContent('[SYSTEM: ACT AS A TOP-TIER COLUMNIST. STRICTLY FOLLOW GOOGLE E-E-A-T. NO CHAT.]\n' + prompt);
         return r.response.text().trim();
     } catch (e) {
-        if (retry < 3 && (e.message.includes('429') || e.message.includes('Resource exhausted'))) {
-            await new Promise(res => setTimeout(res, 30000));
+        const errStr = String(e.message + e.stack + (e.status||''));
+        const is429 = errStr.includes('429') || errStr.includes('Resource exhausted') || e.status === 429 || (e.response && e.response.status === 429);
+        if (is429 && retry < 5) {
+            const wait = Math.pow(2, retry) * 20000; 
+            console.log(`   ⚠️ [Gemini Quota] 429 감지. ${wait/1000}초 후 자동 재시도... (${retry+1}/5)`);
+            await new Promise(res => setTimeout(res, wait));
             return callAI(model, prompt, retry + 1);
         }
         throw e;
@@ -135,10 +139,11 @@ async function publishToBlogger(blogger, blogId, requestBody, retry = 0) {
     try {
         return await blogger.posts.insert({ blogId, requestBody });
     } catch (e) {
-        const is429 = e.code === 429 || (e.response && e.response.status === 429) || e.message.includes('Quota');
-        if (is429 && retry < 3) {
+        const errCode = e.code || e.status || (e.response && e.response.status) || (e.cause && (e.cause.code || e.cause.status));
+        const is429 = errCode === 429 || String(e.message).includes('Quota') || String(e.message).includes('exhausted');
+        if (is429 && retry < 5) {
             const wait = Math.pow(2, retry) * 60000; 
-            console.log(`   ⚠️ [Blogger Quota] 429 감지. ${wait/1000}초 후 재시도... (${retry+1}/3)`);
+            console.log(`   ⚠️ [Blogger Quota] 할당량 제한 감지. ${wait/1000}초 후 재시도... (${retry+1}/5)`);
             await new Promise(r => setTimeout(r, wait));
             return publishToBlogger(blogger, blogId, requestBody, retry + 1);
         }
@@ -147,7 +152,7 @@ async function publishToBlogger(blogger, blogId, requestBody, retry = 0) {
 }
 
 async function writeAndPost(model, target, blogger, bId) {
-    console.log(`\n🔱 [Sovereign Engine] v2.2.15 가동 | 14px 기반 고밀도 텍스트 밸런싱`);
+    console.log(`\n🔱 [Sovereign Engine] v2.2.16 가동 | Anti-Quota 철통 방어 시스템 기동`);
     console.log(`⚙️ [Config] 대상 키워드 확정: "${target}"`);
     const SIGNATURES = [
       '제가 직접 해본 결과, 역시 이론보다는 실전이 제일 중요하더라고요. 책에서 배울 때와는 전혀 다른 현장의 느낌이 있었거든요. 그래서 오늘은 제가 겪은 진짜 이야기를 들려드리려 합니다.',
@@ -281,7 +286,7 @@ async function writeAndPost(model, target, blogger, bId) {
     body += `<div class="premium-footer">© 2026 Sovereign Intelligence Collective Archive. All rights reserved.</div></div>`;
     console.log('🚀 [Publish] Blogger API 전송 및 최종 라이브러리 등록 중...');
     const finalPost = await publishToBlogger(blogger, bId, { title, content: body, labels: ["Elite Strategy", target] });
-    console.log(`\n✨ [Success] Sovereign v2.2.15 출고 완료! URL: ${finalPost.data.url}`);
+    console.log(`\n✨ [Success] Sovereign v2.2.16 출고 완료! URL: ${finalPost.data.url}`);
 }
 
 async function run() {

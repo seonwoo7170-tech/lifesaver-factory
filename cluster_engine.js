@@ -125,52 +125,58 @@ async function genImg(desc, model) {
     console.log('   ㄴ [AI 비주얼] 이미지 생성 시퀀스 가동... (' + desc.substring(0,40) + '...)');
 
     // Cloudinary 업로드 함수 (URL 또는 base64 모두 지원)
-    async function uploadToCloudinary(fileData) {
-        if(!cloudName || !cloudKey || !cloudSecret) return null;
+    async function uploadToCloudinary(fileBuffer, mimeType) {
+        if(!cloudName || !cloudKey || !cloudSecret || !fileBuffer) return null;
         try {
             const crypto = require('crypto');
             const ts = Math.round(Date.now() / 1000);
-            const sig = crypto.createHash('sha1').update(`timestamp=${ts}${cloudSecret}`).digest('hex');
+            const sig = crypto.createHash('sha1').update('timestamp=' + ts + cloudSecret).digest('hex');
             const form = new FormData();
-            form.append('file', fileData);
+            form.append('file', fileBuffer, { filename: 'upload.jpg', contentType: mimeType || 'image/jpeg' });
             form.append('timestamp', String(ts));
             form.append('api_key', cloudKey);
             form.append('signature', sig);
             const cr = await axios.post(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, form, { headers: form.getHeaders(), timeout: 120000 });
-            if(cr.data && cr.data.secure_url) {
-                console.log('   ㄴ [Cloudinary] 영구 CDN 보관 성공! ✅');
-                return cr.data.secure_url;
-            }
-        } catch(e) { console.log('   ⚠️ [Cloudinary] 업로드 실패: ' + e.message); }
+            if(cr.data && cr.data.secure_url) { console.log('   ㄴ [Cloudinary] 영구 CDN 보관 성공! ✅'); return cr.data.secure_url; }
+        } catch(e) {
+            const detail = e.response ? JSON.stringify(e.response.data) : e.message;
+            console.log('   ⚠️ [Cloudinary] 업로드 실패: ' + detail);
+        }
         return null;
     }
 
-    // Pollinations 이미지 시도 함수 (다중 모델 폴백)
+    // Pollinations + wsrv.nl 프록시 다운로드 → Cloudinary 바이너리 업로드
     const models = ['flux', 'turbo', 'flux-realism'];
     const seed = Math.floor(Math.random() * 1000000);
     let polUrl = null;
     for(const pm of models) {
         try {
             const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt)}?model=${pm}&width=1024&height=768&seed=${seed}&nologo=true&enhance=true`;
-            console.log(`   ㄴ [Pollinations] ⚡ ${pm} 모델 시도 중...`);
-            await new Promise(r => setTimeout(r, pm === 'flux' ? 20000 : 10000));
-            // Cloudinary에 URL 위탁 (Cloudinary 서버가 직접 가져옴 - Cloudflare 우회!)
-            const cdnUrl = await uploadToCloudinary(url);
-            if(cdnUrl) return cdnUrl;
-            // Cloudinary 없으면 URL 직접 반환 (브라우저에서 로딩 OK)
-            polUrl = url;
-            break;
-        } catch(e) { console.log('   ⚠️ [Pollinations] ' + pm + ' 실패: ' + e.message); }
+            console.log('   ㄴ [Pollinations] ⚡ ' + pm + ' 모델 시도 중...');
+            const waitMs = pm === 'flux' ? 22000 : 12000;
+            await new Promise(r => setTimeout(r, waitMs));
+            // wsrv.nl 프록시로 바이너리 다운로드 (Cloudflare 우회)
+            const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=jpg&q=85`;
+            console.log('   ㄴ [wsrv.nl] 프록시 통해 이미지 다운로드 중...');
+            const imgRes = await axios.get(proxyUrl, { responseType: 'arraybuffer', timeout: 60000, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)' } });
+            const byteLen = imgRes.data ? imgRes.data.byteLength : 0;
+            if(imgRes.status === 200 && byteLen > 5000) {
+                console.log('   ㄴ [wsrv.nl] 다운로드 성공! (' + byteLen + ' bytes) Cloudinary 업로드 시도...');
+                const cdnUrl = await uploadToCloudinary(Buffer.from(imgRes.data), 'image/jpeg');
+                if(cdnUrl) return cdnUrl;
+            } else { console.log('   ⚠️ [wsrv.nl] 다운로드 불완전: ' + byteLen + ' bytes'); }
+            polUrl = url; break;
+        } catch(e) { console.log('   ⚠️ [Pollinations/wsrv] ' + pm + ' 실패: ' + e.message); }
     }
     if(polUrl) {
-        console.log('   ㄴ [Pollinations] URL 직접 삽입 (브라우삥에서 정상 표시됩니다)');
+        console.log('   ㄴ [Pollinations] URL 직접 삽입 (브라우삨에서 정상 표시됩니다)');
         return polUrl;
     }
 
-    // 마지막 보루: Unsplash 무료 스톡 사진 (API키 불필요)
-    const kw = encodeURIComponent(desc.replace(/[^\uAC00-\uD7A3a-zA-Z0-9 ]/g, ' ').trim().substring(0, 50));
+    // 최후 보루: Unsplash 무료 스톡사진
+    const kw = encodeURIComponent(desc.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().substring(0, 50));
     const unsplashUrl = `https://source.unsplash.com/1024x768/?${kw}`;
-    console.log('   ㄴ [Unsplash] 무료 스톡 사진 폴백 사용 ✅');
+    console.log('   ㄴ [Unsplash] 무료 스톡 사진 폴백 ✅');
     return unsplashUrl;
 }
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {

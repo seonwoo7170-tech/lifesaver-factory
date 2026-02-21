@@ -109,6 +109,12 @@ async function searchSerper(query) {
 }
 async function genImg(desc, model) {
     if(!desc) return '';
+    
+    // [안전 보호] 이미지 요청 간 최소 7초의 숨 고르기 시간을 강제하여 IP 차단을 원천 방지합니다.
+    console.log('      ㄴ [안전 보호] 7초간 정밀 숨 고르기 중...');
+    await new Promise(r => setTimeout(r, 7000));
+
+    const pollKey = process.env.POLLINATIONS_API_KEY;
     const runwareKey = process.env.RUNWARE_API_KEY;
     const imgbbKey = process.env.IMGBB_API_KEY;
     
@@ -131,57 +137,80 @@ async function genImg(desc, model) {
     
     let imageUrl = '';
 
-    // 1. Runware (유료 옵션)
-    if(runwareKey && runwareKey.length > 5) {
+    // 1. Pollinations AI (Flux 고속 엔진 - 기본 1순위)
+    if(!imageUrl) {
         try {
+            console.log('   ㄴ [고속 엔진] Pollinations(Flux) 호출 중...');
+            const pUrl = `https://pollinations.ai/p/${encodeURIComponent(engPrompt + ', high quality, realistic, cinematic')}`;
+            const pParams = {
+                model: 'flux',
+                width: 1024,
+                height: 768,
+                seed: Math.floor(Math.random() * 1000000),
+                nologo: true,
+                enhance: true
+            };
+            const pHeaders = pollKey ? { 'Authorization': `Bearer ${pollKey}` } : {};
+            const pRes = await axios.get(pUrl, { params: pParams, headers: pHeaders, timeout: 20000 });
+            if(pRes.status === 200) {
+                imageUrl = pRes.config.url; // Pollinations는 URL 자체가 이미지임
+                console.log('   ㄴ [Pollinations] 3초 만에 이미지 획득 성공! ⚡');
+            }
+        } catch(e) {
+            console.log('   ㄴ [Pollinations] 서버 혼잡/오류. 차선책(Runware/Horde)으로 전환합니다.');
+        }
+    }
+
+    // 2. Runware (유료 옵션)
+    if(!imageUrl && runwareKey && runwareKey.length > 5) {
+        try {
+            console.log('   ㄴ [Runware] 백업 생성 시도...');
             const rr = await axios.post('https://api.runware.ai/v1', [
-                { action: 'generateImage', model: 'runware:100@1', positivePrompt: engPrompt + ', detailed, 8k, professional photography', width: 1280, height: 720, number: 1 }
+                { action: 'generateImage', model: 'runware:100@1', positivePrompt: engPrompt + ', detailed, 8k', width: 1024, height: 768, number: 1 }
             ], { headers: { Authorization: 'Bearer ' + runwareKey } });
             if(rr.data.data?.[0]?.imageURL) imageUrl = rr.data.data[0].imageURL;
         } catch(e) { }
     }
 
-    // 2. [AI 전용 엔진] AI Horde (Sticky: 무조건 성공할 때까지 3회 순환 호출)
+    // 3. [최후의 보루] AI Horde (정밀 3회 시도)
     if(!imageUrl) {
         const modelGroups = [
-            ["SDXL_turbo", "AlbedoBase XL", "ICBINP - I Can't Believe It's Not Photoreal"],
+            ["SDXL_turbo", "AlbedoBase XL", "ICBINP"],
             ["Deliberate", "Realistic Vision", "Dreamshaper"],
             ["Stable Diffusion XL", "Realistic Stock Photos"]
         ];
 
         for(let attempt=0; attempt<3; attempt++) {
             try {
-                console.log(`   ㄴ [AI 전용] AI Horde 호출 (시도 ${attempt+1}/3)...`);
+                console.log(`   ㄴ [Horde] 최후의 보루 가동 (시도 ${attempt+1}/3)...`);
                 const hRes = await axios.post('https://aihorde.net/api/v2/generate/async', {
                     prompt: engPrompt + ', masterpiece, realistic, high quality',
-                    params: { n: 1, steps: 20, width: 896, height: 512, sampler_name: 'k_euler' },
+                    params: { n: 1, steps: 15, width: 896, height: 512, sampler_name: 'k_euler' },
                     models: modelGroups[attempt],
                     slow_workers: true,
                     extra_slow_workers: true,
-                    trusted_workers: false,
                     r2: true,
                     shared: true
-                }, { headers: { 'apikey': '0000000000', 'Client-Agent': 'VUE_Action_Cluster:1.5.9:v1_user' }, timeout: 30000 });
+                }, { headers: { 'apikey': '0000000000', 'Client-Agent': 'VUE_Action_Cluster:1.6.2:v1_user' }, timeout: 20000 });
                 
                 const tid = hRes.data.id;
                 if(tid) {
+                    console.log(`   ㄴ [Horde] 요청 접수 (ID: ${tid}). 생성 대기 중...`);
                     let success = false;
                     for(let i=0; i<30; i++) { 
                         await new Promise(r => setTimeout(r, 10000));
-                        const chk = await axios.get('https://aihorde.net/api/v2/generate/check/' + tid);
+                        const chk = await axios.get('https://aihorde.net/api/v2/generate/check/' + tid, { timeout: 10000 });
                         if(chk.data.done) {
-                            const status = await axios.get('https://aihorde.net/api/v2/generate/status/' + tid);
+                            const status = await axios.get('https://aihorde.net/api/v2/generate/status/' + tid, { timeout: 10000 });
                             if(status.data.generations?.[0]?.img) {
                                  imageUrl = status.data.generations[0].img;
                                  console.log('   ㄴ [AI Horde] 집요함으로 이미지 획득 성공! ✅');
                                  success = true; break;
                             }
                         }
-                        process.stdout.write(`.` ); 
+                        if((i+1) % 3 === 0) console.log(`   ㄴ [Horde 대기] ${((i+1)*10)}초 경과...`);
                     }
                     if(success) break;
-                    console.log(`
-   ㄴ [Horde 경고] 시도 ${attempt+1} 타임아웃.`);
                 }
             } catch(e) { 
                 const errMsg = e.response?.data?.message || e.message;
@@ -284,7 +313,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     const hero = await genImg(await callAI(model, 'Visual description for: ' + title), model);
     let body = STYLE + '<div class="vue-premium">';
     if(hero) body += '<img src="' + hero + '" style="width:100%; border-radius:15px; margin-bottom: 30px;">';
-    body += '<div class="toc-box"><h2>📋 Expert Guide Contents</h2><ul>' + chapters.map((c,i)=>`<li><a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
+    body += '<div class="toc-box"><h2>📋 Expert Guide Contents</h2><ul>' + chapters.map((c,i)=>`<li style="margin-bottom: 8px;"><a href="#s${i+1}" style="text-decoration: none; color: #333; font-weight: 500;">${c}</a></li>`).join('') + '</ul></div>';
     
     console.log('   ㄴ [3단계] 2026 E-E-A-T 기반 고품격 서론 집필 중...');
     let intro = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nNARRATIVE TEMPLATES: ${NARRATIVE_HINTS}\n\nMISSION: Write a massive, engaging intro for: ${title}.\n\nRULES:\n1. START with one of the NARRATIVE TEMPLATES style.\n2. START the response with <p style="margin-bottom: 20px;"> tag.\n3. NO MARKDOWN (**), NO HEADERS (#), NO TOC.\n4. ONLY BODY HTML/TEXT. No salutations.\n5. Context: ${searchData}`), 'text');
@@ -307,7 +336,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         try {
             console.log(`      ㄴ [순차 집필] ${i+1}/7 '${chapter}' 작성 중...`);
             let mission = (i === 6) 
-                ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: "${title}".\n\nRULES:\n1. Create 10-15 specialized Q&A pairs (FAQ style) with deep answers ABOUT "${target}".\n2. FAQ HEADERS: Wrap EVERY Question in a beautiful HTML <h2> tag (e.g., <h2 style="font-size:20px; color:#2c3e50; border-bottom:2px solid #3498db; padding-bottom:8px; margin-top:35px; margin-bottom:15px;">Q. [Question]</h2>). DO NOT use markdown (#).\n3. MULTIPLE PARAGRAPHS: Each Answer must be separated properly using <p style="margin-bottom: 20px;"> tags.\n4. CHECKLIST SECTION: After the FAQ, create the 'Master Action Checklist' (10+ items). It MUST start with this EXACT HTML header: <h2 style="background-color:#e8f5e9; border-radius:8px; color:#2e7d32; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #4CAF50;">✅ 실전 마스터 액션 체크리스트</h2>. Put the checklist items inside an HTML <ul> tag, and wrap EVERY single item in a <li style="margin-bottom:15px; font-size:16px; line-height:1.6;"> tag for proper line breaks. NEVER use raw text lists or markdown.\n5. MASSIVE CONTENT (2,000+ chars).`
+                ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: "${title}".\n\nRULES:\n1. Create 10-15 specialized Q&A pairs (FAQ style) with deep answers ABOUT "${target}".\n2. FAQ HEADERS: Wrap EVERY Question in a beautiful HTML <h2> tag (e.g., <h2 style="font-size:20px; color:#2c3e50; border-bottom:2px solid #3498db; padding-bottom:8px; margin-top:35px; margin-bottom:15px;">Q. [Question]</h2>). DO NOT use markdown (#).\n3. MULTIPLE PARAGRAPHS: Each Answer must be separated properly using <p style="margin-bottom: 20px;"> tags.\n4. CHECKLIST SECTION: After the FAQ, create the 'Master Action Checklist' (10+ items). It MUST start with this EXACT HTML header: <h2 style="background-color:#e8f5f9; border-radius:8px; color:#2e7d32; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #4CAF50;">✅ 실전 마스터 액션 체크리스트</h2>. Put the checklist items inside an HTML <ul> tag, and wrap EVERY single item in a <li style="margin-bottom:15px; font-size:16px; line-height:1.6;"> tag for proper line breaks. NEVER use raw text lists or markdown.\n5. MASSIVE CONTENT (2,000+ chars).`
                 : `MISSION: Write a massive, data-driven BODY for: "${chapter}" (Main Article: "${title}", Core Topic: "${target}").\n\nCRITICAL NARRATIVE STYLE:\nYou MUST strictly write this chapter using the following structural logic and tone: ${vLogicPatterns[i % vLogicPatterns.length]}\n\nRULES:\n1. QUANTITY: Write HUGE amounts of text (2,000+ characters minimum). \n2. TABLE: MUST include a 4-column x 4-row HTML Table with unique numerical data/evidence.\n3. ANALOGY: Use at least 2 metaphors from the Analogies library.\n4. OUTCOME: Stop using predictable boring structures. Follow the assigned V-LOGIC PATTERN above!\n5. FOCUS: The content MUST be strictly about "${chapter}" in the context of "${target}". Do not drift to general topics.\n6. STRICTLY FORBIDDEN: NEVER use ** or * or # or \` or HTML <h1>, <h2>, <h3> tags. Use HTML <strong> if needed.\n7. START IMMEDIATELY with dense information. NO HEADERS (#).\n8. MEGA RULE: NEVER start this chapter with the same opening words or filler phrases (like '앗!', '가장 먼저', '사실') used in other chapters. Make the first sentence 100% unique and unpredictable.`;
             let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\n${mission}\n\nRULES:\n1. NO TOC, NO JSON.\n2. NO GREETINGS. DO NOT rewrite or reference the intro. Go straight to the professional sub-topic content.\n3. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
             
@@ -389,6 +418,6 @@ async function run() {
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.5.9', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.6.2', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

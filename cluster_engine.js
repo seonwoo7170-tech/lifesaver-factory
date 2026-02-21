@@ -141,54 +141,51 @@ async function genImg(desc, model) {
         } catch(e) { }
     }
 
-    // 2. [0원 프리미엄] AI Horde (Turbo 5분 밸런스)
+    // 2. [AI 전용 엔진] AI Horde (Sticky: 무조건 성공할 때까지 3회 순환 호출)
     if(!imageUrl) {
-        try {
-            console.log('   ㄴ [AI 1순위] AI Horde 터보 가동 (5분 밸런스 대기)...');
-            const hRes = await axios.post('https://aihorde.net/api/v2/generate/async', {
-                prompt: engPrompt + ', high quality, realistic photography, sharp focus',
-                params: { n: 1, steps: 20, width: 1280, height: 720, sampler_name: "k_euler_a" },
-                models: ["SDXL_turbo", "AlbedoBase XL", "ICBINP - I Can't Believe It's Not Photoreal"]
-            }, { headers: { 'apikey': '0000000000', 'Client-Agent': 'VUE_Action_Cluster:1.5.3' } });
-            
-            const tid = hRes.data.id;
-            if(tid) {
-                for(let i=0; i<30; i++) { // 최대 5분으로 최적화
-                    await new Promise(r => setTimeout(r, 10000));
-                    const chk = await axios.get('https://aihorde.net/api/v2/generate/check/' + tid);
-                    if(chk.data.done) {
-                        const status = await axios.get('https://aihorde.net/api/v2/generate/status/' + tid);
-                        if(status.data.generations?.[0]?.img) {
-                             imageUrl = status.data.generations[0].img;
-                             console.log('   ㄴ [AI Horde] 고속 생성 완료! ✅');
-                             break;
+        const modelGroups = [
+            ["SDXL_turbo", "AlbedoBase XL", "ICBINP - I Can't Believe It's Not Photoreal"],
+            ["Deliberate", "Realistic Vision", "Dreamshaper"],
+            ["Stable Diffusion XL", "Realistic Stock Photos"]
+        ];
+
+        for(let attempt=0; attempt<3; attempt++) {
+            try {
+                console.log(`   ㄴ [AI 전용] AI Horde 호출 (시도 ${attempt+1}/3)...`);
+                const hRes = await axios.post('https://aihorde.net/api/v2/generate/async', {
+                    prompt: engPrompt + ', masterpiece, professional photography, high quality',
+                    params: { n: 1, steps: 20, width: 1280, height: 720, sampler_name: "k_euler_a" },
+                    models: modelGroups[attempt]
+                }, { headers: { 'apikey': '0000000000', 'Client-Agent': 'VUE_Action_Cluster:1.5.6' } });
+                
+                const tid = hRes.data.id;
+                if(tid) {
+                    let success = false;
+                    for(let i=0; i<30; i++) { // 각 시도당 5분
+                        await new Promise(r => setTimeout(r, 10000));
+                        const chk = await axios.get('https://aihorde.net/api/v2/generate/check/' + tid);
+                        if(chk.data.done) {
+                            const status = await axios.get('https://aihorde.net/api/v2/generate/status/' + tid);
+                            if(status.data.generations?.[0]?.img) {
+                                 imageUrl = status.data.generations[0].img;
+                                 console.log('   ㄴ [AI Horde] 집요함으로 이미지 획득 성공! ✅');
+                                 success = true; break;
+                            }
                         }
+                        process.stdout.write(`.` ); 
                     }
-                    process.stdout.write(`.` ); 
+                    if(success) break;
+                    console.log(`
+   ㄴ [Horde 경고] 시도 ${attempt+1} 타임아웃. 다음 모델 그룹으로 교체 중...`);
                 }
+            } catch(e) { 
+                console.log(`   ㄴ [AI Horde] 통신 오류 (시도 ${attempt+1}/3)... 재시도 중.`);
             }
-        } catch(e) { }
-    }
-
-    // 3. [AI 2순위] Pollinations 스텔스 재시도
-    if(!imageUrl) {
-        try {
-            console.log('   ㄴ [AI 2순위] Pollinations 스텔스 재시도...');
-            const stealthSeed = Math.floor(Math.random()*9999999);
-            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt)}?width=1280&height=720&nologo=true&seed=${stealthSeed}&model=flux&v=${stealthSeed}`;
-        } catch(e) { }
-    }
-
-    // 4. [최후의 보루] Expert Smart Stock
-    if(!imageUrl) {
-        try {
-            console.log('   ㄴ [스톡 엔진] AI 정밀 키워드 매칭 전환...');
-            const kRes = await callAI(model, 'Return ONLY 3 English keywords for high-quality professional photography related to: ' + engPrompt, 0);
-            const k = kRes.replace(/[^a-zA-Z0-9, ]/g, '').trim().split(' ').join(',');
-            imageUrl = `https://loremflickr.com/1280/720/${encodeURIComponent(k)}?lock=${Math.floor(Math.random()*1000)}`;
-        } catch(e) { 
-            imageUrl = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280&auto=format&fit=crop';
         }
+    }
+
+    if(!imageUrl) {
+        console.log('   ㄴ [최종 실패] AI Horde가 모든 시도에 응답하지 않았습니다.');
     }
 
     // [영구 저장 이식]
@@ -288,7 +285,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 
     body += intro; let summary = intro.slice(-500);
     
-    console.log('   ㄴ [4단계] [TURBO MODE] 7개 챕터 동시 집필 및 이미지 생성 중...');
+    console.log('   ㄴ [4단계] [STEALTH MODE] 7개 챕터 순차적 집필 및 이미지 생성 중...');
     const colors = ['moccasin', 'lightpink', 'palegreen', 'skyblue', 'plum', 'lightsalmon', '#98d8c8'];
     const vLogicPatterns = [
         `V-LOGIC PATTERN A (원인분석형): Act like a forensic investigator. Dissect the core problem into 3 invisible root causes. Expose what people misunderstand and reveal the hidden truth.`,
@@ -298,13 +295,16 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         `V-LOGIC PATTERN E (미래 예측/트렌드형): Zoom out and talk about the shifting paradigm. Warn the reader about what's coming in the industry and why they must adapt their mindset immediately.`,
         `V-LOGIC PATTERN F (전문가 인터뷰형): Write as if you are answering tough questions from an interviewer, using a highly authoritative tone, dropping industry jargon naturally and explaining it.`
     ].sort(() => Math.random() - 0.5);
-    const chapterTasks = chapters.map(async (chapter, i) => {
+    const results = [];
+    for(let i=0; i<chapters.length; i++) {
+        const chapter = chapters[i];
         try {
-            console.log(`      ㄴ [병렬 가동] ${i+1}/7 '${chapter}' 집필 시작...`);
+            console.log(`      ㄴ [순차 집필] ${i+1}/7 '${chapter}' 작성 중...`);
             let mission = (i === 6) 
                 ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: "${title}".\n\nRULES:\n1. Create 10-15 specialized Q&A pairs (FAQ style) with deep answers ABOUT "${target}".\n2. FAQ HEADERS: Wrap EVERY Question in a beautiful HTML <h2> tag (e.g., <h2 style="font-size:20px; color:#2c3e50; border-bottom:2px solid #3498db; padding-bottom:8px; margin-top:35px; margin-bottom:15px;">Q. [Question]</h2>). DO NOT use markdown (#).\n3. MULTIPLE PARAGRAPHS: Each Answer must be separated properly using <p style="margin-bottom: 20px;"> tags.\n4. CHECKLIST SECTION: After the FAQ, create the 'Master Action Checklist' (10+ items). It MUST start with this EXACT HTML header: <h2 style="background-color:#e8f5e9; border-radius:8px; color:#2e7d32; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #4CAF50;">✅ 실전 마스터 액션 체크리스트</h2>. Put the checklist items inside an HTML <ul> tag, and wrap EVERY single item in a <li style="margin-bottom:15px; font-size:16px; line-height:1.6;"> tag for proper line breaks. NEVER use raw text lists or markdown.\n5. MASSIVE CONTENT (2,000+ chars).`
                 : `MISSION: Write a massive, data-driven BODY for: "${chapter}" (Main Article: "${title}", Core Topic: "${target}").\n\nCRITICAL NARRATIVE STYLE:\nYou MUST strictly write this chapter using the following structural logic and tone: ${vLogicPatterns[i % vLogicPatterns.length]}\n\nRULES:\n1. QUANTITY: Write HUGE amounts of text (2,000+ characters minimum). \n2. TABLE: MUST include a 4-column x 4-row HTML Table with unique numerical data/evidence.\n3. ANALOGY: Use at least 2 metaphors from the Analogies library.\n4. OUTCOME: Stop using predictable boring structures. Follow the assigned V-LOGIC PATTERN above!\n5. FOCUS: The content MUST be strictly about "${chapter}" in the context of "${target}". Do not drift to general topics.\n6. STRICTLY FORBIDDEN: NEVER use ** or * or # or \` or HTML <h1>, <h2>, <h3> tags. Use HTML <strong> if needed.\n7. START IMMEDIATELY with dense information. NO HEADERS (#).\n8. MEGA RULE: NEVER start this chapter with the same opening words or filler phrases (like '앗!', '가장 먼저', '사실') used in other chapters. Make the first sentence 100% unique and unpredictable.`;
             let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\n${mission}\n\nRULES:\n1. NO TOC, NO JSON.\n2. NO GREETINGS. DO NOT rewrite or reference the intro. Go straight to the professional sub-topic content.\n3. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
+            
             if (i !== 6) sect = sect.replace(/^#{1,6}\s+.*$/gm, '').replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '');
             else sect = sect.replace(/^#{1,6}\s+.*$/gm, '');
 
@@ -317,20 +317,19 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
                 else sect = sect.replace(promptMatch[0], '');
             }
             sect = sect.replace(/\[IMAGE_PROMPT:[\s\S]*?\]/g, '');
-            return { i, chapter, sect };
+            results.push({ i, chapter, sect });
         } catch(e) {
-            return { i, chapter, sect: `<p>본 챕터의 내용을 준비 중입니다. 잠시만 기다려 주세요.</p>` };
+            results.push({ i, chapter, sect: `<p>본 챕터의 내용을 준비 중입니다. 잠시만 기다려 주세요.</p>` });
         }
-    });
+    }
 
-    const results = await Promise.all(chapterTasks);
-    results.sort((a, b) => a.i - b.i).forEach(r => {
+    results.forEach(r => {
         body += `<h2 id="s${r.i+1}" style="background-color:${colors[r.i]}; border-radius:8px; color:black; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #333;">🎯 ${r.chapter}</h2>${r.sect}`;
         if (extraLinks && extraLinks[r.i]) {
             body += `<div class="link-box">` +
                     `<h3 style="color:#00e5ff; margin-top:0; margin-bottom:15px; font-size:18px;">💡 관련 심층 가이드</h3>` +
                     `<p style="margin-bottom: 20px; font-size:15px; color:#ddd;"><strong>${extraLinks[r.i].title}</strong>에 대한 구체적인 솔루션과 팁을 별도로 정리해 두었습니다. 자세한 내용이 궁금하시다면 아래 링크를 참고해 주세요.</p>` +
-                    `<a href="${extraLinks[r.i].url}" target="_blank" style="display:inline-block; padding:12px 30px; background-color:#00e5ff; color:#000; text-decoration:none; font-weight:bold; border-radius:8px; font-size:16px;">👉 심층 가이드 보러가기</a>` +
+                    `<a href="${extraLinks[r.i].url}" target="_blank" style="display:inline-block; padding:12px 30px; background-color:#00e5ff; color:#000; text-decoration:none; font-weight:bold; border-radius:8px; font-size:16px;">👉 심층 가이드 보러가기</a>` + 
                     `</div>`;
         }
     });
@@ -379,6 +378,6 @@ async function run() {
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.5.3', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.5.6', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

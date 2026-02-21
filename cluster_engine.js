@@ -154,9 +154,13 @@ async function genImg(desc, model) {
                 console.log(`   ㄴ [AI 전용] AI Horde 호출 (시도 ${attempt+1}/3)...`);
                 const hRes = await axios.post('https://aihorde.net/api/v2/generate/async', {
                     prompt: engPrompt + ', masterpiece, professional photography, high quality',
-                    params: { n: 1, steps: 20, width: 1280, height: 720, sampler_name: "k_euler_a" },
-                    models: modelGroups[attempt]
-                }, { headers: { 'apikey': '0000000000', 'Client-Agent': 'VUE_Action_Cluster:1.5.6' } });
+                    params: { n: 1, steps: 25, width: 1280, height: 720, sampler_name: "k_euler" },
+                    models: modelGroups[attempt],
+                    slow_workers: true,
+                    extra_slow_workers: true,
+                    trusted_workers: false,
+                    r2: true
+                }, { headers: { 'apikey': '0000000000', 'Client-Agent': 'VUE_Action_Cluster:1.5.8:Contact_Admin' } });
                 
                 const tid = hRes.data.id;
                 if(tid) {
@@ -354,8 +358,13 @@ async function run() {
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });
-    const pool = config.clusters || []; if(!pool.length) return;
+    const pool = config.clusters || [];
+    if(!pool.length) {
+        console.log('   ❌ [종료] 처리할 키워드가 없습니다.');
+        return;
+    }
     const mainSeed = pool.splice(Math.floor(Math.random()*pool.length), 1)[0];
+    console.log('   💎 [오늘의 메인 씨드] "' + mainSeed + '" (남은 키워드: ' + pool.length + '개)');
     let subRes = clean(await callAI(model, 'Topic: "' + mainSeed + '".\nGenerate 4 sub-topics as a simple JSON array of strings: ["A", "B", "C", "D"]. ONLY JSON. NO Chat.'), 'arr');
     let subTopics = [];
     try {
@@ -378,6 +387,6 @@ async function run() {
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.5.6', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.5.8', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

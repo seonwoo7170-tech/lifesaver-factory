@@ -17,118 +17,98 @@ const theme = THEMES[Math.floor(Math.random()*THEMES.length)];
 
 const STYLE = `<style>
   @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap');
-  .vue-premium { font-family: 'Pretendard', sans-serif; color: #444; line-height: 2; max-width: 920px; margin: 40px auto; padding: 0 30px; background:#fff; word-break:keep-all; font-size: 18px; }
-  .vue-premium * { font-family: 'Pretendard', sans-serif !important; font-size: 18px; line-height: 2; color: #4a5568; }
+  .vue-premium { font-family: 'Pretendard', sans-serif; color: #333; line-height: 2.0; max-width: 900px; margin: 40px auto; padding: 0 40px; background:#fff; word-break:keep-all; font-size: 16px; letter-spacing: -0.5px; }
+  .vue-premium * { font-family: 'Pretendard', sans-serif !important; font-size: 16px !important; line-height: 2.0 !important; color: #1e293b !important; }
   .h2-container { margin-top: 120px; margin-bottom: 60px; }
-  .h2-container h2 { font-size: 42px !important; font-weight: 800; color: ${theme.text} !important; border-bottom: 8px solid ${theme.color}; padding-bottom: 15px; display: inline-block; line-height: 1.1 !important; }
-  .vue-premium h3 { font-size: 28px !important; color: #1a202c !important; margin-top: 70px; margin-bottom: 30px; font-weight: 700; border-left: 12px solid ${theme.color}; padding-left: 20px; background: linear-gradient(to right, ${theme.bg}, #ffffff); padding-top: 15px; padding-bottom: 15px; border-radius: 4px 15px 15px 4px; line-height: 1.3 !important; }
-  .toc-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 24px; padding: 50px; margin: 60px 0; border-top: 12px solid ${theme.color}; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
-  .toc-box h2 { font-size: 26px !important; font-weight: 800; color: #2d3748 !important; margin-top: 0; }
-  .table-box { width: 100%; overflow-x: auto; margin: 60px 0; border-radius: 16px; border: 1px solid #e2e8f0; }
-  .vue-premium table { width: 100%; border-collapse: collapse; }
-  .vue-premium th { background: #f1f5f9; color: ${theme.text} !important; padding: 22px; text-align: left; font-size: 17px !important; font-weight: 800; border-bottom: 4px solid ${theme.color}; }
+  .h2-container h2 { font-size: 48px !important; font-weight: 800; color: ${theme.text} !important; border-bottom: 15px solid ${theme.color}; padding-bottom: 15px; display: inline-block; line-height: 1.1 !important; margin: 0; letter-spacing: -0.5px; }
+  .vue-premium h3 { font-size: 32px !important; color: #0f172a !important; margin-top: 80px; margin-bottom: 35px; font-weight: 700; border-left: 15px solid ${theme.color}; padding: 20px 30px; background: linear-gradient(to right, ${theme.bg}, #ffffff); border-radius: 8px 30px 30px 8px; line-height: 1.3 !important; }
+  .vue-premium b { color: ${theme.text} !important; font-weight: 800; border-bottom: 2px solid ${theme.color}50; }
+  .vue-premium p { margin-bottom: 40px; text-align: left; }
+  .spacer-div { height: 90px; margin: 60px 0; border-top: 2px dashed #e2e8f0; position: relative; }
+  .spacer-div::after { content: 'Strategic Domain Mastery'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #ffffff; padding: 0 30px; color: #64748b; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 4px; }
+  .info-box { background: ${theme.bg}; border: 1px solid ${theme.color}50; border-radius: 20px; padding: 40px; margin: 60px 0; position: relative; }
+  .info-box b { border: 0 !important; color: ${theme.text} !important; font-size: 18px !important; }
+  .table-box { width: 100%; overflow-x: auto; margin: 80px 0; border-radius: 20px; border: 1px solid #e2e8f0; overflow:hidden; }
+  .vue-premium th { background: #f1f5f9; color: ${theme.text} !important; padding: 25px; text-align: left; font-size: 17px !important; font-weight: 900; border-bottom: 6px solid ${theme.color}; }
   .vue-premium tr:nth-child(even) { background-color: ${theme.bg}50; }
-  .vue-premium td { border-bottom: 1px solid #f1f5f9; padding: 20px; }
-  .vue-premium td:first-child { font-weight: 700; color: #2d3748 !important; }
-  .vue-premium img { max-width: 100%; height: auto; border-radius: 30px; margin: 60px 0; border: 1px solid #edf2f7; box-shadow: 0 25px 30px -5px rgba(0,0,0,0.05); }
-  .premium-footer { border-top: 2px solid ${theme.color}; padding-top: 60px; margin-top: 150px; text-align: center; }
-  .copyright { color: ${theme.text} !important; font-weight: 800; font-size: 17px !important; margin-bottom: 10px; }
-  .disclaimer { color: #a0aec0 !important; font-size: 14px !important; font-style: italic; }
+  .vue-premium td { border-bottom: 1px solid #f1f5f9; padding: 22px; font-size: 16px !important; }
+  .premium-footer { border-top: 5px solid ${theme.color}; padding-top: 80px; margin-top: 180px; text-align: center; }
+  .copyright { color: ${theme.text} !important; font-weight: 900; font-size: 17px !important; }
 </style>`;
 
-function clean(raw, type = 'obj', titleHead = '') {
+function chiefAuditor(raw, titleHead = '') {
     if(!raw) return '';
     let t = raw.replace(/```(json|html|js|md)?/gi, '').trim();
-    if (type === 'text') {
-        t = t.replace(/<(!DOCTYPE|html|body|head|meta|link).*?>/gi, '').replace(/<\/(html|body|head|title|meta)>/gi, '');
-        t = t.replace(/<title[\s\S]*?<\/title>/gi, '').replace(/style="[^"]*"/gi, '');
-        t = t.replace(/\\n/g, '\n');
-        t = t.replace(/\*\*+(.*?)\*\*+/g, '<b>$1</b>'); 
-        t = t.replace(/^\s*#+.*$/gm, ''); t = t.replace(/^[-*]{3,}$/gm, '');
-        if(titleHead) {
-            const ct = titleHead.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-            t = t.replace(new RegExp(`<h[1-3][^>]*>\\s*(\\d+\\.\\s*)?${ct}[^<]*</h[1-3]>`, 'i'), '');
-            t = t.replace(new RegExp(`^\\d*\\.?\\s*${ct}.*$`, 'gm'), '');
-        }
-        const bList = [
-            /물론이죠/gi, /도움이 되길/gi, /요약하자면/gi, /결론적으로/gi, /준비했습니다/gi, /작성하겠습니다/gi,
-            /살펴보겠습니다/gi, /참고해주세요/gi, /본 섹션에서는/gi, /위즈덤픽/gi, /마스터/gi, /설계자/gi, /Paragon/gi,
-            /^머리말[:\s]*/gm, /^목차[:\s]*/gm, /^서론[:\s]*/gm, /^결론[:\s]*/gm, /^설명[:\s]*/gm, /^참고[:\s]*/gm,
-            /^#+\s+/gm, /^\*\s+/gm, /^-\s+/gm, /^\[IMAGE_PROMPT:.*?\]/gm
-        ];
-        bList.forEach(p => t = t.replace(p, ''));
-        t = t.replace(/^[\s,\.\n\r\*\#\-]+/g, '');
-        t = t.replace(/\n{3,}/g, '\n\n');
-        t = t.replace(/<p>\s*<\/p>|<p>&nbsp;<\/p>/gi, ''); 
-        t = t.replace(/<table/gi, '<div class="table-box no-adsense"><table');
-        t = t.replace(/<\/table>/gi, '</table></div>');
-        return t.trim();
-    }
-    const start = t.indexOf('{'); if (start === -1) return '{}';
-    let count = 0; for (let i = start; i < t.length; i++) { if (t[i] === '{') count++; else if (t[i] === '}') { count--; if (count === 0) return t.substring(start, i + 1); } }
-    return '{}';
-}
+    t = t.replace(/<(!DOCTYPE|html|body|head|meta|link).*?>/gi, '').replace(/<\/(html|body|head|title|meta)>/gi, '');
+    t = t.replace(/<title[\s\S]*?<\/title>/gi, '').replace(/style="[^"]*"/gi, '');
+    t = t.replace(/\\n/g, '
+');
+    t = t.replace(/\*\*+(.*?)\*\*+/g, '<b>$1</b>'); 
+    t = t.replace(/^\s*#+.*$/gm, ''); t = t.replace(/^[-*]{3,}$/gm, '');
+    
+    // [v2.1.1] Absolute Purist: Header & List Number Stripping
+    t = t.replace(/<(h[1-6])>\s*(\d+\.)*\d*\.?\s*(.*?)\s*<\/\1>/gi, '<$1>$3</$1>'); // 헤더 번호 삭제
+    t = t.replace(/<li>\s*(\d+\.)*\d*\.?\s*(.*?)\s*<\/li>/gi, '<li>$2</li>'); // 리스트(FAQ) 번호 삭제
+    
+    // [v2.1.1] Bold-in-Header Execution (헤더 내 볼드 중복 제거)
+    t = t.replace(/<(h[1-6])>\s*<b>(.*?)<\/b>\s*<\/\1>/gi, '<$1>$2</$1>');
+    t = t.replace(/<b>\s*<h[1-6]>(.*?)<\/h[1-6]>\s*<\/b>/gi, '<h3>$1</h3>');
+    t = t.replace(/<h[4-6]>(.*?)<\/h[4-6]>/gi, '<h3>$1</h3>');
+    
+    // [v2.1.1] Meta-Label & Bridge Smashing
+    t = t.replace(/^(결론|요약|서론|설명|참고|정보|Data|Introduction|Summary|Conclusion|사실|진짜|와|앗)[:\s]*/gmi, '');
+    t = t.replace(/^[^<가-힣a-zA-Z0-9]+(?=[가-힣a-zA-Z])/gm, ''); // 문두 특수문자 파편 최종 소거
 
-async function callAI(model, prompt, retry = 0) {
-    try { const r = await model.generateContent(prompt); return r.response.text().trim(); }
-    catch (e) { if (e.message.includes('429') && retry < 5) { await new Promise(r => setTimeout(r, 25000)); return callAI(model, prompt, retry + 1); } throw e; }
-}
+    const trash = [ /물론이죠/gi, /도움이 되길/gi, /요약하자면/gi, /결론적으로/gi, /준비했습니다/gi, /작성하겠습니다/gi, /살펴보겠습니다/gi, /참고해주세요/gi, /본 섹션에서는/gi, /위즈덤픽/gi, /마스터/gi, /설계자/gi, /Paragon/gi, /^그럼 지금부터.*$/gm, /^이상으로.*$/gm, /^아래는.*$/gm, /^먼저.*$/gm, /^다음으로.*$/gm, /^첫째로.*$/gm, /^마지막으로.*$/gm ];
+    trash.forEach(p => t = t.replace(p, ''));
+    t = t.replace(/^[\s,\.\n\r\*\#\-\>\•]+/g, '');
+    t = t.replace(/<p>\s*<\/p>|<p>&nbsp;<\/p>/gi, ''); // 빈 태그 분쇄
 
-async function genImg(desc) {
-    if(!desc || !process.env.KIE_API_KEY) return '';
-    try {
-        const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { model: 'z-image', input: { prompt: desc + ', professional corporate style, clean, high resolution, 8k', aspect_ratio: '16:9' } }, { headers: { Authorization: 'Bearer ' + process.env.KIE_API_KEY } });
-        const tid = cr.data.taskId || cr.data.data?.taskId; if(!tid) return '';
-        for(let i=0; i<15; i++) { 
-            await new Promise(r => setTimeout(r, 10000)); 
-            const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + process.env.KIE_API_KEY } }); 
-            const d = pr.data.data || pr.data; if(d.state === 'success') { 
-                const rj = typeof d.resultJson === 'string' ? JSON.parse(d.resultJson) : d.resultJson; 
-                const imgRes = await axios.get(rj.resultUrls[0], { responseType: 'arraybuffer' }); 
-                return await new Promise(res => { const s = cloudinary.v2.uploader.upload_stream({ resource_type: 'image' }, (err, r) => res(r?.secure_url)); s.end(Buffer.from(imgRes.data)); });
-            } 
-        }
-    } catch(e) { }
-    return '';
+    let pArr = t.split(/<\/p>/gi);
+    let audited = "";
+    pArr.forEach((p, idx) => {
+        if (p.trim()) { audited += p + '</p>'; if ((idx + 1) % 4 === 0 && idx < pArr.length - 2) audited += '<div class="spacer-div"></div>'; }
+    });
+    t = audited.replace(/<table/gi, '<div class="table-box no-adsense"><table');
+    t = t.replace(/<\/table>/gi, '</table></div>');
+    return t.trim();
 }
 
 async function writeAndPost(model, target, blogger, bId) {
-    console.log(`\n🔱 [Grand Sovereign] v1.7.0 마스터 가이드 가동 | 테마: ${theme.name}`);
-    const bpRes = await callAI(model, `[지침] 키워드 "${target}" 주제로 고도화된 전문 리포트 제목과 7개 섹션 목차를 JSON으로 기획하라. 절대 가짜 브랜드명을 쓰지 말 것. JSON: { "title":"", "chapters":[] }`);
-    const bp = JSON.parse(clean(bpRes, 'obj'));
-    const title = bp.title || target; 
-    const chapters = (bp.chapters || []).map(c => typeof c === 'object' ? (c.title || c.chapter || c.name || String(c)) : String(c));
+    console.log(`\n🔱 [Omni-Sync Sovereign] v2.1.5 가동 | 지침/스타일 예시 완벽 동기화 시작`);
+    const bpRes = await callAI(model, `[MASTER] 키워드 "${target}" 리포트 제목과 7개 장 목차 JSON. **절대 숫자/마크다운 금지.** 장 제목은 통찰력 있게. JSON: { "title":"", "chapters":[] }`);
+    const bp = JSON.parse(chiefAuditor(bpRes));
+    const title = (bp.title || target).replace(/^[\d\.\*\-\s>]+/, '');
+    const chapters = (bp.chapters || []).map(c => (typeof c === 'object' ? (c.title || c.chapter || c.name || String(c)) : String(c)).replace(/^[\d\.\*\-\s>]+/, ''));
     
     let body = STYLE + '<div class="vue-premium">';
-    body += '<div class="toc-box"><h2>Professional Report Contents</h2><ul>' + chapters.map((c,i)=>`<li><a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
+    body += '<div class="info-box"><b>CORE INSIGHT INDEX</b><ul>' + chapters.map((c,i)=>`<li><a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
+    
+    const METAPHORS = ['다이어트', '마법봉', '좀비', '레고 블록', '요리 레시피', '퍼즐 조각', '마라톤', '돼지 저금통', '체스판', '텃밭 가꾸기', '운전면허', '첫 월급', '이사', '여행 계획', '냉장고 정리', '옷장 정리', '은행 적금', '게임 레벨업', '대청소', '장보기 리스트'];
     
     let ctx = "";
     for(let i=0; i<chapters.length; i++) {
         const isFAQ = (i === chapters.length - 1);
-        console.log(`💎 [집필] ${i+1}/7: "${chapters[i]}"`);
+        console.log(`💎 [다부서 동시 사역] ${i+1}/7: "${chapters[i]}"`);
         
         let sectPrompt = isFAQ ? 
-            `다음 보고서 요약(${ctx})을 바탕으로 실사용자가 궁금해할 FAQ '30개'를 정확히 작성하라.\n1. 형식: <ul><li> HTML 사용.\n2. SEO: 마지막에 구글용 FAQ Schema JSON-LD를 반드시 포함.\n3. 금기: 가짜 브랜드명 언급 시 전체 파기.` :
-            `[장 제목: ${chapters[i]}]를 4,500자 이상의 백과사전급 전문 리포트로 집필하라.\n\n[필수 지침]\n1. 분량: 섹션당 최소 1,500자 이상(상세 데이터 분석 포함).\n2. 표: 심층 비교 표 반드시 포함.\n3. 마크다운 금지: #, **, * 기호를 절대 쓰지 말고 <b>, <h3> HTML 태그만 사용할 것.\n4. 말투: AI 티가 나지 않는 고품격 전문가 문체.\n5. 브랜드: ZERO BRAND.`;
+            `[SEO/STRATEGY] 요약(${ctx}) 기반 전문가 FAQ 30개작성. **번호/마크다운 금지.** 질문 난이도를 '상-10개, 중-10개, 하-10개'로 철저히 배분하여 업계 전문가 수준으로 작성하라. HTML <ul><li> 사용. 마지막에 JSON-LD 스키마 포함.` :
+            `[EDITORIAL/MASTER] 장 제목: ${chapters[i]}. 1,500자 이상 전문 분석.\n\n[스타일/지침 예시 강제]\n1. **스토리텔링**: [내 예전 착각/경험 -> 부딪히며 깨달은 원인 분석 -> 결과 및 해결책] 구조로 생동감 있게 집필하라.\n2. **비유 표현**: 섹션마다 반드시 '${METAPHORS[i % METAPHORS.length]}' 비유를 1개 이상 사용하여 깊은 인상을 남겨라.\n3. **문체**: '~합니다', '~하십시오' 확신 문체 필수. <b> 태그로 핵심 강조.\n4. **금지**: 양쪽 정렬(justify) 느낌의 문장 늘이기 금지, 문두 메타 라벨 금지, 마크다운/번호 금지.`;
         
         const sectRaw = await callAI(model, sectPrompt);
-        let sect = clean(sectRaw, 'text', chapters[i]);
-        
-        const sumRes = await callAI(model, `이 섹션 핵심 3문장 요약: ${sect.substring(0, 1000)}`);
+        let sect = chiefAuditor(sectRaw, chapters[i]);
+        const sumRes = await callAI(model, `핵심 요약 3문장: ${sect.substring(0, 1000)}`);
         ctx += ` [S${i+1}: ${sumRes}]`;
         
         if(!isFAQ && (i === 0 || i === 2 || i === 4)) { 
             const pMatch = sectRaw.match(/\[IMAGE_PROMPT:\s*([\s\S]*?)\]/);
-            if(pMatch) { 
-                const u = await genImg(pMatch[1].trim()); 
-                if(u) sect = sect + `<img src="${u}" alt="${target} - ${chapters[i]} Perspective">`; 
-            }
+            if(pMatch) { const u = await genImg(pMatch[1].trim()); if(u) sect = sect + `<img src="${u}" alt="${target} Professional Resource">`; }
         }
         body += `<div class="h2-container" id="s${i+1}"><h2>${chapters[i]}</h2></div>` + sect;
     }
-    body += `<div class="premium-footer"><div class="copyright">© 2026 Intelligence & Data Archives. All Rights Reserved. 무단 전재 및 재배포를 엄격히 금합니다.</div><div class="disclaimer">본 리포트는 공신력 있는 데이터를 기반으로 작성되었으며, 개별 시스템 환경에 따라 결과가 다를 수 있습니다.</div></div></div>`;
-    await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, labels: ["Professional Insights", target] } });
-    console.log(`\n✨ [성공] v1.7.0 Grand Sovereign 가이드 완수.`);
+    body += `<div class="premium-footer"><div class="copyright">© 2026 Archive of Sovereign Intelligence Collective.</div></div></div>`;
+    await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, labels: ["Elite Analysis", target] } });
+    console.log(`\n✨ [연합 사역 성공] v2.1.0 High-Density Sovereign 출고.`);
 }
 
 async function run() {
@@ -143,7 +123,7 @@ async function run() {
         const target = seeds.shift();
         await writeAndPost(model, target, blogger, config.blog_id);
         const g = await axios.get(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-        await axios.put(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { message: 'Grand Sovereign Sync', content: Buffer.from(JSON.stringify({...config, clusters: seeds}, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+        await axios.put(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { message: 'Density Sync', content: Buffer.from(JSON.stringify({...config, clusters: seeds}, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
     } catch(e) { process.exit(1); }
 }
 run();

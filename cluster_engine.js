@@ -10,32 +10,36 @@ const STYLE = `<style>
   @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap');
   .vue-premium { font-family: 'Pretendard', sans-serif; color: #333; line-height: 2.1; max-width: 850px; margin: 35px auto; padding: 20px; background:#fff; word-break:keep-all; }
   .vue-premium * { font-family: 'Pretendard', sans-serif !important; }
-  .h2-premium { border-bottom: 6px solid #111; padding-bottom: 25px; margin-top: 110px; margin-bottom: 60px; }
-  .h2-premium h2 { font-size: 42px; font-weight: 900; color: #111; margin: 0; line-height: 1.2; letter-spacing: -1px; }
-  .vue-premium h3 { font-size: 28px; color: #111; margin-top: 65px; margin-bottom: 30px; font-weight: 800; border-left: 7px solid #ff4e50; padding-left: 20px; line-height: 1.4; }
-  .vue-premium p { margin-bottom: 35px; font-size: 20px; color: #444; }
-  .toc-box { background-color: #fcfcfc; border: 1px solid #eee; border-radius: 15px; padding: 45px; margin: 70px 0; }
-  .table-box { width: 100%; overflow-x: auto; margin: 60px 0; border: 2px solid #111; }
-  .vue-premium table { width: 100%; border-collapse: collapse; min-width: 700px; }
-  .vue-premium th { background: #111; color: #fff; padding: 20px; text-align: left; font-size: 18px; }
-  .vue-premium td { border: 1px solid #eee; padding: 20px; font-size: 19px; }
-  .vue-premium img { max-width: 100%; height: auto; border-radius: 12px; margin: 60px 0; box-shadow: 0 20px 50px rgba(0,0,0,0.1); }
-  .premium-disclaimer { border: 1px solid #ddd; background: #f9f9f9; border-radius: 10px; padding: 35px; margin-top: 120px; color: #666; font-size: 16px; }
+  .h2-premium { border-bottom: 7px solid #111; padding-bottom: 25px; margin-top: 110px; margin-bottom: 60px; }
+  .h2-premium h2 { font-size: 44px; font-weight: 900; color: #111; margin: 0; line-height: 1.2; letter-spacing: -1.5px; }
+  .vue-premium h3 { font-size: 30px; color: #111; margin-top: 75px; margin-bottom: 35px; font-weight: 800; border-left: 9px solid #ff4e50; padding-left: 24px; line-height: 1.4; }
+  .vue-premium p { margin-bottom: 40px; font-size: 21px; color: #3d3d3d; text-align: justify; }
+  .toc-box { background-color: #f7f7f7; border: 1px solid #ddd; border-radius: 20px; padding: 50px; margin: 70px 0; }
+  .table-box { width: 100%; overflow-x: auto; margin: 70px 0; border: 3px solid #111; }
+  .vue-premium table { width: 100%; border-collapse: collapse; min-width: 750px; }
+  .vue-premium th { background: #111; color: #fff; padding: 24px; text-align: left; font-size: 20px; }
+  .vue-premium td { border: 1px solid #ececec; padding: 24px; font-size: 20px; }
+  .vue-premium img { max-width: 100%; height: auto; border-radius: 18px; margin: 80px 0; box-shadow: 0 30px 60px rgba(0,0,0,0.15); }
+  .premium-disclaimer { border: 1px solid #eee; background: #fafafa; border-radius: 15px; padding: 45px; margin-top: 140px; color: #666; font-size: 18px; line-height: 1.8; }
 </style>`;
 
 function clean(raw, type = 'obj', titleHead = '') {
     if(!raw) return type === 'text' ? '' : '{}';
     let t = raw.replace(/```(json|html|js|md)?/gi, '').trim();
     if (type === 'text') {
+        t = t.replace(/<title[\s\S]*?<\/title>/gi, '');
+        t = t.replace(/<title[\s\S]*?>/gi, '');
         t = t.replace(/<style[\s\S]*?<\/style>/gi, '');
         t = t.replace(/style="[^"]*"/gi, '');
-        t = t.replace(/<(!DOCTYPE|html|body|head|meta|link).*?>/gi, '').replace(/<\/(html|body|head|title)>/gi, '');
+        t = t.replace(/<(!DOCTYPE|html|body|head|meta|link).*?>/gi, '');
+        t = t.replace(/<\/(html|body|head|title|meta)>/gi, '');
         t = t.replace(/<h1[\s\S]*?<\/h1>/gi, '');
         if(titleHead) {
-            const rH2 = new RegExp(`<h2[^>]*>\\s*(${titleHead}|\\d+\\.\\s*${titleHead})\\s*</h2>`, 'i');
+            const cleanTitle = titleHead.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+            const rH2 = new RegExp(`<h[1-3][^>]*>\\s*(${cleanTitle}|\\d+\\.\\s*${cleanTitle})\\s*</h[1-3]>`, 'i');
             t = t.replace(rH2, '');
         }
-        const garbage = [/물론이죠/gi, /도움이 되길 바랍니다/gi, /요약하자면/gi, /결론적으로/gi, /알아보겠습니다/gi, /살펴보겠습니다/gi];
+        const garbage = [/물론이죠/gi, /도움이 되길 바랍니다/gi, /요약하자면/gi, /결론적으로/gi, /알아보겠습니다/gi, /살펴보겠습니다/gi, /참고해주세요/gi, /본 섹션에서는/gi, /설계자 지침/gi, /마스터 프로토콜/gi, /Paragon Protocol/gi];
         garbage.forEach(p => t = t.replace(p, ''));
         t = t.replace(/<p>\s*<\/p>|<p>&nbsp;<\/p>/gi, ''); 
         t = t.replace(/<table/gi, '<div class="table-box no-adsense" google-auto-ads-ignore="true"><table');
@@ -55,10 +59,11 @@ async function callAI(model, prompt, retry = 0) {
 async function genImg(desc, model, sectionIdx) {
     if(!desc || !process.env.KIE_API_KEY) return '';
     try {
-        const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { model: 'z-image', input: { prompt: desc + ', premium photography, high-end masterpiece, 8k', aspect_ratio: '16:9' } }, { headers: { Authorization: 'Bearer ' + process.env.KIE_API_KEY } });
+        console.log(`   🎨 [전문 이미지 생성] "${desc.substring(0, 35)}..."`);
+        const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { model: 'z-image', input: { prompt: desc + ', high-end editorial photography, masterpiece, 8k', aspect_ratio: '16:9' } }, { headers: { Authorization: 'Bearer ' + process.env.KIE_API_KEY } });
         const tid = cr.data.taskId || cr.data.data?.taskId; if(!tid) return '';
         for(let i=0; i<15; i++) { 
-            await new Promise(r => setTimeout(r, 8500)); 
+            await new Promise(r => setTimeout(r, 9500)); 
             const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + process.env.KIE_API_KEY } }); 
             const d = pr.data.data || pr.data; if(d.state === 'success') { 
                 const resJson = typeof d.resultJson === 'string' ? JSON.parse(d.resultJson) : d.resultJson; 
@@ -73,14 +78,14 @@ async function genImg(desc, model, sectionIdx) {
 }
 
 async function writeAndPost(model, target, blogger, bId) {
-    console.log(`\n🔱 [Superior Sovereign] 원조 지침(Master Protocol) 가동...`);
+    console.log(`\n🔱 [Ghost Writer] Editorial Integrity v1.4.74 가동...`);
     const mktPrompt = `키워드 "${target}"를 위한 제목과 7개 섹션 목차를 짜세요. JSON: { "title":"", "chapters":[] }`;
     const bpRes = await callAI(model, mktPrompt);
     const bp = JSON.parse(clean(bpRes, 'obj'));
     const title = bp.title || target; 
     const chapters = (bp.chapters || []).map(c => typeof c === 'object' ? (c.title || c.chapter || c.name || String(c)) : String(c));
     
-    console.log(`\n� [보고] 원조의 제목: "${title}"`);
+    console.log(`\n� [보고] 편집팀 제목: "${title}"`);
     chapters.forEach((c, idx) => console.log(`   ${idx+1}. ${c}`));
 
     let body = STYLE + '<div class="vue-premium">';
@@ -89,16 +94,16 @@ async function writeAndPost(model, target, blogger, bId) {
     let ctx = "";
     for(let i=0; i<chapters.length; i++) {
         const isFAQ = (i === chapters.length - 1);
-        console.log(`\n💎 [집필] ${i+1}/7: "${chapters[i]}"`);
+        console.log(`\n💎 [편집 집필] ${i+1}/7: "${chapters[i]}"`);
         
-        let sectPrompt = isFAQ ? `[설계자 지침] 주제 [${chapters[i]}]로 오리지널 지침에 따라 '정확히 25-30개' 대규모 FAQ를 HTML로 작성하세요. [중복 배제: ${ctx}]` : `[설계자 지침: Paragon Protocol] [장 제목: ${chapters[i]}]를 HTML로 4,500자 이상 백과사전급으로 상세히 집필하십시오.\n\n마스터 헌법:\n1. 패턴: 주제별 최적 전문 패턴(분석, 가이드, 리포트 등)을 창의적으로 적용하십시오.\n2. 위계: 소주제 <H3>, 필요시 <H2> 활용.\n3. 요소: 전문가급 비교 표(Table)를 섹션 내에 반드시 1개 이상 필수 삽입하십시오.\n4. 말투: 친절하고 깊이 있는 전문가의 '~해요'.\n5. 흐름: 앞선 [누적 문맥: ${ctx}] 의 내용을 절대 반복하지 말고 더 깊은 통찰로 확장하십시오.\n6. 금지: 인사/서론/결론/H1 절대 금지. 본론만 상세히.`;
+        let sectPrompt = isFAQ ? `[편집 팀 지침] 주제 [${chapters[i]}]로 정확히 '25-30개'의 대규모 FAQ를 HTML로 작성하세요. [중복 금지: ${ctx}]` : `[전문가 가이드] [장 제목: ${chapters[i]}]를 HTML로 4,500자 이상 백과사전급으로 상세히 집필하십시오.\n\n규정:\n1. 형식: 분석, 가이드, 리포트 중 가장 적합한 형식을 선택할 것.\n2. 표: 섹션 내에 비교 또는 요약 표(Table) 반드시 1개 이상 포함.\n3. 위계: 소제목 <H3>. 제목 반복 절대 금지.\n4. 말투: 친절하고 깊이 있는 전문가 톤.\n5. 금지: <title>, <html> 등 코드 찌꺼기, 내부 용어(Paragon, 설계자 등) 절대 금지.\n6. 연결: 앞선 [기작성 요약: ${ctx}] 내용을 감안하여 정보의 깊이를 더할 것.`;
         
         const sectRaw = await callAI(model, sectPrompt);
         const sect = clean(sectRaw, 'text', chapters[i]);
-        console.log(`   📊 [품질 보고] 분량: ${sect.length.toLocaleString()}자 | 중복 제거 완료 | 표(Original): ${sect.includes('<table') ? '✅' : '❌'}`);
+        console.log(`   📊 [품질] 분량: ${sect.length.toLocaleString()}자 | 중복 제거 완료 | 데이터 표: ${sect.includes('<table') ? '✅' : '❌'}`);
         
         const sum = await callAI(model, `핵심 요약(3문장): ${sect.substring(0, 1000)}`);
-        ctx += ` [섹션${i+1}: ${sum}]`;
+        ctx += ` [S${i+1}: ${sum}]`;
         
         let htmlSect = sect;
         if(!isFAQ && (i === 0 || i === 2 || i === 4)) { 
@@ -108,9 +113,9 @@ async function writeAndPost(model, target, blogger, bId) {
         htmlSect = htmlSect.replace(/\[IMAGE_PROMPT:[\s\S]*?\]/gi, '');
         body += `<div class="h2-premium" id="s${i+1}"><h2>${chapters[i]}</h2></div>` + htmlSect;
     }
-    body += `<div class="premium-disclaimer" google-auto-ads-ignore="true">⚖️ Disclaimer: 본 콘텐츠는 원조 설계자의 마스터 지침에 의해 생성되었습니다.</div></div>`;
+    body += `<div class="premium-disclaimer" google-auto-ads-ignore="true">⚖️ <b>Disclaimer:</b> 본 콘텐츠는 최신 기술 지침 및 하드웨어 가이드를 바탕으로 작성된 전문 정보성 리포트입니다. 개별 시스템 환경에 따라 결과에 차이가 있을 수 있으므로, 중요한 작업 전 반드시 전문가의 도움을 받으시길 권장합니다.</div></div>`;
     await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body } });
-    console.log(`\n✨ [성공] 원조의 품격을 담은 마스터피스 발행 완료!`);
+    console.log(`\n✨ [성공] 완벽한 편집본 발행 완료.`);
 }
 
 async function run() {
@@ -125,7 +130,7 @@ async function run() {
         const target = seeds.splice(Math.floor(Math.random()*seeds.length), 1)[0];
         await writeAndPost(model, target, blogger, config.blog_id);
         const g = await axios.get(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-        await axios.put(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { message: 'Superior Sovereign Sync', content: Buffer.from(JSON.stringify({...config, clusters: seeds}, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+        await axios.put(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { message: 'Ghost Sync', content: Buffer.from(JSON.stringify({...config, clusters: seeds}, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
     } catch(e) { process.exit(1); }
 }
 run();

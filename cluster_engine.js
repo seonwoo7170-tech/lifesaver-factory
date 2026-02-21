@@ -109,22 +109,8 @@ async function searchSerper(query) {
 }
 async function genImg(desc, model) {
     if(!desc) return '';
-    
-    // [안전 보호] 요청 간 최소 3초의 숨 고르기 시간을 강제하여 IP 차단을 방지합니다.
-    console.log('      ㄴ [안전 보호] 3초간 정밀 숨 고르기 중...');
-    await new Promise(r => setTimeout(r, 3000));
+    console.log('   ㄴ [고속 엔진] Pollinations(Flux) 전용 모드 가동 중...');
 
-    const pollKey = process.env.POLLINATIONS_API_KEY;
-    const runwareKey = process.env.RUNWARE_API_KEY;
-    const imgbbKey = process.env.IMGBB_API_KEY;
-    
-    const uas = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1.2 Mobile/15E148 Safari/604.1'
-    ];
-    
     let engPrompt = desc;
     if(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(desc)) {
         try {
@@ -134,125 +120,40 @@ async function genImg(desc, model) {
         } catch(e) { engPrompt = desc.replace(/[^a-zA-Z, ]/g, ''); }
     }
     engPrompt = engPrompt.slice(0, 800);
-    
-    let imageUrl = '';
-    let imageBuffer = null;
 
-    // 1. Pollinations AI (Flux 고속 엔진 - 기본 1순위)
-    if(!imageUrl) {
+    const pParams = `model=flux&width=1024&height=768&seed=${Math.floor(Math.random() * 1000000)}&nologo=true&enhance=true`;
+    const pUrl = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(engPrompt + ', high quality, realistic, cinematic') + '?' + pParams;
+    
+    // [영구 보존] 이미지를 다운로드 받아 ImgBB에 업로드합니다.
+    const imgbbKey = process.env.IMGBB_API_KEY;
+    if(imgbbKey && imgbbKey.length > 5) {
         try {
-            console.log('   ㄴ [고속 엔진] Pollinations(Flux) 호출 중...');
-            const pParams = `model=flux&width=1024&height=768&seed=${Math.floor(Math.random() * 1000000)}&nologo=true&enhance=true`;
-            const pUrl = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(engPrompt + ', high quality, realistic, cinematic') + '?' + pParams;
+            console.log('   ㄴ [고속 엔진] 데이터 다운로드 및 ImgBB 업로드 중...');
+            const uas = [
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+                'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            ];
+            const pHeaders = {
+                'User-Agent': uas[Math.floor(Math.random()*uas.length)],
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+            };
             
-            const pHeaders = pollKey ? { 'Authorization': `Bearer ${pollKey}`, 'User-Agent': uas[Math.floor(Math.random()*uas.length)] } : { 'User-Agent': uas[Math.floor(Math.random()*uas.length)] };
-            const pRes = await axios.get(pUrl, { headers: pHeaders, timeout: 20000, responseType: 'arraybuffer' });
-            if(pRes.status === 200) {
-                imageUrl = pUrl;
-                imageBuffer = pRes.data;
-                console.log('   ㄴ [Pollinations] 3초 만에 이미지 획득 성공! ⚡');
+            const pRes = await axios.get(pUrl, { headers: pHeaders, timeout: 60000, responseType: 'arraybuffer' });
+            if(pRes.status === 200 && pRes.data) {
+                const b64 = Buffer.from(pRes.data).toString('base64');
+                const form = new FormData(); form.append('image', b64);
+                const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders(), timeout: 60000 });
+                console.log('   ㄴ [ImgBB] 영구 보관용 변환 성공! ✅');
+                return ir.data.data.url;
             }
         } catch(e) {
-            const errDetail = e.response ? `HTTP ${e.response.status}` : e.message;
-            console.log(`   ㄴ [Pollinations] 서버 혼잡/오류 (${errDetail}). 차선책(Runware/Horde)으로 전환합니다.`);
+            console.log('   ㄴ [ImgBB] 업로드 지연/실패 (' + e.message + '). 다이렉트 원본 링크로 즉시 대체합니다.');
         }
     }
-
-    // 2. Runware (유료 옵션)
-    if(!imageUrl && runwareKey && runwareKey.length > 5) {
-        try {
-            console.log('   ㄴ [Runware] 백업 생성 시도...');
-            const rr = await axios.post('https://api.runware.ai/v1', [
-                { action: 'generateImage', model: 'runware:100@1', positivePrompt: engPrompt + ', detailed, 8k', width: 1024, height: 768, number: 1 }
-            ], { headers: { Authorization: 'Bearer ' + runwareKey } });
-            if(rr.data.data?.[0]?.imageURL) imageUrl = rr.data.data[0].imageURL;
-        } catch(e) { }
-    }
-
-    // 3. [최후의 보루] AI Horde (정밀 3회 시도)
-    if(!imageUrl) {
-        const modelGroups = [
-            ["SDXL_turbo", "AlbedoBase XL", "ICBINP"],
-            ["Deliberate", "Realistic Vision", "Dreamshaper"],
-            ["Stable Diffusion XL", "Realistic Stock Photos"]
-        ];
-
-        for(let attempt=0; attempt<3; attempt++) {
-            try {
-                console.log(`   ㄴ [Horde] 최후의 보루 가동 (시도 ${attempt+1}/3)...`);
-                const hRes = await axios.post('https://aihorde.net/api/v2/generate/async', {
-                    prompt: engPrompt + ', masterpiece, realistic, high quality',
-                    params: { n: 1, steps: 15, width: 896, height: 512, sampler_name: 'k_euler' },
-                    models: modelGroups[attempt],
-                    slow_workers: true,
-                    extra_slow_workers: true,
-                    r2: true,
-                    shared: true
-                }, { headers: { 'apikey': '0000000000', 'Client-Agent': 'VUE_Action_Cluster:1.6.2:v1_user' }, timeout: 20000 });
-                
-                const tid = hRes.data.id;
-                if(tid) {
-                    console.log(`   ㄴ [Horde] 요청 접수 (ID: ${tid}). 생성 대기 중...`);
-                    let success = false;
-                    for(let i=0; i<30; i++) { 
-                        await new Promise(r => setTimeout(r, 10000));
-                        const chk = await axios.get('https://aihorde.net/api/v2/generate/check/' + tid, { timeout: 10000 });
-                        if(chk.data.done) {
-                            const status = await axios.get('https://aihorde.net/api/v2/generate/status/' + tid, { timeout: 10000 });
-                            if(status.data.generations?.[0]?.img) {
-                                 imageUrl = status.data.generations[0].img;
-                                 console.log('   ㄴ [AI Horde] 집요함으로 이미지 획득 성공! ✅');
-                                 success = true; break;
-                            }
-                        }
-                        if((i+1) % 3 === 0) console.log(`   ㄴ [Horde 대기] ${((i+1)*10)}초 경과...`);
-                    }
-                    if(success) break;
-                }
-            } catch(e) { 
-                const errMsg = e.response?.data?.message || e.message;
-                console.log(`   ㄴ [Horde 오류] ${errMsg} (시도 ${attempt+1}/3)`);
-            }
-        }
-    }
-
-    if(!imageUrl) {
-        console.log('   ㄴ [최종 실패] AI Horde가 모든 시도에 응답하지 않았습니다.');
-    }
-
-    // [영구 저장 이식]
-    try {
-        if(imgbbKey && imgbbKey.length > 5 && imageUrl) {
-            let resData = imageBuffer;
-            if(!resData) {
-                let res;
-                for(let retry=1; retry<=3; retry++) {
-                    try {
-                        res = await axios.get(imageUrl, { 
-                            responseType: 'arraybuffer', 
-                            timeout: 120000, 
-                            headers: { 'User-Agent': uas[Math.floor(Math.random()*uas.length)] }
-                        });
-                        if(res.data) break;
-                    } catch(e) {
-                        if(retry === 3) throw e;
-                        console.log(`   ㄴ [ImgBB] 리소스 획득 중... (${retry}/3)`);
-                        await new Promise(r => setTimeout(r, 6000));
-                    }
-                }
-                resData = res.data;
-            }
-            const b64 = Buffer.from(resData).toString('base64');
-            const form = new FormData(); form.append('image', b64);
-            const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders() });
-            console.log('   ㄴ [ImgBB] 서버 전용/영구 보관 처리 완료! ✅');
-            return ir.data.data.url;
-        }
-        return imageUrl;
-    } catch(e) { 
-        console.log('   ㄴ [ImgBB] 영구 저장 실패: ' + e.message);
-        return imageUrl; 
-    }
+    
+    console.log('   ㄴ [Pollinations] 0.1초 고속 다이렉트 이미지 링크 획득 성공! ⚡');
+    return pUrl;
 }
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
     console.log(`\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);

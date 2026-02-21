@@ -1,11 +1,10 @@
-name: lifesaver-factory
+name: VUE-CLUSTER-POST
 on:
   schedule: [{cron: "00 22 * * *"}]
   workflow_dispatch: {}
 jobs:
   post:
     runs-on: ubuntu-latest
-    permissions: { contents: write }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -110,9 +110,9 @@ async function searchSerper(query) {
 async function genImg(desc, model) {
     if(!desc) return '';
     
-    // [안전 보호] 이미지 요청 간 최소 7초의 숨 고르기 시간을 강제하여 IP 차단을 원천 방지합니다.
-    console.log('      ㄴ [안전 보호] 7초간 정밀 숨 고르기 중...');
-    await new Promise(r => setTimeout(r, 7000));
+    // [안전 보호] 요청 간 최소 3초의 숨 고르기 시간을 강제하여 IP 차단을 방지합니다.
+    console.log('      ㄴ [안전 보호] 3초간 정밀 숨 고르기 중...');
+    await new Promise(r => setTimeout(r, 3000));
 
     const pollKey = process.env.POLLINATIONS_API_KEY;
     const runwareKey = process.env.RUNWARE_API_KEY;
@@ -142,25 +142,19 @@ async function genImg(desc, model) {
     if(!imageUrl) {
         try {
             console.log('   ㄴ [고속 엔진] Pollinations(Flux) 호출 중...');
-            const pUrl = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(engPrompt + ', high quality, realistic, cinematic');
-            const pParams = {
-                model: 'flux',
-                width: 1024,
-                height: 768,
-                seed: Math.floor(Math.random() * 1000000),
-                nologo: true,
-                enhance: true
-            };
-            const pHeaders = pollKey ? { 'Authorization': `Bearer ${pollKey}` } : {};
-            const pRes = await axios.get(pUrl, { params: pParams, headers: pHeaders, timeout: 20000, responseType: 'arraybuffer' });
+            const pParams = `model=flux&width=1024&height=768&seed=${Math.floor(Math.random() * 1000000)}&nologo=true&enhance=true`;
+            const pUrl = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(engPrompt + ', high quality, realistic, cinematic') + '?' + pParams;
+            
+            const pHeaders = pollKey ? { 'Authorization': `Bearer ${pollKey}`, 'User-Agent': uas[Math.floor(Math.random()*uas.length)] } : { 'User-Agent': uas[Math.floor(Math.random()*uas.length)] };
+            const pRes = await axios.get(pUrl, { headers: pHeaders, timeout: 20000, responseType: 'arraybuffer' });
             if(pRes.status === 200) {
-                const queryStr = Object.keys(pParams).map(k => k + '=' + encodeURIComponent(pParams[k])).join('&');
-                imageUrl = pUrl + '?' + queryStr;
+                imageUrl = pUrl;
                 imageBuffer = pRes.data;
                 console.log('   ㄴ [Pollinations] 3초 만에 이미지 획득 성공! ⚡');
             }
         } catch(e) {
-            console.log('   ㄴ [Pollinations] 서버 혼잡/오류. 차선책(Runware/Horde)으로 전환합니다.');
+            const errDetail = e.response ? `HTTP ${e.response.status}` : e.message;
+            console.log(`   ㄴ [Pollinations] 서버 혼잡/오류 (${errDetail}). 차선책(Runware/Horde)으로 전환합니다.`);
         }
     }
 

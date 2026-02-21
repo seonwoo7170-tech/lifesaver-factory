@@ -110,71 +110,68 @@ async function searchSerper(query) {
     } catch(e) { return ''; }
 }
 async function genImg(desc, model) {
-    if(!desc) return '';
-    const imgbbKey = process.env.IMGBB_API_KEY;
-    console.log('   ㄴ [AI 비주얼] 이미지 생성 시퀀스 가동... (' + desc.slice(0,30) + '...)');
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const cloudKey = process.env.CLOUDINARY_API_KEY;
+    const cloudSecret = process.env.CLOUDINARY_API_SECRET;
 
     let engPrompt = desc;
-    if(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(desc)) {
+    if(/[\uAC00-\uD7A3]/.test(desc)) {
         try {
-            const trans = await callAI(model, 'Translate this visual description to English for AI image generation. Return ONLY the English text: ' + desc);
-            engPrompt = trans.replace(/[^a-zA-Z0-9, ]/g, '').trim();
-        } catch(e) { engPrompt = desc.replace(/[^a-zA-Z, ]/g, ''); }
+            const t = await callAI(model, 'Translate to English for AI image gen. Return ONLY English: ' + desc);
+            engPrompt = t.replace(/[^a-zA-Z0-9, .]/g, ' ').trim().substring(0, 400);
+        } catch(e) { engPrompt = desc.replace(/[^a-zA-Z0-9 ]/g, ' ').substring(0, 200); }
     }
     engPrompt += ', cinematic, highly detailed, photorealistic, 8k';
+    console.log('   ㄴ [AI 비주얼] 이미지 생성 시퀀스 가동... (' + desc.substring(0,40) + '...)');
 
-    let finalUrl = '';
-    const runwareKey = process.env.RUNWARE_API_KEY || process.env.KIE_API_KEY;
-    if(runwareKey && runwareKey.length > 5) {
+    // Cloudinary 업로드 함수 (URL 또는 base64 모두 지원)
+    async function uploadToCloudinary(fileData) {
+        if(!cloudName || !cloudKey || !cloudSecret) return null;
         try {
-            console.log('   ㄴ [Kie.ai] 고품질 전용 엔진 호출 중...');
-            const r = await axios.post('https://api.runware.ai/v1', [
-                { action: 'image_inference', model: 'runware:100@1', prompt: engPrompt, positivePrompt: 'photorealistic, 8k, cinematic lighting', width: 1024, height: 768, numberResults: 1, outputType: 'URL', checkNSFW: true }
-            ], { headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + runwareKey }, timeout: 60000 });
-            if(r.data && r.data.data && r.data.data[0] && r.data.data[0].imageURL) {
-                finalUrl = r.data.data[0].imageURL;
-                console.log('   ㄴ [Kie.ai] 프리미엄 이미지 생성 성공! ✅');
+            const crypto = require('crypto');
+            const ts = Math.round(Date.now() / 1000);
+            const sig = crypto.createHash('sha1').update(`timestamp=${ts}${cloudSecret}`).digest('hex');
+            const form = new FormData();
+            form.append('file', fileData);
+            form.append('timestamp', String(ts));
+            form.append('api_key', cloudKey);
+            form.append('signature', sig);
+            const cr = await axios.post(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, form, { headers: form.getHeaders(), timeout: 120000 });
+            if(cr.data && cr.data.secure_url) {
+                console.log('   ㄴ [Cloudinary] 영구 CDN 보관 성공! ✅');
+                return cr.data.secure_url;
             }
-        } catch(e) { console.log('   ㄴ [Kie.ai] 서비스 지연, 폴백 엔진으로 전환...'); }
+        } catch(e) { console.log('   ⚠️ [Cloudinary] 업로드 실패: ' + e.message); }
+        return null;
     }
 
-    if(!finalUrl) {
-        const seed = Math.floor(Math.random() * 1000000);
-        finalUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt)}?model=flux&width=1024&height=768&seed=${seed}&nologo=true&enhance=true`;
-        console.log('   ㄴ [Pollinations] ⚡ 초고속 엔진 가동...');
+    // Pollinations 이미지 시도 함수 (다중 모델 폴백)
+    const models = ['flux', 'turbo', 'flux-realism'];
+    const seed = Math.floor(Math.random() * 1000000);
+    let polUrl = null;
+    for(const pm of models) {
+        try {
+            const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt)}?model=${pm}&width=1024&height=768&seed=${seed}&nologo=true&enhance=true`;
+            console.log(`   ㄴ [Pollinations] ⚡ ${pm} 모델 시도 중...`);
+            await new Promise(r => setTimeout(r, pm === 'flux' ? 20000 : 10000));
+            // Cloudinary에 URL 위탁 (Cloudinary 서버가 직접 가져옴 - Cloudflare 우회!)
+            const cdnUrl = await uploadToCloudinary(url);
+            if(cdnUrl) return cdnUrl;
+            // Cloudinary 없으면 URL 직접 반환 (브라우저에서 로딩 OK)
+            polUrl = url;
+            break;
+        } catch(e) { console.log(`   ⚠️ [Pollinations] ${pm} 실패: ' + e.message); }
+    }
+    if(polUrl) {
+        console.log('   ㄴ [Pollinations] URL 직접 삽입 (브라우삥에서 정상 표시됩니다)');
+        return polUrl;
     }
 
-    if(imgbbKey && imgbbKey.length > 5) {
-        console.log('   ㄴ [보관 시스템] ImgBB URL 위탁 업로드 방식 가동...');
-        for(let attempt=1; attempt<=3; attempt++) {
-            try {
-                if(finalUrl.includes('pollinations')) {
-                    const wait = attempt === 1 ? 20000 : 10000;
-                    console.log(`   ㄴ [엔진 예열] Pollinations 이미지 생성 대기 중... (${wait/1000}초, 시도 ${attempt}/3)`);
-                    await new Promise(r => setTimeout(r, wait));
-                }
-                // ★ 핵심: GitHub서버가 직접 다운로드 X → ImgBB 서버에 URL 위탁하여 Cloudflare 차단 완전 우회
-                console.log(`   ㄴ [ImgBB 위탁] ImgBB 서버에 URL 전달 중... (시도 ${attempt}/3)`);
-                const ir = await axios.post(
-                    'https://api.imgbb.com/1/upload?key=' + imgbbKey,
-                    'url=' + encodeURIComponent(finalUrl),
-                    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 90000 }
-                );
-                if(ir.data && ir.data.data && ir.data.data.url) {
-                    console.log('   ㄴ [ImgBB] 영구 보관 성공! ✅ → ' + ir.data.data.url);
-                    return ir.data.data.url;
-                } else {
-                    console.log('   ⚠️ [ImgBB] 업로드 응답 이상: ' + JSON.stringify(ir.data));
-                }
-            } catch(e) {
-                const errDetail = e.response ? JSON.stringify(e.response.data).substring(0,150) : e.message;
-                console.log(`   ⚠️ [ImgBB 위탁 실패] 시도 ${attempt}/3 - 원인: ${errDetail}`);
-                await new Promise(res => setTimeout(res, 7000));
-            }
-        }
-        console.log('   ⚠️ [ImgBB] 3회 모두 실패. Pollinations 원본 URL을 블로그에 직접 사용합니다.');
-    }
-    return finalUrl;
+    // 마지막 보루: Unsplash 무료 스톡 사진 (API키 불필요)
+    const kw = encodeURIComponent(desc.replace(/[^\uAC00-\uD7A3a-zA-Z0-9 ]/g, ' ').trim().substring(0, 50));
+    const unsplashUrl = `https://source.unsplash.com/1024x768/?${kw}`;
+    console.log('   ㄴ [Unsplash] 무료 스톡 사진 폴백 사용 ✅');
+    return unsplashUrl;
 }
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
     console.log(`\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);
@@ -188,17 +185,27 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         if(!parsed.chapters || parsed.chapters.length < 7) throw new Error('챕터 부족');
         chapters = parsed.chapters;
     } catch(e) { 
-        console.log('   ⚠️ [블루프린트 보정] 폴백 챕터 사용...');
-        title = title || `현직 전문가가 알려주는 ${target} 완벽 가이드`;
-        chapters = [
-            `${target}란 무엇인가? 핵심 개념 완전 정복`,
-            `${target} 시작 전 반드시 알아야 할 3가지`,
-            `실전에서 바로 쓰는 ${target} 핵심 기술`,
-            `${target}에서 가장 많이 하는 실수와 해결법`,
-            `비용 대비 효과를 극대화하는 ${target} 활용법`,
-            `전문가가 알려주는 ${target} 심화 노하우`,
-            `${target} 자주 묻는 질문 (FAQ) 총정리`
-        ];
+        console.log('   ⚠️ [블루프린트 보정] AI 제목/챕터 재생성 시도...');
+        try {
+            const retry = await callAI(model, `"${target}"를 주제로 구글 SEO에 최적화된 블로그 제목 1개와 7개 소제목을 만들어 주세요. 반드시 JSON 형식으로만 답하세요: {\"title\":\"...\",\"chapters\":[\"...\"]}`);
+            const rp = JSON.parse(clean(retry, 'obj'));
+            if(!title || title === target) title = (rp.title && rp.title.length > 5) ? rp.title : target;
+            if(rp.chapters && rp.chapters.length >= 7) { chapters = rp.chapters; }
+        } catch(e2) {
+            console.log('   ⚠️ [재생성 실패] 키워드를 제목으로 사용합니다.');
+            if(!title || title === target) title = target;
+        }
+        if(!chapters || chapters.length < 7) {
+            chapters = [
+                `${target}란 무엇인가? 핵심 개념 완전 정복`,
+                `${target} 시작 전 반드시 알아야 할 3가지`,
+                `실전에서 바로 쓰는 ${target} 핵심 기술`,
+                `${target}에서 가장 많이 하는 실수와 해결법`,
+                `비용 대비 효과를 극대화하는 ${target} 활용법`,
+                `${target} 심층 분석: 놓치면 아쉬운 노하우`,
+                `${target} 자주 묻는 질문 (FAQ) 총정리`
+            ];
+        }
     }
 
     const hero = await genImg(title, model);

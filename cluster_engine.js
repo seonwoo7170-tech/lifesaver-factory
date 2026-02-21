@@ -128,32 +128,35 @@ async function genImg(desc, model) {
     const imgbbKey = process.env.IMGBB_API_KEY;
     if(imgbbKey && imgbbKey.length > 5) {
         try {
-            console.log('   ㄴ [고속 엔진] 데이터 다운로드 및 ImgBB 업로드 중...');
+            console.log('   ㄴ [고속 엔진] 데이터 다운로드 및 ImgBB 포맷 검증 중...');
             
             const proxyList = [
-                pUrl, // 1순위: 다이렉트
-                `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(pUrl)}`, // 2순위: 구글 프록시 우회
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(pUrl)}` // 3순위: AllOrigins 우회
+                pUrl, 
+                `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(pUrl)}`, 
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(pUrl)}` 
             ];
             
             let pRes = null;
             for(let i=0; i<proxyList.length; i++) {
                 try {
                     const fetchUrl = proxyList[i];
-                    pRes = await axios.get(fetchUrl, { 
+                    const tempRes = await axios.get(fetchUrl, { 
                         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
                         timeout: 30000, 
-                        responseType: 'arraybuffer' 
+                        responseType: 'arraybuffer',
+                        validateStatus: s => s === 200
                     });
-                    if(pRes.status === 200 && pRes.data && pRes.data.length > 20000) {
-                        break; // 20KB 이상의 정상 이미지 획득 성공
+                    const cType = String(tempRes.headers['content-type']).toLowerCase();
+                    if(tempRes.data && cType.includes('image') && tempRes.data.length > 20000) {
+                        pRes = tempRes;
+                        break;
                     }
-                } catch(e) { pRes = null; }
+                } catch(e) { }
             }
             
             if(pRes && pRes.data) {
-                const b64 = Buffer.from(pRes.data).toString('base64');
-                const form = new FormData(); form.append('image', b64);
+                const form = new FormData();
+                form.append('image', pRes.data, { filename: 'image.jpg', contentType: 'image/jpeg' });
                 const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { 
                     headers: form.getHeaders(), 
                     timeout: 60000 
@@ -163,10 +166,15 @@ async function genImg(desc, model) {
                     return ir.data.data.url;
                 } else { throw new Error('ImgBB 응답 포맷 오류'); }
             } else {
-                throw new Error('모든 프록시 다운로드 실패');
+                throw new Error('모든 프록시에서 이미지 다운로드 실패 (HTML 반환 됨)');
             }
         } catch(e) {
-            console.log('   ㄴ [ImgBB] 업로드 지연/실패 (' + e.message + '). 다이렉트 원본 링크로 즉시 대체합니다.');
+            let errMsg = e.message;
+            if (e.response && e.response.data) {
+                try { errMsg = JSON.parse(e.response.data.toString()).error.message; }
+                catch(ex) { errMsg = `Status ${e.response.status}`; }
+            }
+            console.log('   ㄴ [ImgBB] 업로드 지연/실패 (' + errMsg + '). 다이렉트 원본 링크로 즉시 대체합니다.');
         }
     }
     

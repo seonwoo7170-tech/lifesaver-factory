@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: npm install googleapis @google/generative-ai axios form-data
+      - run: npm install googleapis @google/generative-ai axios form-data crypto
       - env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           KIE_API_KEY: ${{ secrets.KIE_API_KEY }}

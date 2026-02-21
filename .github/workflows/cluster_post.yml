@@ -17,6 +17,7 @@ jobs:
           RUNWARE_API_KEY: ${{ secrets.RUNWARE_API_KEY }}
           SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
           IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
+          POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY }}
           BLOG_ID: ${{ secrets.BLOG_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}

@@ -119,7 +119,7 @@ async function genImg(desc, model) {
         try {
             const t = await callAI(model, 'Translate to English for AI image gen. Return ONLY English: ' + desc);
             engPrompt = t.replace(/[^a-zA-Z0-9, .]/g, ' ').trim().substring(0, 400);
-        } catch(e) { engPrompt = desc.replace(/[^a-zA-Z0-9 ]/g, ' ').substring(0, 200); }
+        } catch(e) { engPrompt = 'a modern lifestyle and technology scene, vibrant, professional'; }
     }
     engPrompt += ', cinematic, highly detailed, photorealistic, 8k';
     console.log('   ㄴ [AI 비주얼] 이미지 생성 시퀀스 가동... (' + desc.substring(0,40) + '...)');
@@ -182,7 +182,7 @@ async function genImg(desc, model) {
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
     console.log(`\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);
     const searchData = await searchSerper(target);
-    const bpPrompt = `Create a high-end, 7-part content strategy for: "${target}". Return ONLY JSON: {\"title\":\"...\", \"chapters\":[\"...\",...]}\\nRULE: The title must be a Google SEO Long-tail Keyword.`;
+    const bpPrompt = `Write a 7-chapter Korean SEO blog strategy for: "${target}". Return ONLY raw JSON, no markdown: {\"title\":\"...\",\"chapters\":[\"ch1\",\"ch2\",\"ch3\",\"ch4\",\"ch5\",\"ch6\",\"ch7\"]}. TITLE must be a long-tail SEO keyword in Korean.`;
     const bpRes = await callAI(model, bpPrompt);
     let title, chapters;
     try {
@@ -195,11 +195,11 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         try {
             const retry = await callAI(model, `"${target}"를 주제로 구글 SEO에 최적화된 블로그 제목 1개와 7개 소제목을 만들어 주세요. 반드시 JSON 형식으로만 답하세요: {\"title\":\"...\",\"chapters\":[\"...\"]}`);
             const rp = JSON.parse(clean(retry, 'obj'));
-            if(!title || title === target) title = (rp.title && rp.title.length > 5) ? rp.title : target;
+            title = (rp.title && rp.title.length > 5) ? rp.title : target + ' 완벽 가이드 - 전문가가 알려주는 핵심 정리';
             if(rp.chapters && rp.chapters.length >= 7) { chapters = rp.chapters; }
         } catch(e2) {
             console.log('   ⚠️ [재생성 실패] 키워드를 제목으로 사용합니다.');
-            if(!title || title === target) title = target;
+            title = target + ' 완벽 정리 | 초보자도 바로 따라하는 실전 가이드';
         }
         if(!chapters || chapters.length < 7) {
             chapters = [

@@ -6,28 +6,16 @@ const FormData = require('form-data');
 const crypto = require('crypto');
 
 const MASTER_GUIDELINE = `
-[VUE POST v2.5 The Origin Master - Premium Content Strategy]
+[VUE POST v2.5 KIE MASTER - Premium Content Strategy]
 당신은 Studio VUE의 블로그 마케팅 전문가로서, 구글의 E-E-A-T 원칙과 애드센스 수익 극대화 전략을 결합한 '인간보다 더 인간다운' 프리미엄 콘텐츠를 생성합니다.
 
-================================================================
-[최우선 규칙 - 글자수 및 출력 방식 강제]
-================================================================
-※ 이 규칙은 모든 지침보다 우선하며, 미준수 시 실패로 간주함.
-
-1. 강제 목표량: 한국어 12,000~13,500자 / 영어 5,000 words 이상. (한 글자도 부족해선 안 됨)
-2. 구성: [H1 제목] → [목차 박스] → [인트로] → [7개 본문 섹션] → [25~30개 FAQ] → [면책조항] → [클로징] → [함께 보면 좋은 정보] → [태그] → [Schema].
+1. 강제 목표량: 한국어 12,000~13,500자 / 영어 5,000 words 이상.
+2. 구성: [H1 제목] → [목차 박스] → [인트로] → [7개 본문 섹션] → [25~30개 FAQ] → [면책조항] → [클로징] → [태그] → [Schema].
 3. 섹션당 필수 요소:
    - 최소 1,500자 이상의 풍성한 내용.
-   - <p style="margin-bottom: 20px;"> 태그 4~6문단 (한 문단당 2~3문장 제한으로 모바일 가독성 극대화).
-   - 고유한 수치 데이터를 포함한 4열 4행 표(Table) 1개 필수.
-   - 사실적 사진 묘사를 담은 이미지 프롬프트 [IMAGE_PROMPT: 묘사] 1개 필수.
-
-================================================================
-[VUE SIGNATURE: 인트로 서사 라이브러리 (20개 전문)]
-================================================================
-※ 모든 섹션 도입부에 아래 리스트에서 랜덤 선택하여 3문장 이상의 1인칭 서사를 반드시 작성하십시오.
-① "직접 테스트해보니 놀라운 결과가 나왔습니다..."
-② "실제 현장에서 겪은 생생한 경험을 공유합니다..."
+   - <p style="margin-bottom: 20px;"> 태그 4~6문단.
+   - 4열 4행 표(Table) 1개 필수.
+   - [IMAGE_PROMPT: 묘사] 1개 필수.
 `;
 
 const STYLE = `<style>
@@ -52,10 +40,10 @@ function clean(raw, type = 'obj') {
 
 async function callAI(model, prompt, retry = 0) {
     try { const r = await model.generateContent(prompt); return r.response.text().trim(); }
-    catch (e) { if (e.message.includes('429') && retry < 5) { console.log('⚠️ [과부하] API 호출 한도 도달... 20초 대기 중... ('+(retry+1)+'/5)'); await new Promise(r => setTimeout(r, 20000)); return callAI(model, prompt, retry + 1); } throw e; }
+    catch (e) { if (e.message.includes('429') && retry < 5) { console.log('⚠️ [과부하] 20초 대기 중... ('+(retry+1)+'/5)'); await new Promise(r => setTimeout(r, 20000)); return callAI(model, prompt, retry + 1); } throw e; }
 }
 
-async function uploadToCloudinary(url) {
+async function uploadToCloudinary(buffer) {
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME; if(!cloudName) return null;
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
@@ -64,67 +52,72 @@ async function uploadToCloudinary(url) {
         const sigToHash = `timestamp=${ts}${apiSecret}`;
         const signature = crypto.createHash('sha1').update(sigToHash).digest('hex');
         const form = new FormData();
-        form.append('file', url); 
+        form.append('file', `data:image/png;base64,${buffer.toString('base64')}`);
         form.append('api_key', apiKey);
         form.append('timestamp', ts);
         form.append('signature', signature);
         const r = await axios.post(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, form, { headers: form.getHeaders(), timeout: 120000 });
         return r.data.secure_url;
     } catch(e) { 
-        console.log('   ⚠️ [클라우디너리 실패 상세]:', e.response?.data?.error?.message || e.message);
+        console.log('   ⚠️ [클라우디너리 실패]:', e.response?.data?.error?.message || e.message);
         return null; 
     }
 }
 
 async function genImg(desc, model) {
-    if(!desc) return '';
-    let ep = desc; try { const t = await callAI(model, 'Translate English: ' + desc); ep = t.replace(/[^a-zA-Z0-9, ]/g, ''); } catch(e){}
-    console.log('   ㄴ [이미지 생성 시도] ' + ep.slice(0, 30));
+    if(!desc || !process.env.KIE_API_KEY) return '';
+    let ep = desc; try { const t = await callAI(model, 'Translate concise English keywords for KIE.AI (Under 100 chars): ' + desc); ep = t.replace(/[^a-zA-Z0-9, ]/g, ''); } catch(e){}
+    console.log('   ㄴ [KIE 이미지 생성 시도] 프롬프트: ' + ep.slice(0, 40));
     let imageUrl = '';
-    if(process.env.KIE_API_KEY) {
-        try {
-            const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { model: 'z-image', input: { prompt: ep + ', realistic, 8k', aspect_ratio: '16:9' } }, { headers: { Authorization: 'Bearer ' + process.env.KIE_API_KEY } });
-            const tid = cr.data.taskId || cr.data.data?.taskId;
-            if(tid) {
-                for(let i=0; i<15; i++) {
-                    await new Promise(r => setTimeout(r, 7000));
-                    const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + process.env.KIE_API_KEY } });
-                    if((pr.data.state || pr.data.data?.state) === 'success') {
-                        const resJson = typeof pr.data.resultJson === 'string' ? JSON.parse(pr.data.resultJson) : (pr.data.resultJson || pr.data.data?.resultJson);
-                        imageUrl = resJson.resultUrls[0]; break;
-                    }
+    try {
+        const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { model: 'z-image', input: { prompt: ep + ', realistic detailed photography, 8k', aspect_ratio: '16:9' } }, { headers: { Authorization: 'Bearer ' + process.env.KIE_API_KEY } });
+        const tid = cr.data.taskId || cr.data.data?.taskId;
+        if(tid) {
+            for(let i=0; i<15; i++) {
+                await new Promise(r => setTimeout(r, 7000));
+                const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + process.env.KIE_API_KEY } });
+                if((pr.data.state || pr.data.data?.state) === 'success') {
+                    const resJson = typeof pr.data.resultJson === 'string' ? JSON.parse(pr.data.resultJson) : (pr.data.resultJson || pr.data.data?.resultJson);
+                    imageUrl = resJson.resultUrls[0]; break;
                 }
             }
-        } catch(e) { console.log('   ㄴ [KIE] 지연/오류 발생, 예비 엔진으로 전환'); }
+        }
+    } catch(e) { console.log('   ㄴ 🔴 [KIE 오류] 유료 엔진 지연 중'); }
+    
+    if(imageUrl) {
+        try {
+            console.log('   ㄴ [이미지 확보] 클라우디너리 배달 중...');
+            const res = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 45000 });
+            const cdnUrl = await uploadToCloudinary(Buffer.from(res.data));
+            if(cdnUrl) { console.log('   ㄴ ✅ KIE 이미지 영구 보관 성공!'); return cdnUrl; }
+        } catch(e) { console.log('   ㄴ ⚠️ 클라우디너리 업로드 실패 (KIE 원본 주소 유지)'); }
     }
-    if(!imageUrl) imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(ep)}?width=1280&height=720&nologo=true&seed=${Math.floor(Math.random()*1000000)}&model=flux`;
-    console.log('   ㄴ [클라우디너리] 영구 저장소 업로드 중...');
-    const cdnUrl = await uploadToCloudinary(imageUrl);
-    return cdnUrl || imageUrl;
+    return imageUrl;
 }
 
 async function writeAndPost(model, target, blogger, bId, pTime) {
-    console.log('\n🚀 [대작 집필 시작] 주제: ' + target);
-    const bpRes = await callAI(model, `Return ONLY JSON: {"title":"...","chapters":["ch1","ch2","ch3","ch4","ch5","ch6","ch7"]} ` + target);
+    console.log('\n🚀 [프리미엄 대작 집필] ' + target);
+    const bpRes = await callAI(model, `Return ONLY JSON for "${target}": {"title":"...","chapters":["ch1","ch2","ch3","ch4","ch5","ch6","ch7"]}`);
     const bp = JSON.parse(clean(bpRes, 'obj'));
     const title = bp.title || target; const chapters = bp.chapters || [];
     const hero = await genImg(title, model);
-    let body = STYLE + '<div class="vue-premium">' + (hero ? `<img src="${hero}">` : '');
+    let body = STYLE + '<div class="vue-premium">' + (hero ? `<img src="${hero}" alt="${title}">` : '');
     body += '<div class="toc-box"><h2>가독성 목차 가이드</h2><ul>' + chapters.map((c,i)=>`<li><a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
     for(let i=0; i<chapters.length; i++) {
-        console.log(`      ㄴ [섹션 집필 중] ${i+1}/${chapters.length}: ${chapters[i]}`);
+        console.log(`      ㄴ [섹션 ${i+1}/${chapters.length}] 집필 중...`);
         const sect = clean(await callAI(model, MASTER_GUIDELINE + `\n 섹션 ${i+1}: ${chapters[i]} (최소 1,500자 이상). 4x4 표와 [IMAGE_PROMPT] 필수 포함.`), 'text');
         let htmlSect = sect.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         const pMatch = htmlSect.match(/\[IMAGE_PROMPT:\s*([\s\S]*?)\]/);
         if(pMatch) {
             const img = await genImg(pMatch[1].trim(), model);
-            htmlSect = htmlSect.replace(pMatch[0], `<img src="${img}">`);
+            if(img) htmlSect = htmlSect.replace(pMatch[0], `<img src="${img}">`);
+            else htmlSect = htmlSect.replace(pMatch[0], '');
         }
         body += `<div class="h2-premium" id="s${i+1}"><h2>${chapters[i]}</h2></div>` + htmlSect.replace(/\[IMAGE_PROMPT:[\s\S]*?\]/g, '');
     }
     body += '</div>';
     const r = await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, published: pTime.toISOString() } });
-    console.log('\n✨ [발행 완료] 블로그 주소: ' + r.data.url);
+    console.log('\n✨ [성공] 발행 완료! 블로그 주소: ' + r.data.url);
 }
 
 async function run() {
@@ -140,6 +133,6 @@ async function run() {
         await writeAndPost(model, seed, blogger, config.blog_id, new Date());
         const g = await axios.get(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
         await axios.put(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { message: 'Platinum Sync', content: Buffer.from(JSON.stringify({...config, clusters: pool}, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    } catch(e) { console.error('🔴 [치명적 오류]: ' + e.message); process.exit(1); }
+    } catch(e) { console.error('🔴 치명적 오류: ' + e.message); process.exit(1); }
 }
 run();

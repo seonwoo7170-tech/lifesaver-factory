@@ -45,8 +45,7 @@ function chiefAuditor(raw, titleHead = '') {
     let t = raw.replace(/```(json|html|js|md)?/gi, '').trim();
     t = t.replace(/<(!DOCTYPE|html|body|head|meta|link).*?>/gi, '').replace(/<\/(html|body|head|title|meta)>/gi, '');
     t = t.replace(/<title[\s\S]*?<\/title>/gi, '').replace(/style="[^"]*"/gi, '');
-    t = t.replace(/\\n/g, '
-');
+    t = t.replace(/\\n/g, String.fromCharCode(10));
     t = t.replace(/\*\*+(.*?)\*\*+/g, '<b>$1</b>'); 
     t = t.replace(/^\s*#+.*$/gm, ''); t = t.replace(/^[-*]{3,}$/gm, '');
     
@@ -72,6 +71,39 @@ function chiefAuditor(raw, titleHead = '') {
     t = audited.replace(/<table/gi, '<div class="table-box no-adsense"><table');
     t = t.replace(/<\/table>/gi, '</table></div>');
     return t.trim();
+}
+
+async function callAI(model, prompt, retry = 0) {
+    try {
+        const r = await model.generateContent('[SYSTEM: ACT AS A TOP-TIER COLUMNIST. STRICTLY FOLLOW GOOGLE E-E-A-T. NO CHAT.]\n' + prompt);
+        return r.response.text().trim();
+    } catch (e) {
+        if (retry < 3 && (e.message.includes('429') || e.message.includes('Resource exhausted'))) {
+            await new Promise(res => setTimeout(res, 30000));
+            return callAI(model, prompt, retry + 1);
+        }
+        throw e;
+    }
+}
+
+async function searchSerper(query) {
+    if(!process.env.SERPER_API_KEY) return '';
+    try {
+        const r = await axios.post('https://google.serper.dev/search', { q: query, gl: 'kr', hl: 'ko' }, { headers: { 'X-API-KEY': process.env.SERPER_API_KEY } });
+        return r.data.organic.slice(0, 5).map(o => `${o.title}: ${o.snippet}`).join(String.fromCharCode(10));
+    } catch(e) { return ''; }
+}
+
+async function genImg(desc, model) {
+    if(!desc) return '';
+    try {
+        const trans = await callAI(model, 'Translate this visual description to a concise but detailed English for AI image generation. Return ONLY the English text: ' + desc);
+        const eng = trans.replace(/[^a-zA-Z0-9, ]/g, '').trim().slice(0, 800);
+        console.log('   ㄴ [이미지] Pollinations 가동: ' + eng.slice(0, 30));
+        return `https://image.pollinations.ai/prompt/${encodeURIComponent(eng)}?width=1280&height=720&nologo=true&seed=${Math.floor(Math.random()*100000)}`;
+    } catch(e) { 
+        return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280&auto=format&fit=crop';
+    }
 }
 
 async function writeAndPost(model, target, blogger, bId) {

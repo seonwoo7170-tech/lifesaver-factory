@@ -153,19 +153,20 @@ async function genImg(desc, model) {
             try {
                 console.log(`   ㄴ [AI 전용] AI Horde 호출 (시도 ${attempt+1}/3)...`);
                 const hRes = await axios.post('https://aihorde.net/api/v2/generate/async', {
-                    prompt: engPrompt + ', masterpiece, professional photography, high quality',
-                    params: { n: 1, steps: 25, width: 1280, height: 720, sampler_name: "k_euler" },
+                    prompt: engPrompt + ', masterpiece, realistic, high quality',
+                    params: { n: 1, steps: 20, width: 896, height: 512, sampler_name: 'k_euler' },
                     models: modelGroups[attempt],
                     slow_workers: true,
                     extra_slow_workers: true,
                     trusted_workers: false,
-                    r2: true
-                }, { headers: { 'apikey': '0000000000', 'Client-Agent': 'VUE_Action_Cluster:1.5.8:Contact_Admin' } });
+                    r2: true,
+                    shared: true
+                }, { headers: { 'apikey': '0000000000', 'Client-Agent': 'VUE_Action_Cluster:1.5.9:v1_user' }, timeout: 30000 });
                 
                 const tid = hRes.data.id;
                 if(tid) {
                     let success = false;
-                    for(let i=0; i<30; i++) { // 각 시도당 5분
+                    for(let i=0; i<30; i++) { 
                         await new Promise(r => setTimeout(r, 10000));
                         const chk = await axios.get('https://aihorde.net/api/v2/generate/check/' + tid);
                         if(chk.data.done) {
@@ -180,10 +181,11 @@ async function genImg(desc, model) {
                     }
                     if(success) break;
                     console.log(`
-   ㄴ [Horde 경고] 시도 ${attempt+1} 타임아웃. 다음 모델 그룹으로 교체 중...`);
+   ㄴ [Horde 경고] 시도 ${attempt+1} 타임아웃.`);
                 }
             } catch(e) { 
-                console.log(`   ㄴ [AI Horde] 통신 오류 (시도 ${attempt+1}/3)... 재시도 중.`);
+                const errMsg = e.response?.data?.message || e.message;
+                console.log(`   ㄴ [Horde 오류] ${errMsg} (시도 ${attempt+1}/3)`);
             }
         }
     }
@@ -387,6 +389,6 @@ async function run() {
     cTime.setMinutes(cTime.getMinutes()+180);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), subLinks, 5, 5);
     const g = await axios.get('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.5.8', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    await axios.put('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/cluster_config.json', { message: 'Cloud Sync v1.5.9', content: Buffer.from(JSON.stringify(config, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
 }
 run();

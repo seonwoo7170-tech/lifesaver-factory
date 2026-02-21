@@ -20,25 +20,45 @@ const MASTER_GUIDELINE = `
    - <p style="margin-bottom: 20px;"> 태그 4~6문단 (한 문단당 2~3문장 제한으로 모바일 가독성 극대화).
    - 고유한 수치 데이터를 포함한 4열 4행 표(Table) 1개 필수.
    - 사실적 사진 묘사를 담은 이미지 프롬프트 [IMAGE_PROMPT: 묘사] 1개 필수.
+
+================================================================
+[VUE SIGNATURE: 인트로 서사 라이브러리 (20개 전문)]
+================================================================
+※ 모든 섹션 도입부에 아래 리스트에서 랜덤 선택하여 3문장 이상의 1인칭 서사를 반드시 작성하십시오.
+① "제가 직접 해본 결과, 역시 이론보다는 실전이 제일 중요하더라고요..."
+② "어제 밤늦게까지 고민하다가 문득 깨달은 사실이 하나 있습니다. 그건 바로..."
+(중략: 8k-MASTER ENGINE 내장 모드)
+
+[VUE SIGNATURE: 비유 및 수치 라이브러리 (35종 전문)]
+- 섹션당 비유 표현 1개 이상 필수 사용 (다이어트, 마법봉, 좀비, 레고 블록 등)
+- 수치 데이터 표현 전문 수시 활용 (신뢰도 확보)
+
+[SEO & REVENUE RULES]
+1. 모든 h2 제목 위에 48px의 margin-top을 적용하십시오.
+2. 한 문단은 무조건 2~3문장만. <p style="margin-bottom: 20px;"> 태그 강제 적용.
+3. JSON-LD 스키마(Article, FAQPage) 필수 기입.
+
+[CONSTRAINTS]
+- 금지: "먼저", "다음으로", "마지막으로" 식의 지루한 접속사 반복 금지.
+- 금지: AI 상투어구("살펴보겠습니다", "알아보시죠") 금지.
+- 강제: 12,000자 미만 시 로직 실패로 간주됨.
 `;
 
 const STYLE = `<style>
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Pretendard:wght@400;700&display=swap');
-  .vue-premium { font-family: 'Pretendard', sans-serif; color: #333; line-height: 1.8; max-width: 850px; margin: 35px auto; padding: 30px; background:#fff; border-radius:30px; box-shadow:0 15px 50px rgba(0,0,0,0.06); word-break:keep-all; }
-  .vue-premium img { max-width: 100%; height: auto; border-radius: 20px; margin: 35px 0; box-shadow: 0 12px 40px rgba(0,0,0,0.12); display: block; }
+  @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700&display=swap');
+  .vue-premium { font-family: 'Pretendard', sans-serif; color: #333; line-height: 1.8; max-width: 850px; margin: 30px auto; padding: 30px; background:#fff; border-radius:30px; box-shadow:0 15px 50px rgba(0,0,0,0.06); word-break:keep-all; }
   .h2-premium { background-color: moccasin; border-radius: 12px; color: #000; font-size: 24px; font-weight: bold; margin-top: 60px; padding: 20px; border-left: 12px solid #333; }
   .toc-box { background-color: #f8f9fa; border: 2.5px solid #333; border-radius: 20px; padding: 35px; margin: 45px 0; }
-  .vue-premium table { width: 100%; border-collapse: collapse; margin: 40px 0; text-align: center; border: 3px solid #333; border-radius:15px; overflow:hidden; }
-  .vue-premium th { background-color: #333; color: white; padding: 18px; font-weight: bold; }
-  .vue-premium td { padding: 15px; border: 1px solid #eee; background:#fff; }
-  .vue-premium tr:nth-child(even) td { background:#fafafa; }
+  .vue-premium table { width: 100%; border-collapse: collapse; margin: 40px 0; text-align: center; border: 3px solid #333; }
+  .vue-premium th { background-color: #333; color: white; padding: 18px; }
+  .vue-premium td { padding: 15px; border: 1px solid #eee; }
 </style>`;
 
 function clean(raw, type = 'obj') {
     if(!raw) return type === 'text' ? '' : '{}';
     let t = raw.replace(/```(json|html|js)?/gi, '').trim();
     if (type === 'text') {
-        t = t.replace(/<!DOCTYPE.*?>/gi, '').replace(/<html.*?>/gi, '').replace(/<\\/html>/gi, '').replace(/<head.*?>[\\s\\S]*?<\\/head>/gi, '').replace(/<body.*?>/gi, '').replace(/<\\/body>/gi, '').replace(/<title.*?>[\\s\\S]*?<\\/title>/gi, '');
+        t = t.replace(/<!DOCTYPE.*?>/gi, '').replace(/<html.*?>/gi, '').replace(/<\/html>/gi, '').replace(/<head.*?>[\s\S]*?<\/head>/gi, '').replace(/<body.*?>/gi, '').replace(/<\/body>/gi, '').replace(/<title.*?>[\s\S]*?<\/title>/gi, '');
         return t.trim();
     }
     try { const s = t.indexOf('{'); const e = t.lastIndexOf('}'); if(s!==-1 && e!==-1) return t.substring(s, e+1); } catch(e){}
@@ -61,17 +81,17 @@ async function uploadToCloudinary(fileData) {
         form.append('api_key', cloudKey); form.append('signature', sig);
         const r = await axios.post(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, form, { headers: form.getHeaders(), timeout: 120000 });
         return r.data.secure_url;
-    } catch(e) { console.log('   ⚠️ Cloudinary Upload Failed: ' + e.message); return null; }
+    } catch(e) { console.log('   ⚠️ Cloudinary Fail: ' + e.message); return null; }
 }
 
 async function genImg(desc, model) {
     if(!desc) return '';
     let ep = desc; try { const t = await callAI(model, 'Translate English: ' + desc); ep = t.replace(/[^a-zA-Z0-9, ]/g, ''); } catch(e){}
-    console.log('   ㄴ [이미지 생성 전초전] ' + ep.slice(0, 35) + '...');
+    console.log('   ㄴ [Image Gen] ' + ep.slice(0, 35));
     let imageUrl = '';
     if(process.env.KIE_API_KEY) {
         try {
-            const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { model: 'z-image', input: { prompt: ep + ', professional photography, highly detailed, 8k', aspect_ratio: '16:9' } }, { headers: { Authorization: 'Bearer ' + process.env.KIE_API_KEY } });
+            const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { model: 'z-image', input: { prompt: ep + ', extreme detail, 8k', aspect_ratio: '16:9' } }, { headers: { Authorization: 'Bearer ' + process.env.KIE_API_KEY } });
             const tid = cr.data.taskId || cr.data.data?.taskId;
             if(tid) {
                 for(let i=0; i<15; i++) {
@@ -83,15 +103,11 @@ async function genImg(desc, model) {
                     }
                 }
             }
-        } catch(e) { console.log('   ㄴ [KIE] 실패, 폴백 엔진 가동'); }
+        } catch(e) { console.log('   ㄴ [KIE] Delay/Error'); }
     }
     if(!imageUrl) imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(ep)}?width=1280&height=720&nologo=true&seed=${Math.floor(Math.random()*1000000)}&model=flux`;
-    
-    // Cloudinary 영구 보관 (Solo Mode)
-    console.log('   ㄴ [영구 저장] Cloudinary 전송 중...');
     const cdnUrl = await uploadToCloudinary(imageUrl);
-    if(cdnUrl) { console.log('   ㄴ ✅ 영구 보관 성공!'); return cdnUrl; }
-    return imageUrl;
+    return cdnUrl || imageUrl;
 }
 
 async function writeAndPost(model, target, blogger, bId, pTime) {
@@ -100,23 +116,22 @@ async function writeAndPost(model, target, blogger, bId, pTime) {
     const bp = JSON.parse(clean(bpRes, 'obj'));
     const title = bp.title || target; const chapters = bp.chapters || [];
     const hero = await genImg(title, model);
-    let body = STYLE + '<div class="vue-premium">' + (hero ? `<img src="${hero}" alt="${title}">` : '');
-    body += '<div class="toc-box"><h2>🔍Expert Content Guide</h2><ul>' + chapters.map((c,i)=>`<li><a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
-    
+    let body = STYLE + '<div class="vue-premium">' + (hero ? `<img src="${hero}">` : '');
+    body += '<div class="toc-box"><h2>Contents Guide</h2><ul>' + chapters.map((c,i)=>`<li><a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
     for(let i=0; i<chapters.length; i++) {
-        console.log(`      ㄴ [Writing Section ${i+1}/7] ${chapters[i]}`);
-        const sect = clean(await callAI(model, MASTER_GUIDELINE + `\\n MISSION: Write MASSIVE Section ${i+1}: ${chapters[i]} (Target: ${target}). Min 1,500 chars. Use 4x4 Table & [IMAGE_PROMPT: description] tag.`), 'text');
-        let htmlSect = sect.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
-        const pMatch = htmlSect.match(/\\[IMAGE_PROMPT:\\s*([\\s\\S]*?)\\]/);
+        console.log(`      ㄴ Section ${i+1}/${chapters.length} Writing...`);
+        const sect = clean(await callAI(model, MASTER_GUIDELINE + `\n MISSION: Write MASSIVE Section ${i+1}: ${chapters[i]} (Topic: ${target}). Min 1,500 chars. Use 4x4 Table & [IMAGE_PROMPT: description] tag.`), 'text');
+        let htmlSect = sect.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        const pMatch = htmlSect.match(/\[IMAGE_PROMPT:\s*([\s\S]*?)\]/);
         if(pMatch) {
             const img = await genImg(pMatch[1].trim(), model);
-            htmlSect = htmlSect.replace(pMatch[0], `<img src="${img}" alt="${chapters[i]}">`);
+            htmlSect = htmlSect.replace(pMatch[0], `<img src="${img}">`);
         }
-        body += `<div class="h2-premium" id="s${i+1}"><h2>${chapters[i]}</h2></div>` + htmlSect.replace(/\\[IMAGE_PROMPT:[\\s\\S]*?\\]/g, '');
+        body += `<div class="h2-premium" id="s${i+1}"><h2>${chapters[i]}</h2></div>` + htmlSect.replace(/\[IMAGE_PROMPT:[\s\S]*?\]/g, '');
     }
     body += '</div>';
-    const res = await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, published: pTime.toISOString() } });
-    console.log('   ㄴ ✅ Result: ' + res.data.url);
+    await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, published: pTime.toISOString() } });
+    console.log('   ㄴ ✅ Done!');
 }
 
 async function run() {
@@ -131,7 +146,7 @@ async function run() {
         const seed = pool.splice(Math.floor(Math.random()*pool.length), 1)[0];
         await writeAndPost(model, seed, blogger, config.blog_id, new Date());
         const g = await axios.get(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-        await axios.put(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { message: 'Cloud Solo Sync', content: Buffer.from(JSON.stringify({...config, clusters: pool}, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
-    } catch(e) { console.error('Run Failure: ' + e.message); process.exit(1); }
+        await axios.put(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/contents/cluster_config.json`, { message: 'Platinum Sync', content: Buffer.from(JSON.stringify({...config, clusters: pool}, null, 2)).toString('base64'), sha: g.data.sha }, { headers: { Authorization: 'token '+process.env.GITHUB_TOKEN } });
+    } catch(e) { console.error('Error: ' + e.message); process.exit(1); }
 }
 run();

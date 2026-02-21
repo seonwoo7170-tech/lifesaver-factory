@@ -205,7 +205,9 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     const searchData = await searchSerper(target);
     const bpPrompt = `Generate JSON: {"title":"...", "chapters":["...", (7 items)]} for: "${target}"`;
     const bpRes = await callAI(model, bpPrompt);
-    const { title, chapters } = JSON.parse(clean(bpRes, 'obj'));
+    const data = JSON.parse(clean(bpRes, 'obj') || '{}');
+    const title = data.title || target;
+    const chapters = Array.isArray(data.chapters) ? data.chapters : [];
     let body = STYLE + '<div class="vue-premium">';
     body += `<h1 id="top" style="font-size:32px; font-weight:bold; color:#000; line-height:1.3; margin-bottom:40px; padding-bottom:20px; border-bottom:3px solid #333;">${title}</h1>`;
     const hero = await genImg(await callAI(model, 'Visual for: ' + title), model);
@@ -230,9 +232,9 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         "패턴 O: 트러블슈팅 응급처치 (증상별 자가 진단 → 응급 조치 → 근본 원인 규명 및 영구 해결법)"
     ].sort(() => Math.random() - 0.5);
     const vLogicRes = vLogicPatterns.slice(0, 7);
-    let mission1 = `TRINITY MISSION 1: Intro + S1-3. NARRATIVE: \"${NARRATIVE_HINTS}\". S1: \"${chapters[0]}\" (${vLogicRes[0]}), S2: \"${chapters[1]}\" (${vLogicRes[1]}), S3: \"${chapters[2]}\" (${vLogicRes[2]}). RULES: 7,000+ chars, H2 IDs s1-s3 with colors ${colors[0]}-${colors[2]}, Tables, Images.`;
+    let mission1 = `TRINITY MISSION 1: Intro + S1-3. NARRATIVE: \"${NARRATIVE_HINTS}\". S1: \"${chapters[0] || 'Section 1'}\" (${vLogicRes[0]}), S2: \"${chapters[1] || 'Section 2'}\" (${vLogicRes[1]}), S3: \"${chapters[2] || 'Section 3'}\" (${vLogicRes[2]}). RULES: 7,000+ chars, H2 IDs s1-s3 with colors ${colors[0]}-${colors[2]}, Tables, Images.`;
     let part1 = await callAI(model, `STRICT: ${MASTER_GUIDELINE}\n\n${mission1}\n\nSearch: ${searchData}`);
-    let mission2 = `TRINITY MISSION 2: S4-7. S4: \"${chapters[3]}\" (${vLogicRes[3]}), S5: \"${chapters[4]}\" (${vLogicRes[4]}), S6: \"${chapters[5]}\" (${vLogicRes[5]}), S7: \"${chapters[6]}\" (${vLogicRes[6]}). RULES: 7,000+ chars, H2 IDs s4-s7 with colors ${colors[3]}-${colors[6]}.`;
+    let mission2 = `TRINITY MISSION 2: S4-7. S4: \"${chapters[3] || 'Section 4'}\" (${vLogicRes[3]}), S5: \"${chapters[4] || 'Section 5'}\" (${vLogicRes[4]}), S6: \"${chapters[5] || 'Section 6'}\" (${vLogicRes[5]}), S7: \"${chapters[6] || 'Section 7'}\" (${vLogicRes[6]}). RULES: 7,000+ chars, H2 IDs s4-s7 with colors ${colors[3]}-${colors[6]}.`;
     let part2 = await callAI(model, `STRICT: ${MASTER_GUIDELINE}\n\n${mission2}`);
     let mission3 = `TRINITY MISSION 3: FAQ (30), Closing, Schema.`;
     let part3 = await callAI(model, `STRICT: ${MASTER_GUIDELINE}\n\n${mission3}`);
@@ -255,13 +257,14 @@ async function run() {
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });
     const pool = config.clusters || []; const mainSeed = pool.splice(Math.floor(Math.random()*pool.length), 1)[0];
-    let subTopics = JSON.parse(clean(await callAI(model, '7 sub-topics for "' + mainSeed + '" as JSON array'), 'arr'));
+    let subRes = await callAI(model, '7 sub-topics for "' + mainSeed + '" as JSON array: ["Topic 1", ...]');
+    let subTopics = JSON.parse(clean(subRes, 'arr') || '[]');
     let cTime = new Date();
     for(let i=0; i < subTopics.length; i++) {
         cTime.setMinutes(cTime.getMinutes()+180);
-        await writeAndPost(model, subTopics[i], config.blog_lang, blogger, config.blog_id, new Date(cTime), [], i+1, 5);
+        await writeAndPost(model, subTopics[i], config.blog_lang, blogger, config.blog_id, new Date(cTime), [], i+1, subTopics.length + 1);
     }
     cTime.setMinutes(cTime.getMinutes()+180);
-    await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), [], 5, 5);
+    await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(cTime), [], subTopics.length + 1, subTopics.length + 1);
 }
 run();

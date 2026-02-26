@@ -14,7 +14,6 @@ jobs:
       - env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           KIE_API_KEY: ${{ secrets.KIE_API_KEY }}
-          RUNWARE_API_KEY: ${{ secrets.RUNWARE_API_KEY }}
           SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
           IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
           BLOG_ID: ${{ secrets.BLOG_ID }}
@@ -22,5 +21,4 @@ jobs:
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
         run: node cluster_engine.js

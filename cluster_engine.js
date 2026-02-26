@@ -5,56 +5,44 @@ const axios = require('axios');
 const FormData = require('form-data');
 
 const MASTER_GUIDELINE = `
-# [VUE POST v3.0 통합 멀티플랫폼 블로그 에이전트]
+[VUE POST v2.5 The Origin Master - Premium Content Strategy]
+당신은 Studio VUE의 블로그 마케팅 전문가로서, 구글의 E-E-A-T 원칙과 애드센스 수익 극대화 전략을 결합한 '인간보다 더 인간다운' 프리미엄 콘텐츠를 전개합니다.
 
-[PART 0 — 충돌 시 우선순위 (절대 규칙)]
-1순위: 금지 표현 제로 (PART D [2])
-2순위: 플랫폼 호환 HTML 규칙 (PART H [4])
-3순위: E-E-A-T 서사 품질 (PART J)
-4순위: 검색 의도별 구조 (PART F)
-5순위: 분량 범위 (PART B)
-6순위: 디자인 컴포넌트 세부 수치 (PART H [5])
+[중요] 단계별 "멈춤"이나 "질문" 지침은 무시하고, 한 번의 호출에 해당 섹션을 즉시 끝까지 집필하십시오.
 
-[PART A — 핵심 철학 (4대 원칙)]
-1. 적게: 강조 박스 글 전체 3~4개. 같은 타입 최대 1개. 연속 금지.
-2. 정확하게: 수치는 검색 기반 출처 병기. 미확인 시 확정 톤 불가.
-3. 진짜처럼: 경험 신호 서사 안에서 결합. AI 패턴(균등, 나열) 회피.
-4. 돈 되게: 체류시간 극대화, h2 섹션 여백(margin) 확보, 자동광고 세팅.
+[핵심 어투 및 뉘앙스 강제 - 자연스러운 대화체]
+- 논문이나 백과사전처럼 딱딱하고 기계적인 말투("~한다", "~이다", "~임")는 절대 금지합니다.
+- 독자와 마주 앉아 따뜻하게 조언을 해주는 듯한 '친근하고 상냥한 전문가의 말투'("~해요", "~습니다", "~그렇죠?", "~거든요")를 100% 사용하십시오.
+- 글을 전개할 단락 중간에 "앗!", "와,", "그런데 말이죠,", "사실,", "이 부분 진짜 중요해요!" 같은 감탄사나 추임새를 간간이 넣어 생동감을 극대화하세요. (단, 매번 첫 문장을 똑같은 감탄사로 기계적으로 시작하는 '앵무새 패턴'은 절대 금지합니다!)
+- 기계 번역투를 버리고, 한국인이 일상에서 쓰는 자연스러운 호흡으로 사람 냄새가 나게 작성하세요.
 
-[PART B — 입출력 & 분량]
-입력: 키워드
-출력: 마크다운 코드블록 내 순수 HTML (부연설명 절대 금지). 코드블록 바깥에는 다음과 같이만 출력:
-🔗 클러스터 키워드: A, B, C
-📎 퍼머링크: 영어슬러그
-🏷 라벨: 연관키워드10개
-📝 검색 설명: 150자
-🖼 이미지 프롬프트: 1~4번
-분량: 4,000~5,500자 유동 (YMYL: 5,000~6,500자). 억지 패딩 금지.
+[최우선 규칙 - 글자수 및 출력 방식 강제]
+1. 강제 목표량: 각 호출당 최소 1,500~2,000자 이상(한국어 기준)의 방대한 분량.
+2. 역할 분리(매우 중요): 당신은 전체 블로그 글을 한 번에 다 쓰는 것이 아닙니다. 오직 주어지는 'MISSION'에 해당하는 단 하나의 구역(본문 챕터 1개 또는 인트로 1개)만 텍스트로 작성해야 합니다. 무단으로 인트로, 목차 전체, 결론, FAQ를 한 번에 쏟아내지 마십시오.
+3. 섹션당 필수 요소:
+   - 본문은 오직 <p style="margin-bottom: 20px;"> 태그 4~6문단 이상으로 구성(한 문단당 2~3문장 제한).
+   - [본문 챕터 작성 시] 고유한 데이터를 포함한 4열 4행 표 HTML 1개.
+   - [본문 챕터 작성 시] 사실적 사진 묘사를 담은 [IMAGE_PROMPT: 묘사] 문구 1개.
+4. 제목 생성 금지: 마크다운(##, **) 및 HTML 제목 태그(<h1>, <h2>, <h3> 등)를 절대 자체적으로 생성하지 마십시오. 엔진이 제목을 알아서 붙입니다. 내용 텍스트만 꽉 채우십시오.
 
-[PART C & D — 의도 및 문체, 절대 금지 표현]
-구어체 ('~거든요', '~잖아요'). 리듬 불규칙적(3~18어절). 
-금지: 요청하신, 작성해 드렸습니다, 알아볼까요, 총정리, 완벽가이드, id=section1넘버링, 첫째/둘째 3연속, 똑같은 종결어미 3연속.
+[비유 표현 전문 - 각 섹션마다 1개 이상 필수 사용]
+1. 다이어트 / 2. 마법봉 / 3. 좀비 / 4. 레고 블록 / 5. 요리 레시피 / 6. 퍼즐 조각 / 7. 마라톤 / 8. 돼지 저금통 / 9. 체스판 / 10. 텃밭 가꾸기 / 11. 운전면허 / 12. 첫 월급 / 13. 이사 / 14. 여행 계획 / 15. 냉장고 정리 / 16. 옷장 정리 / 17. 은행 적금 / 18. 게임 레벨업 / 19. 대청소 / 20. 장보기 리스트
 
-[PART F — 프레임워크 (정보형/비교형/후기형/거래형)]
-h1 (경험+결과) -> 목차 -> 스니펫 -> 후킹 -> 본문(h2 6~7개, 테이블1, 이미지4, 박스3~4) -> FAQ 5개 -> 면책조항 -> 슬롯 -> 결론/CTA -> Schema
+[V-LOGIC 패턴] 패턴 A~O (해결형, 스토리텔링, 체크리스트 등 상황에 맞춰 융합 설계)
 
-[PART G — 박스 4종과 단락]
-(A)경험담(그린), (B)꿀팁(옐로우), (C)주의(레드), (D)데이터(인디고). 박스 없는 순수 텍스트단락 2개 이상 필수.
-
-[PART H — HTML 및 디자인]
-<style>, <script>(Schema제외) 금지. 인라인 style 적용. 
-비교테이블 1개 (border-collapse:collapse). 테이블 내 border-radius, box-shadow 통일 금지.
-이미지 플레이스홀더 4개 (alt와 title 무조건 다르게 묘사, 똑같은 복붙 금지).
-h2 배경 7종 순차 (moccasin -> lightpink -> palegreen -> skyblue -> plum -> lightsalmon -> #98d8c8).
-
-[PART I — Schema JSON-LD]
-맨 마지막 script 태그 내 Article + FAQ 혼합 (@graph).
-
-[PART J — E-E-A-T 검증]
-경험(왜, 과정, 결과) 서사 필수. 단점/실패 서사 속에 2번 노출.
+[HTML 가이드]
+- 절대로 <h1>, <h2>, <h3> 등의 제목 태그를 만들지 마십시오.
+- 단락 구분은 반드시 <p style="margin-bottom: 20px;"> 태그를 사용해야 합니다.
+- JSON-LD Article/FAQ Schema는 제일 마지막 'FAQ 생성 미션'에서만 추가하십시오.
+`;
+const NARRATIVE_HINTS = `[VUE SIGNATURE: 인트로 서사 라이브러리 (20개 전문)]
+① "제가 직접 해본 결과, 역시 이론보다는 실전이 제일 중요하더라고요. 책에서 배울 때와는 전혀 다른 현장의 느낌이 있었거든요. 그래서 오늘은 제가 겪은 진짜 이야기를 들려드리려 합니다."
+② "솔직히 처음엔 저도 이 방법을 전혀 몰라서 한참 동안이나 고생하고 시간만 낭비했습니다. 누가 옆에서 한마디만 해줬어도 좋았을 텐데 말이죠. 여러분은 저 같은 실수를 안 하셨으면 좋겠습니다."
+③ "이 글을 읽는 분들도 아마 저처럼 시행착오를 겪고 계실 텐데, 그 막막한 마음 제가 누구보다 잘 압니다. 저도 처음에 컴퓨터 앞에 앉아 한숨만 푹푹 내쉬던 기억이 선하거든요."
+④ "직접 몸으로 부딪쳐보니까 이제야 뭐가 정답이고 오답인지 확실히 알겠더라고요. 역시 정답은 멀리 있는 게 아니라 우리가 놓치기 쉬운 아주 가까운 기본기에 숨어 있었습니다."
+⑤ "수많은 전문가들이 놓치는 부분인데요, 사실 이게 진짜 핵심 중의 핵심입니다. 겉모양만 적당히 따라 하다가 결국 본질을 놓치고 시간만 날리시는 분들을 너무 많이 봐서 안타까워요."
 
 `;
-const NARRATIVE_HINTS = ``;
 
 const STYLE = `<style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Pretendard:wght@400;700&display=swap');
@@ -105,7 +93,7 @@ async function callAI(model, prompt, retry = 0) {
     } catch (e) {
         if ((e.message.includes('429') || e.message.includes('Resource exhausted')) && retry < 5) {
             const waitTime = Math.pow(2, retry) * 20000; 
-            console.log(`   ?좑툘 [Rate Limit] 429 媛먯?. ${waitTime/1000}珥????ъ떆???⑸땲??.. (${retry+1}/5)`);
+            console.log(`   ⚠️ [Rate Limit] 429 감지. ${waitTime/1000}초 후 재시도 합니다... (${retry+1}/5)`);
             await new Promise(res => setTimeout(res, waitTime));
             return callAI(model, prompt, retry + 1);
         }
@@ -126,9 +114,9 @@ async function genImg(desc, model) {
     const imgbbKey = process.env.IMGBB_API_KEY;
     
     let engPrompt = desc;
-    if(/[????????媛-??/.test(desc)) {
+    if(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(desc)) {
         try {
-            console.log('   ??[?대?吏] ?쒓? ?꾨＼?꾪듃 媛먯? -> ?곸뼱 踰덉뿭 以?..');
+            console.log('   ㄴ [이미지] 한글 프롬프트 감지 -> 영어 번역 중...');
             const trans = await callAI(model, 'Translate this visual description to a concise but detailed English for AI image generation. (STRICT: Return ONLY the English text, and stay under 400 characters): ' + desc, 0);
             engPrompt = trans.replace(/[^a-zA-Z0-9, ]/g, '').trim();
         } catch(e) { engPrompt = desc.replace(/[^a-zA-Z, ]/g, ''); }
@@ -136,7 +124,7 @@ async function genImg(desc, model) {
     
     engPrompt = engPrompt.slice(0, 800); // Failsafe for API limits
     
-    console.log('   ??[?대?吏] ?꾨왂??鍮꾩＜???앹꽦 以?(' + engPrompt.slice(0, 30) + '...)');
+    console.log('   ㄴ [이미지] 전략적 비주얼 생성 중 (' + engPrompt.slice(0, 30) + '...)');
     let imageUrl = '';
 
     // 1. Runware (Ultra Fast & Quality)
@@ -146,19 +134,19 @@ async function genImg(desc, model) {
                 { action: 'generateImage', model: 'runware:100@1', positivePrompt: engPrompt + ', detailed, 8k, professional photography', width: 1280, height: 720, number: 1 }
             ], { headers: { Authorization: 'Bearer ' + runwareKey } });
             if(rr.data.data?.[0]?.imageURL) imageUrl = rr.data.data[0].imageURL;
-        } catch(e) { console.log('   ??[Runware] 吏??.. ?ㅼ쓬 ?붿쭊 ?쒕룄'); }
+        } catch(e) { console.log('   ㄴ [Runware] 지연... 다음 엔진 시도'); }
     }
 
     // 2. Kie.ai (Premium Fallback)
     if(!imageUrl && kieKey && kieKey.length > 5) {
         try {
-            console.log('   ??[Kie.ai] z-image ?몄텧 (鍮꾩쑉: 16:9)...');
+            console.log('   ㄴ [Kie.ai] z-image 호출 (비율: 16:9)...');
             const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { 
                 model: 'z-image', 
                 input: { prompt: engPrompt + ', high-end, editorial photography, 8k', aspect_ratio: '16:9' } 
             }, { headers: { Authorization: 'Bearer ' + kieKey } });
             
-            // 寃쎈줈 ?좎뿰?섍쾶 泥섎━ (data.taskId ?먮뒗 data.data.taskId)
+            // 경로 유연하게 처리 (data.taskId 또는 data.data.taskId)
             const tid = cr.data.taskId || cr.data.data?.taskId;
             if(tid) {
                 for(let a=0; a<15; a++) { 
@@ -172,16 +160,16 @@ async function genImg(desc, model) {
                     }
                     if(state === 'fail' || state === 'failed') break;
                 }
-            } else { console.log('   ??[Kie.ai] ?쒖뒪??ID ?꾨씫. ?묐떟: ' + JSON.stringify(cr.data).slice(0, 100)); }
+            } else { console.log('   ㄴ [Kie.ai] 태스크 ID 누락. 응답: ' + JSON.stringify(cr.data).slice(0, 100)); }
         } catch(e) { 
-            console.log('   ??[Kie.ai] ?ㅽ뙣: ' + (e.response ? JSON.stringify(e.response.data) : e.message)); 
+            console.log('   ㄴ [Kie.ai] 실패: ' + (e.response ? JSON.stringify(e.response.data) : e.message)); 
         }
     }
 
     // 3. Pollinations.ai (Infinite Stability AI)
     if(!imageUrl) {
         try {
-            console.log('   ??[AI] Pollinations ?붿쭊 媛??(FLUX)...');
+            console.log('   ㄴ [AI] Pollinations 엔진 가동 (FLUX)...');
             imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(engPrompt)}?width=1280&height=720&nologo=true&seed=${Math.floor(Math.random()*1000000)}&model=flux`;
         } catch(e) { }
     }
@@ -189,11 +177,11 @@ async function genImg(desc, model) {
     // 4. Stock Image Fallback (Absolute Safety Net)
     if(!imageUrl) {
         try {
-            console.log('   ??[?ㅽ넚] 怨좏뭹吏??꾨━誘몄뾼 ?ㅽ넚 ?대?吏 留ㅼ묶...');
+            console.log('   ㄴ [스톡] 고품질 프리미엄 스톡 이미지 매칭...');
             const keywords = engPrompt.split(' ').slice(0, 3).join(',');
             imageUrl = `https://loremflickr.com/1280/720/${encodeURIComponent(keywords)}?lock=${Math.floor(Math.random()*1000)}`;
         } catch(e) { 
-            imageUrl = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280&auto=format&fit=crop'; // ?곗＜ 諛곌꼍 湲곕낯媛?
+            imageUrl = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280&auto=format&fit=crop'; // 우주 배경 기본값
         }
     }
 
@@ -201,7 +189,7 @@ async function genImg(desc, model) {
     try {
         if(imgbbKey && imgbbKey.length > 5 && imageUrl) {
             let res;
-            // ?덇린 紐⑤뱶: 理쒕? 3???ъ떆??(Slow AI ???
+            // 끈기 모드: 최대 3회 재시도 (Slow AI 대응)
             for(let retry=1; retry<=3; retry++) {
                 try {
                     res = await axios.get(imageUrl, { 
@@ -212,105 +200,105 @@ async function genImg(desc, model) {
                     if(res.data) break;
                 } catch(e) {
                     if(retry === 3) throw e;
-                    console.log(`   ??[ImgBB] 由ъ냼???띾뱷 以?.. (${retry}/3)`);
+                    console.log(`   ㄴ [ImgBB] 리소스 획득 중... (${retry}/3)`);
                     await new Promise(r => setTimeout(r, 5000));
                 }
             }
             const b64 = Buffer.from(res.data).toString('base64');
             const form = new FormData(); form.append('image', b64);
             const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders() });
-            console.log('   ??[ImgBB] ?쒕쾭 ?꾩슜/?곴뎄 蹂닿? 泥섎━ ?꾨즺! ??);
+            console.log('   ㄴ [ImgBB] 서버 전용/영구 보관 처리 완료! ✅');
             return ir.data.data.url;
         }
         return imageUrl;
     } catch(e) { 
-        console.log('   ??[ImgBB] ?곴뎄 ????ㅽ뙣 (?꾩떆 URL ?ъ슜): ' + e.message);
+        console.log('   ㄴ [ImgBB] 영구 저장 실패 (임시 URL 사용): ' + e.message);
         return imageUrl; 
     }
 }
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
-    console.log(`\n[吏꾪뻾 ${idx}/${total}] ?곗옱 ??? '${target}'`);
-    console.log('   ??[1?④퀎] ?ㅼ떆媛??몃젋??遺꾩꽍 諛?E-E-A-T 釉붾（?꾨┛???ㅺ퀎 以?..');
+    console.log(`\n[진행 ${idx}/${total}] 연재 대상: '${target}'`);
+    console.log('   ㄴ [1단계] 실시간 트렌드 분석 및 E-E-A-T 블루프린트 설계 중...');
     const searchData = await searchSerper(target);
-    const bpPrompt = `MISSION: Create a high-end, 7-part content strategy for: "${target}".\n\n1. Return ONLY a valid JSON object.\n2. Format: {"title":"SEO_LONGTAIL_TITLE", "chapters":["Topic 1", ..., "Topic 7"]}\n3. TITLE RULE: The title MUST be a "Google SEO Long-tail Keyword" phrase. Think of high-intent search queries (e.g., "How to solve [Problem] with ${target}", "${target} vs Alternatives for [Audience]" or "Hidden side effects of ${target}"). DO NOT use generic clickbait like "?꾨꼍 媛€?대뱶" or "鍮꾨? ?명븯??". Make it highly searchable, specific, and informative.\n4. CHAPTER STRATEGY (Vary the angles!):\n   - DO NOT use the same generic predictable structure for every post. \n   - Analyze the deep search intent of "${target}". Is it a problem/solution? A product review? A tutorial? A comparison? Create 7 highly specific, dynamic chapters that perfectly match the intent.\n   - Ensure absolutely NO generic titles like "Introduction to..." or "Conclusion on...". Use captivating and informational headlines.\n   - Only Chapter 7 MUST be strictly reserved as an Ultimate FAQ/Checklist.\n5. RULE: NEVER repeat the main keyword in every chapter title. Use diverse phrasing.\n6. NO MARKDOWN, NO CHATTER. ONLY JSON.`;
+    const bpPrompt = `MISSION: Create a high-end, 7-part content strategy for: "${target}".\n\n1. Return ONLY a valid JSON object.\n2. Format: {"title":"SEO_LONGTAIL_TITLE", "chapters":["Topic 1", ..., "Topic 7"]}\n3. TITLE RULE: The title MUST be a "Google SEO Long-tail Keyword" phrase. Think of high-intent search queries (e.g., "How to solve [Problem] with ${target}", "${target} vs Alternatives for [Audience]" or "Hidden side effects of ${target}"). DO NOT use generic clickbait like "완벽 가이드" or "비밀 노하우". Make it highly searchable, specific, and informative.\n4. CHAPTER STRATEGY (Vary the angles!):\n   - DO NOT use the same generic predictable structure for every post. \n   - Analyze the deep search intent of "${target}". Is it a problem/solution? A product review? A tutorial? A comparison? Create 7 highly specific, dynamic chapters that perfectly match the intent.\n   - Ensure absolutely NO generic titles like "Introduction to..." or "Conclusion on...". Use captivating and informational headlines.\n   - Only Chapter 7 MUST be strictly reserved as an Ultimate FAQ/Checklist.\n5. RULE: NEVER repeat the main keyword in every chapter title. Use diverse phrasing.\n6. NO MARKDOWN, NO CHATTER. ONLY JSON.`;
     const bpRes = await callAI(model, bpPrompt);
     let title, chapters;
     try {
         const c = clean(bpRes, 'obj');
         const parsed = JSON.parse(c);
-        title = (parsed.title && parsed.title.length > 20 && parsed.title !== target) ? parsed.title : `?꾩쭅 ?꾨Ц媛媛 ?뚮젮二쇰뒗 ${target} ?ㅽ뙣 ?쇳븯??3媛吏 ?꾩떎?곸씤 諛⑸쾿`;
+        title = (parsed.title && parsed.title.length > 20 && parsed.title !== target) ? parsed.title : `현직 전문가가 알려주는 ${target} 실패 피하는 3가지 현실적인 방법`;
         chapters = (parsed.chapters && parsed.chapters.length >= 7) ? parsed.chapters : [];
         if(chapters.length < 7) throw new Error('Missing chapters');
     } catch(e) { 
-        console.log('   ?좑툘 [?쒖뒪?? 釉붾（?꾨┛???ㅺ퀎 蹂댁젙 以?..');
+        console.log('   ⚠️ [시스템] 블루프린트 설계 보정 중...');
         const titleTemplates = [
-            `${target} ?λ떒??諛?鍮꾩슜 ?꾨꼍 遺꾩꽍 (2026??湲곗? ?꾩떎?곸씤 ?좏깮踰?`,
-            `?꾩쭅 ?꾨Ц媛媛 ?뚮젮二쇰뒗 ${target} ?ㅽ뙣 ?쇳븯??3媛吏 ?꾩떎?곸씤 諛⑸쾿`,
-            `${target}怨??ㅻⅨ ???鍮꾧탳: ?섏뿉寃?留욌뒗 理쒖쟻???붾（??李얘린`,
-            `${target} ?꾩엯 ??諛섎뱶???뚯븘?????꾩떎?곸씤 遺?묒슜怨??닿껐梨?,
-            `鍮꾩슜 ?鍮??④낵 洹밸??? ${target} ?쒕?濡??쒖슜?섎뒗 ?ㅼ쟾 猷⑦떞`
+            `${target} 장단점 및 비용 완벽 분석 (2026년 기준 현실적인 선택법)`,
+            `현직 전문가가 알려주는 ${target} 실패 피하는 3가지 현실적인 방법`,
+            `${target}과 다른 대안 비교: 나에게 맞는 최적의 솔루션 찾기`,
+            `${target} 도입 전 반드시 알아야 할 현실적인 부작용과 해결책`,
+            `비용 대비 효과 극대화: ${target} 제대로 활용하는 실전 루틴`
         ];
         title = titleTemplates[Math.floor(Math.random() * titleTemplates.length)];
         const fallbackChapters = [
             [
-                `???묎컳? 諛⑸쾿???⑤룄 寃곌낵媛 ?ㅻ?源? ?듭떖 ?먯씤 遺꾩꽍`,
-                `?ㅽ뙣瑜??쇳븯??理쒖쟻???명똿 泥リ구??,
-                `鍮꾩슜怨??쒓컙??諛섏쑝濡?以꾩뿬二쇰뒗 ?ㅼ쟾 猷⑦떞`,
-                `?⑥쑉??洹밸??뷀븯??蹂댁“ ?꾧뎄 ?쒖슜踰?,
-                `?꾩쭅?먮뱾???덈? 留먰빐二쇱? ?딅뒗 移섎챸???⑥젏`,
-                `?④린 ?깃낵媛 ?꾨땶 ?κ린??愿?먯뿉?쒖쓽 ?좎?蹂댁닔 ?꾨왂`,
-                `?먯＜ 臾삳뒗 ?듭떖 吏덈Ц怨?留덉뒪???ㅼ쿇 由ъ뒪??
+                `왜 똑같은 방법을 써도 결과가 다를까? 핵심 원인 분석`,
+                `실패를 피하는 최적화 세팅 첫걸음`,
+                `비용과 시간을 반으로 줄여주는 실전 루틴`,
+                `효율을 극대화하는 보조 도구 활용법`,
+                `현직자들이 절대 말해주지 않는 치명적 단점`,
+                `단기 성과가 아닌 장기적 관점에서의 유지보수 전략`,
+                `자주 묻는 핵심 질문과 마스터 실천 리스트`
             ],
             [
-                `珥덈낫?먭? 媛??留롮씠 ?ㅽ빐?섎뒗 湲곕낯 ?곸떇???ㅻ쪟`,
-                `?곹솴蹂꾨줈 ??留욎떠 怨좊Ⅴ??留욎땄???붾（??媛?대뱶`,
-                `吏곸젒 遺?ろ?蹂대㈃??李얠븘??媛???덉쟾???묎렐踰?,
-                `?앷컖蹂대떎 ?뷀엳 寃る뒗 理쒖븙??遺?묒슜 ?щ???,
-                `?덉궛????퉬?섏? ?딄린 ?꾪빐 踰꾨젮?????곗꽑?쒖쐞`,
-                `寃쎌웳 紐⑤뜽?ㅺ낵??鍮꾧탳 遺꾩꽍???듯븳 ?⑺듃 泥댄겕`,
-                `?꾩엯 ??諛섎뱶???먭??댁빞 ??理쒖쥌 ?먮윭 泥댄겕由ъ뒪??
+                `초보자가 가장 많이 오해하는 기본 상식의 오류`,
+                `상황별로 딱 맞춰 고르는 맞춤형 솔루션 가이드`,
+                `직접 부딪혀보면서 찾아낸 가장 안전한 접근법`,
+                `생각보다 흔히 겪는 최악의 부작용 사례들`,
+                `예산을 낭비하지 않기 위해 버려야 할 우선순위`,
+                `경쟁 모델들과의 비교 분석을 통한 팩트 체크`,
+                `도입 전 반드시 점검해야 할 최종 에러 체크리스트`
             ],
             [
-                `蹂멸꺽?곸쑝濡??쒖옉?섍린 ?꾩뿉 吏싰퀬 ?섏뼱媛????3媛吏 ?⑺듃`,
-                `?⑤뱾蹂대떎 2諛???鍮좊Ⅴ寃??숇젴?꾨? ?щ━??諛⑸쾿`,
-                `?ъ옄 ?鍮?留뚯”?꾨? ?믪씠???④꺼吏??듭뀡??,
-                `?대? 臾몄젣媛 ?앷꼈????諛붾줈 ?곸슜 媛?ν븳 ?묎툒 泥섏튂`,
-                `?낃퀎 ?몃젋?쒓? 蹂?뷀븯硫댁꽌 ?앷꺼???덈줈????덈뱾`,
-                `?욎쑝濡?5???ㅼ뿉???듯븷 遺덈???理쒖쟻??洹쒖튃`,
-                `?깃났?곸씤 留덈Т由щ? ?꾪븳 FAQ 諛??꾩닔 ?먭? ?ы빆`
+                `본격적으로 시작하기 전에 짚고 넘어가야 할 3가지 팩트`,
+                `남들보다 2배 더 빠르게 숙련도를 올리는 방법`,
+                `투자 대비 만족도를 높이는 숨겨진 옵션들`,
+                `이미 문제가 생겼을 때 바로 적용 가능한 응급 처치`,
+                `업계 트렌드가 변화하면서 생겨난 새로운 대안들`,
+                `앞으로 5년 뒤에도 통할 불변의 최적화 규칙`,
+                `성공적인 마무리를 위한 FAQ 및 필수 점검 사항`
             ]
         ];
         chapters = fallbackChapters[Math.floor(Math.random() * fallbackChapters.length)];
     }
 
-    console.log('   ??[?뺤젙 ?쒕ぉ] ' + title);
+    console.log('   ㄴ [확정 제목] ' + title);
 
     const hero = await genImg(await callAI(model, 'Visual description for: ' + title), model);
     let body = STYLE + '<div class="vue-premium">';
     if(hero) body += '<img src="' + hero + '" style="width:100%; border-radius:15px; margin-bottom: 30px;">';
-    body += '<div class="toc-box"><h2>?뱥 Expert Guide Contents</h2><ul>' + chapters.map((c,i)=>`<li><a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
+    body += '<div class="toc-box"><h2>📋 Expert Guide Contents</h2><ul>' + chapters.map((c,i)=>`<li><a href="#s${i+1}">${c}</a></li>`).join('') + '</ul></div>';
     
-    console.log('   ??[3?④퀎] 2026 E-E-A-T 湲곕컲 怨좏뭹寃??쒕줎 吏묓븘 以?..');
+    console.log('   ㄴ [3단계] 2026 E-E-A-T 기반 고품격 서론 집필 중...');
     let intro = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nNARRATIVE TEMPLATES: ${NARRATIVE_HINTS}\n\nMISSION: Write a massive, engaging intro for: ${title}.\n\nRULES:\n1. START with one of the NARRATIVE TEMPLATES style.\n2. START the response with <p style="margin-bottom: 20px;"> tag.\n3. NO MARKDOWN (**), NO HEADERS (#), NO TOC.\n4. ONLY BODY HTML/TEXT. No salutations.\n5. Context: ${searchData}`), 'text');
 
     body += intro; let summary = intro.slice(-500);
     
-    console.log('   ??[4?④퀎] [TURBO MODE] 7媛?梨뺥꽣 ?숈떆 吏묓븘 諛??대?吏 ?앹꽦 以?..');
+    console.log('   ㄴ [4단계] [TURBO MODE] 7개 챕터 동시 집필 및 이미지 생성 중...');
     const colors = ['moccasin', 'lightpink', 'palegreen', 'skyblue', 'plum', 'lightsalmon', '#98d8c8'];
     const vLogicPatterns = [
-        `V-LOGIC PATTERN A (?먯씤遺꾩꽍??: Act like a forensic investigator. Dissect the core problem into 3 invisible root causes. Expose what people misunderstand and reveal the hidden truth.`,
-        `V-LOGIC PATTERN B (?꾨Ц媛 ??寃쏀뿕??: Talk like a seasoned expert sharing a critical behind-the-scenes "war story" or case study. Build tension about the issue and reveal the answer like a plot twist.`,
-        `V-LOGIC PATTERN C (?붾（???닿껐??: Start by validating a deep pain point, explain why traditional ways fail, and propose a new elegant solution using step-by-step rigorous reasoning.`,
-        `V-LOGIC PATTERN D (?議?鍮꾧탳遺꾩꽍??: Frame the narrative as a battle between Old Way vs New Way, or Assumption vs Reality. Highlight the sheer difference in outcomes using stark contrast.`,
-        `V-LOGIC PATTERN E (誘몃옒 ?덉륫/?몃젋?쒗삎): Zoom out and talk about the shifting paradigm. Warn the reader about what's coming in the industry and why they must adapt their mindset immediately.`,
-        `V-LOGIC PATTERN F (?꾨Ц媛 ?명꽣酉고삎): Write as if you are answering tough questions from an interviewer, using a highly authoritative tone, dropping industry jargon naturally and explaining it.`
+        `V-LOGIC PATTERN A (원인분석형): Act like a forensic investigator. Dissect the core problem into 3 invisible root causes. Expose what people misunderstand and reveal the hidden truth.`,
+        `V-LOGIC PATTERN B (전문가 썰/경험담): Talk like a seasoned expert sharing a critical behind-the-scenes "war story" or case study. Build tension about the issue and reveal the answer like a plot twist.`,
+        `V-LOGIC PATTERN C (솔루션/해결형): Start by validating a deep pain point, explain why traditional ways fail, and propose a new elegant solution using step-by-step rigorous reasoning.`,
+        `V-LOGIC PATTERN D (대조/비교분석형): Frame the narrative as a battle between Old Way vs New Way, or Assumption vs Reality. Highlight the sheer difference in outcomes using stark contrast.`,
+        `V-LOGIC PATTERN E (미래 예측/트렌드형): Zoom out and talk about the shifting paradigm. Warn the reader about what's coming in the industry and why they must adapt their mindset immediately.`,
+        `V-LOGIC PATTERN F (전문가 인터뷰형): Write as if you are answering tough questions from an interviewer, using a highly authoritative tone, dropping industry jargon naturally and explaining it.`
     ].sort(() => Math.random() - 0.5);
     const chapterTasks = chapters.map(async (chapter, i) => {
         try {
-            console.log(`      ??[蹂묐젹 媛?? ${i+1}/7 '${chapter}' 吏묓븘 ?쒖옉...`);
+            console.log(`      ㄴ [병렬 가동] ${i+1}/7 '${chapter}' 집필 시작...`);
             let mission = (i === 6) 
-                ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: "${title}".\n\nRULES:\n1. Create 10-15 specialized Q&A pairs (FAQ style) with deep answers ABOUT "${target}".\n2. FAQ HEADERS: Wrap EVERY Question in a beautiful HTML <h2> tag (e.g., <h2 style="font-size:20px; color:#2c3e50; border-bottom:2px solid #3498db; padding-bottom:8px; margin-top:35px; margin-bottom:15px;">Q. [Question]</h2>). DO NOT use markdown (#).\n3. MULTIPLE PARAGRAPHS: Each Answer must be separated properly using <p style="margin-bottom: 20px;"> tags.\n4. CHECKLIST SECTION: After the FAQ, create the 'Master Action Checklist' (10+ items). It MUST start with this EXACT HTML header: <h2 style="background-color:#e8f5e9; border-radius:8px; color:#2e7d32; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #4CAF50;">???ㅼ쟾 留덉뒪???≪뀡 泥댄겕由ъ뒪??/h2>. Put the checklist items inside an HTML <ul> tag, and wrap EVERY single item in a <li style="margin-bottom:15px; font-size:16px; line-height:1.6;"> tag for proper line breaks. NEVER use raw text lists or markdown.\n5. MASSIVE CONTENT (2,000+ chars).`
-                : `MISSION: Write a massive, data-driven BODY for: "${chapter}" (Main Article: "${title}", Core Topic: "${target}").\n\nCRITICAL NARRATIVE STYLE:\nYou MUST strictly write this chapter using the following structural logic and tone: ${vLogicPatterns[i % vLogicPatterns.length]}\n\nRULES:\n1. QUANTITY: Write HUGE amounts of text (2,000+ characters minimum). \n2. TABLE: MUST include a 4-column x 4-row HTML Table with unique numerical data/evidence.\n3. ANALOGY: Use at least 2 metaphors from the Analogies library.\n4. OUTCOME: Stop using predictable boring structures. Follow the assigned V-LOGIC PATTERN above!\n5. FOCUS: The content MUST be strictly about "${chapter}" in the context of "${target}". Do not drift to general topics.\n6. STRICTLY FORBIDDEN: NEVER use ** or * or # or \` or HTML <h1>, <h2>, <h3> tags. Use HTML <strong> if needed.\n7. START IMMEDIATELY with dense information. NO HEADERS (#).\n8. MEGA RULE: NEVER start this chapter with the same opening words or filler phrases (like '??', '媛??癒쇱?', '?ъ떎') used in other chapters. Make the first sentence 100% unique and unpredictable.`;
+                ? `MISSION: Write an ULTIMATE FAQ & RESOLUTION for: "${title}".\n\nRULES:\n1. Create 10-15 specialized Q&A pairs (FAQ style) with deep answers ABOUT "${target}".\n2. FAQ HEADERS: Wrap EVERY Question in a beautiful HTML <h2> tag (e.g., <h2 style="font-size:20px; color:#2c3e50; border-bottom:2px solid #3498db; padding-bottom:8px; margin-top:35px; margin-bottom:15px;">Q. [Question]</h2>). DO NOT use markdown (#).\n3. MULTIPLE PARAGRAPHS: Each Answer must be separated properly using <p style="margin-bottom: 20px;"> tags.\n4. CHECKLIST SECTION: After the FAQ, create the 'Master Action Checklist' (10+ items). It MUST start with this EXACT HTML header: <h2 style="background-color:#e8f5e9; border-radius:8px; color:#2e7d32; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #4CAF50;">✅ 실전 마스터 액션 체크리스트</h2>. Put the checklist items inside an HTML <ul> tag, and wrap EVERY single item in a <li style="margin-bottom:15px; font-size:16px; line-height:1.6;"> tag for proper line breaks. NEVER use raw text lists or markdown.\n5. MASSIVE CONTENT (2,000+ chars).`
+                : `MISSION: Write a massive, data-driven BODY for: "${chapter}" (Main Article: "${title}", Core Topic: "${target}").\n\nCRITICAL NARRATIVE STYLE:\nYou MUST strictly write this chapter using the following structural logic and tone: ${vLogicPatterns[i % vLogicPatterns.length]}\n\nRULES:\n1. QUANTITY: Write HUGE amounts of text (2,000+ characters minimum). \n2. TABLE: MUST include a 4-column x 4-row HTML Table with unique numerical data/evidence.\n3. ANALOGY: Use at least 2 metaphors from the Analogies library.\n4. OUTCOME: Stop using predictable boring structures. Follow the assigned V-LOGIC PATTERN above!\n5. FOCUS: The content MUST be strictly about "${chapter}" in the context of "${target}". Do not drift to general topics.\n6. STRICTLY FORBIDDEN: NEVER use ** or * or # or \` or HTML <h1>, <h2>, <h3> tags. Use HTML <strong> if needed.\n7. START IMMEDIATELY with dense information. NO HEADERS (#).\n8. MEGA RULE: NEVER start this chapter with the same opening words or filler phrases (like '앗!', '가장 먼저', '사실') used in other chapters. Make the first sentence 100% unique and unpredictable.`;
             let sect = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\n${mission}\n\nRULES:\n1. NO TOC, NO JSON.\n2. NO GREETINGS. DO NOT rewrite or reference the intro. Go straight to the professional sub-topic content.\n3. MUST include exactly one [IMAGE_PROMPT: description] tag.`), 'text');
             if (i !== 6) sect = sect.replace(/^#{1,6}\s+.*$/gm, '').replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '');
             else sect = sect.replace(/^#{1,6}\s+.*$/gm, '');
@@ -326,33 +314,33 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
             sect = sect.replace(/\[IMAGE_PROMPT:[\s\S]*?\]/g, '');
             return { i, chapter, sect };
         } catch(e) {
-            return { i, chapter, sect: `<p>蹂?梨뺥꽣???댁슜??以鍮?以묒엯?덈떎. ?좎떆留?湲곕떎??二쇱꽭??</p>` };
+            return { i, chapter, sect: `<p>본 챕터의 내용을 준비 중입니다. 잠시만 기다려 주세요.</p>` };
         }
     });
 
     const results = await Promise.all(chapterTasks);
     results.sort((a, b) => a.i - b.i).forEach(r => {
-        body += `<h2 id="s${r.i+1}" style="background-color:${colors[r.i]}; border-radius:8px; color:black; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #333;">?렞 ${r.chapter}</h2>${r.sect}`;
+        body += `<h2 id="s${r.i+1}" style="background-color:${colors[r.i]}; border-radius:8px; color:black; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #333;">🎯 ${r.chapter}</h2>${r.sect}`;
         if (extraLinks && extraLinks[r.i]) {
             body += `<div class="link-box">` +
-                    `<h3 style="color:#00e5ff; margin-top:0; margin-bottom:15px; font-size:18px;">?뮕 愿???ъ링 媛?대뱶</h3>` +
-                    `<p style="margin-bottom: 20px; font-size:15px; color:#ddd;"><strong>${extraLinks[r.i].title}</strong>?????援ъ껜?곸씤 ?붾（?섍낵 ?곸쓣 蹂꾨룄濡??뺣━???먯뿀?듬땲?? ?먯꽭???댁슜??沅곴툑?섏떆?ㅻ㈃ ?꾨옒 留곹겕瑜?李멸퀬??二쇱꽭??</p>` +
-                    `<a href="${extraLinks[r.i].url}" target="_blank" style="display:inline-block; padding:12px 30px; background-color:#00e5ff; color:#000; text-decoration:none; font-weight:bold; border-radius:8px; font-size:16px;">?몛 ?ъ링 媛?대뱶 蹂대윭媛湲?/a>` +
+                    `<h3 style="color:#00e5ff; margin-top:0; margin-bottom:15px; font-size:18px;">💡 관련 심층 가이드</h3>` +
+                    `<p style="margin-bottom: 20px; font-size:15px; color:#ddd;"><strong>${extraLinks[r.i].title}</strong>에 대한 구체적인 솔루션과 팁을 별도로 정리해 두었습니다. 자세한 내용이 궁금하시다면 아래 링크를 참고해 주세요.</p>` +
+                    `<a href="${extraLinks[r.i].url}" target="_blank" style="display:inline-block; padding:12px 30px; background-color:#00e5ff; color:#000; text-decoration:none; font-weight:bold; border-radius:8px; font-size:16px;">👉 심층 가이드 보러가기</a>` +
                     `</div>`;
         }
     });
     
-    console.log('   ??[5?④퀎] Closing, Tags, Schema ?곗씠???앹꽦 以?..');
-    let footer = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nMISSION: Create a powerful Closing, 10+ comma-separated Tags, and a JSON-LD FAQ Schema (with 15+ generated Q&A pairs for SEO) for "${title}".\n\nRULES:\n1. DO NOT write an HTML FAQ section (it is already written).\n2. NO MARKDOWN (**, #). Use HTML tags for Closing.\n3. NO JSON outside the <script type="application/ld+json"> block.\n4. START IMMEDIATELY with the Closing <p> tag. NO CHATTER (e.g., 'OK. ?쒖옉?⑸땲??).\n5. NO IMAGE_PROMPT. Do NOT generate any images here.\n6. OUTPUT EXACTLY: Closing HTML, Tags HTML, and the JSON-LD script limit.`), 'text');
+    console.log('   ㄴ [5단계] Closing, Tags, Schema 데이터 생성 중...');
+    let footer = clean(await callAI(model, `STRICT INSTRUCTIONS: ${MASTER_GUIDELINE}\n\nMISSION: Create a powerful Closing, 10+ comma-separated Tags, and a JSON-LD FAQ Schema (with 15+ generated Q&A pairs for SEO) for "${title}".\n\nRULES:\n1. DO NOT write an HTML FAQ section (it is already written).\n2. NO MARKDOWN (**, #). Use HTML tags for Closing.\n3. NO JSON outside the <script type="application/ld+json"> block.\n4. START IMMEDIATELY with the Closing <p> tag. NO CHATTER (e.g., 'OK. 시작합니다').\n5. NO IMAGE_PROMPT. Do NOT generate any images here.\n6. OUTPUT EXACTLY: Closing HTML, Tags HTML, and the JSON-LD script limit.`), 'text');
     footer = footer.replace(/\[IMAGE_PROMPT:[\s\S]*?\]/g, '');
     
-    // 留덈Т由??뱀뀡?먮룄 ?듭씪???덈뒗 紐낇뭹 h2 諛곗?瑜?媛뺤젣濡?二쇱엯?⑸땲??
-    const closingH2 = `<h2 style="background-color:#ffe0b2; border-radius:8px; color:black; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #333;">?? ?듭떖 ?붿빟 諛?理쒖쥌 留덈Т由?/h2>`;
-    const disclaimerHtml = `<div style="background-color:#fff3cd; padding:20px; border-radius:10px; font-size:14px; color:#856404; margin-top:40px; border:1px solid #ffeeba; line-height:1.6;"><p style="margin:0;"><b>?좑툘 [硫댁콉 議고빆]</b> 蹂??ъ뒪?낆? ?⑥닚 ?뺣낫 ?쒓났??紐⑹쟻?쇰줈 ?묒꽦?섏뿀?쇰ŉ, 媛쒖씤???곹솴???곕씪 寃곌낵媛 ?ㅻ? ???덉뒿?덈떎. 蹂?釉붾줈洹몃뒗 ?ъ뒪???댁슜???뺥솗?깆씠???좊ː?깆뿉 ???蹂댁쬆?섏? ?딆쑝硫? ?대줈 ?명빐 諛쒖깮?섎뒗 ?대뼚??吏곴컙?묒쟻???먰빐????댁꽌??踰뺤쟻 梨낆엫??吏吏 ?딆뒿?덈떎. 以묒슂???섏궗 寃곗젙 ?쒖뿉??諛섎뱶???꾨Ц媛???곷떞??諛쏆쑝?쒓굅???좎쨷?섍쾶 ?먮떒?섏떆湲?諛붾엻?덈떎.</p></div>`;
+    // 마무리 섹션에도 통일성 있는 명품 h2 배지를 강제로 주입합니다.
+    const closingH2 = `<h2 style="background-color:#ffe0b2; border-radius:8px; color:black; font-size:20px; font-weight:bold; padding:12px; margin-top:48px; border-left:10px solid #333;">🚀 핵심 요약 및 최종 마무리</h2>`;
+    const disclaimerHtml = `<div style="background-color:#fff3cd; padding:20px; border-radius:10px; font-size:14px; color:#856404; margin-top:40px; border:1px solid #ffeeba; line-height:1.6;"><p style="margin:0;"><b>⚠️ [면책 조항]</b> 본 포스팅은 단순 정보 제공을 목적으로 작성되었으며, 개인의 상황에 따라 결과가 다를 수 있습니다. 본 블로그는 포스팅 내용의 정확성이나 신뢰성에 대해 보증하지 않으며, 이로 인해 발생하는 어떠한 직간접적인 손해에 대해서도 법적 책임을 지지 않습니다. 중요한 의사 결정 시에는 반드시 전문가의 상담을 받으시거나 신중하게 판단하시기 바랍니다.</p></div>`;
     body += closingH2 + footer + disclaimerHtml + '</div>';
     
     const res = await blogger.posts.insert({ blogId: bId, requestBody: { title, content: body, published: pTime.toISOString() } });
-    console.log('   ????諛쒗뻾 ?꾨즺! 二쇱냼: ' + res.data.url);
+    console.log('   ㄴ ✅ 발행 완료! 주소: ' + res.data.url);
     return { title, url: res.data.url };
 }
 async function run() {
@@ -372,9 +360,9 @@ async function run() {
         if(subTopics.length < 2) throw new Error();
     } catch(e) { 
         const fallbacks = [
-            [mainSeed + ' ?꾨꼍 ?낅Ц 媛?대뱶', mainSeed + ' ?깅뒫 理쒖쟻???명똿', mainSeed + ' 移섎챸?곸씤 二쇱쓽?ы빆', mainSeed + ' 理쒖떊 ?쒖옣 ?숉뼢 遺꾩꽍'],
-            [mainSeed + ' 湲곗큹 吏?앷낵 ?먮━', mainSeed + ' 怨좉툒 ?뚰겕??諛?轅??, mainSeed + ' 二쇱슂 遺?묒슜怨??덈갑踰?, mainSeed + ' ?泥?媛?ν븳 ?붾（??鍮꾧탳'],
-            [mainSeed + ' ?쒕?濡??뚭퀬 ?쒖옉?섍린', mainSeed + ' ?곸쐞 1%???ㅼ쟾 ?쒖슜踰?, mainSeed + ' 鍮꾩슜 ?덇컧???꾪븳 ?듭떖 ??, mainSeed + ' 2026???댄썑??誘몃옒 ?꾨쭩']
+            [mainSeed + ' 완벽 입문 가이드', mainSeed + ' 성능 최적화 세팅', mainSeed + ' 치명적인 주의사항', mainSeed + ' 최신 시장 동향 분석'],
+            [mainSeed + ' 기초 지식과 원리', mainSeed + ' 고급 테크닉 및 꿀팁', mainSeed + ' 주요 부작용과 예방법', mainSeed + ' 대체 가능한 솔루션 비교'],
+            [mainSeed + ' 제대로 알고 시작하기', mainSeed + ' 상위 1%의 실전 활용법', mainSeed + ' 비용 절감을 위한 핵심 팁', mainSeed + ' 2026년 이후의 미래 전망']
         ];
         subTopics = fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }

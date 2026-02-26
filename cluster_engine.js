@@ -5,39 +5,17 @@ const axios = require('axios');
 const FormData = require('form-data');
 
 const MASTER_GUIDELINE = `
-# [VUE POST v4.5 통합 멀티플랫폼 블로그 에이전트 지침서]
-
-[PART 0 — 충돌 시 우선순위]
-1순위: 금지 표현 제로 / 2순위: 플랫폼 호환 HTML / 3순위: E-E-A-T 서사 품질 / 4순위: 검색 의도별 구조.
-
-[PART A — 핵심 철학]
-1. 적게: 강조 박스 글 전체 3~4개. / 2. 정확하게: 수치 기반 출처 병기. / 3. 진짜처럼: 1인칭 경험 신호 결합. / 4. 돈 되게: 체류시간 극대화 디자인.
-
-[PART B — 분량]
-4,000 ~ 5,500자 (YMYL: 6,000자 권장). 
-
-[PART D — 금지 표현 (절대 금지)]
-요청하신, 작성해 드렸습니다, 안내드립니다, 도움이 되셨으면, 살펴보겠습니다, 알아볼까요, 마무리하겠습니다, 정리해 보겠습니다.
-
-[PART F — 구조]
-<h1> -> 목차 -> 도입부 -> 본문(h2 6~7개, 테이블, 이미지4) -> FAQ 5개 -> 면책조항 -> Schema.
-
-[PART G — 디자인]
-본문 중간에 '경험담', '꿀팁', '주의', '데이터' 박스 적절히 배치. 
-
-[PART H — HTML]
-<style> 태그 금지. 인라인 style만 사용. h2 배경색 7종 순차 적용. [이미지 삽입] 텍스트 4곳 배치.
-
-[V-LOGIC 패턴 A~O]
-상황에 맞춰 문제 해결형, 스토리텔링형, 역피라미드형, Q&A형, 가이드형, 전후 비교형 등 랜덤하게 융합하여 상술할 것.
-
-[특수 명령: 이미지 매칭]
-본문 내 4개의 [이미지 삽입] 위치와 코드블록 밖의 🖼 이미지 프롬프트 ①~④번은 1:1로 정확히 대응되어야 함.
+# [VUE POST v4.8 통합 블로그 에이전트 지침서]
+[PART 0 — 충돌 시 우선순위] 1순위: 금지 표현 제로 / 2순위: 플랫폼 호환 HTML / 3순위: E-E-A-T 품질 / 4순위: 검색의도 구조.
+[핵심 철학] ① 적게 ② 정확하게(수치 출처) ③ 진짜처럼(경험담) ④ 돈 되게.
+[분량] 4,500~6,000자. [금지어] 작성해 드렸습니다, 알아볼까요, 도움이 되셨으면... 등 필터링.
+[디자인] h2 배경색 7종 순차 적용. [이미지 삽입] 4곳 필히 배치.
+[V-LOGIC] A~O 패턴 (문제해결, 스토리텔링, 역피라미드 등) 랜덤 융합 적용.
 `;
 
 async function callAI(model, prompt, retry = 0) {
     try {
-        const r = await model.generateContent('[SYSTEM: ELITE COLUMNIST. NO SUMMARIZATION. FOLLOW PART 0-O EXACTLY.]\n\n' + prompt);
+        const r = await model.generateContent('[SYSTEM: ELITE CONTENT STRATEGIST. DELIVER 6,000+ CHARS HTML.]\n\n' + prompt);
         return r.response.text().trim();
     } catch (e) {
         if (e.message.includes('429') && retry < 3) {
@@ -54,11 +32,11 @@ async function genImg(desc, model, num) {
     let ep = desc;
     if(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(desc)) {
         try {
-            const trans = await callAI(model, 'Translate image prompt to English (STRICT: ONLY ENGLISH): ' + desc);
+            const trans = await callAI(model, 'Translate to English (ONLY ENGLISH PROMPT): ' + desc);
             ep = trans.replace(/```.*?```/gs, '').trim();
         } catch(e) { }
     }
-    console.log(`   └ [🖼️ ${num}번 프롬프트]: ${ep}`);
+    console.log(`   └ [🖼️ ${num}번 시각자료 제작] 프롬프트: ${ep}`);
     let imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(ep)}?width=1280&height=720&nologo=true`;
     try {
         if(imgbbKey) {
@@ -73,16 +51,12 @@ async function genImg(desc, model, num) {
 
 async function writeAndPost(model, target, blogger, bId, pTime, idx) {
     console.log(`\n==================================================`);
-    console.log(`💎 [VUE v4.5] ${idx}/5 집필 현황 상세 브리핑`);
+    console.log(`💎 [VUE v4.8] ${idx}/5 집필 현황 상세 브리핑`);
     console.log(`==================================================`);
-    console.log(`📝 [발행 타겟]: ${target}`);
+    console.log(`📝 [현재 타겟]: ${target}`);
     
-    console.log('🔍 [1/4] 데이터 인텔리전스 수집 중...');
     const searchData = await axios.post('https://google.serper.dev/search', { q: target, gl: 'kr', hl: 'ko' }, { headers: { 'X-API-KEY': process.env.SERPER_API_KEY } }).then(r=>r.data.organic.slice(0,3).map(o=>o.snippet).join('\n')).catch(()=>'');
-    
-    console.log('✍️ [2/4] 무삭제 지침 기반 고출력 집필 (Turbo)...');
-    const responseText = await callAI(model, MASTER_GUIDELINE + '\n\nTARGET: ' + target + '\nRESEARCH: ' + searchData);
-    
+    const responseText = await callAI(model, MASTER_GUIDELINE + '\n\nTARGET: ' + target + '\nCONTEXT: ' + searchData);
     let html = (responseText.match(/```html?([^]*?)```/i)?.[1] || responseText.split('```')[0]).trim();
     
     const postTitle = (html.match(/<h1[^>]*>([^]*?)<\/h1>/i)?.[1] || target).replace(/<.*?>/g, '').trim();
@@ -96,10 +70,8 @@ async function writeAndPost(model, target, blogger, bId, pTime, idx) {
     const pRegex = /([①-④1-4])번[:\s-]*\s*(.*?)(?=\n|$)/g;
     let m; while((m = pRegex.exec(responseText)) !== null) { ipList.push(m[2].trim()); }
     
-    console.log('\n🖼️ [3/4] 시각자료 생성 및 전략적 배치...');
     const phRegex = /\[이미지 삽입\](?:\s*alt=".*?")?(?:\s*title=".*?")?/gi;
     const phMatches = html.match(phRegex) || [];
-    
     for(let i=0; i<phMatches.length; i++) {
         const prompt = ipList[i] || `${target} professional cinematic photography`;
         const url = await genImg(prompt, model, i+1);
@@ -109,17 +81,10 @@ async function writeAndPost(model, target, blogger, bId, pTime, idx) {
         html = html.replace(phMatches[i], imgHtml);
     }
     
-    console.log('\n🚀 [4/4] 구글 블로거 클라우드 업로드 중...');
     try {
         await blogger.posts.insert({ blogId: bId, requestBody: { title: postTitle, content: html, published: pTime.toISOString() } });
         console.log(`✨ 성공: [${postTitle}] 발행 완료!\n`);
-    } catch(e) { 
-        if(e.message.includes('permission')) {
-            console.error('\n🚨 [권한 오류] 구글 블로그 쓰기 권한이 없습니다!');
-            console.error('👉 조치: OAuth Playground에서 스코프(blogger) 체크를 확인하고 토큰을 새로 발급받으세요.');
-        } else { console.error(`🚨 오류: ${e.message}`); }
-        throw e; 
-    }
+    } catch(e) { console.error(`🚨 에러: ${e.message}`); throw e; }
 }
 async function run() {
     try {
@@ -129,7 +94,8 @@ async function run() {
         const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
         auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
         const blogger = google.blogger({ version: 'v3', auth });
-        const list = config.clusters || [];
+        const list = (config.clusters || []).sort(() => Math.random() - 0.5);
+        console.log(`🎲 총 ${config.clusters.length}개 키워드 랜덤 믹스 완료.`);
         for(let i=0; i<Math.min(list.length, 5); i++) {
             let pTime = new Date(); pTime.setMinutes(pTime.getMinutes() + (i * 180));
             await writeAndPost(model, list[i], blogger, config.blog_id, pTime, i+1);

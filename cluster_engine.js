@@ -686,20 +686,23 @@ async function searchWeb(query, lang) {
   const hl = lang === 'en' ? 'en' : 'ko';
   try {
     const res = await axios.post('https://google.serper.dev/search', { q: query, gl, hl }, { headers: { 'X-API-KEY': key } });
-    return res.data.organic.slice(0, 5).map(o => "[출처: " + o.title + "]\n" + o.snippet + "\nURL: " + o.link).join("\n\n");
+    return res.data.organic.slice(0, 5).map(o => "[출처: " + o.title + "]\\n" + o.snippet + "\\nURL: " + o.link).join("\\n\\n");
   } catch (e) { return "검색 실패: " + e.message; }
 }
 
 function clean(raw) {
   if (!raw) return '';
   let json = raw.trim();
-  const start = json.indexOf('{');
-  if (start === -1) return '';
+  const start = Math.min(
+    json.indexOf('{') === -1 ? Infinity : json.indexOf('{'),
+    json.indexOf('[') === -1 ? Infinity : json.indexOf('[')
+  );
+  if (start === Infinity) return '';
   json = json.substring(start);
   
   // [초강력 지능형 JSON 복구 엔진]
   try {
-    const end = json.lastIndexOf('}');
+    const end = Math.max(json.lastIndexOf('}'), json.lastIndexOf(']'));
     if (end !== -1) {
       const candidate = json.substring(0, end + 1);
       JSON.parse(candidate);
@@ -822,7 +825,7 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   if (latestNews.length > 30) {
     console.log("-----------------------------------------");
     console.log("🌐 [SERPER 참고 자료 요약]");
-    const lines = latestNews.split("\n").filter(l => l.includes("[출처:"));
+    const lines = latestNews.split("\\n").filter(l => l.includes("[출처:"));
     lines.forEach(l => console.log("   ➤ " + l));
     console.log("-----------------------------------------");
   }
@@ -831,14 +834,14 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   try {
     const archiveRes = await blogger.posts.list({ blogId: bId, maxResults: 50, fields: 'items(title,url)' });
     const items = archiveRes.data.items || [];
-    if (items.length > 0) archiveContext = items.map(p => p.title + " (" + p.url + ")").join("\n");
+    if (items.length > 0) archiveContext = items.map(p => p.title + " (" + p.url + ")").join("\\n");
     console.log("📎 [STEP 2-1] 내부 링크용 기존 블로그 포스팅 " + items.length + "개 로드 완료");
   } catch (e) {
     console.log("⚠️ 내부 블로그 포스팅 로드 실패 (추측성 링크 생성 차단됨)");
   }
   const selectedNarrative = NARRATIVES[Math.floor(Math.random() * NARRATIVES.length)];
   const targetLangStr = lang === 'en' ? 'English (US)' : 'Korean';
-  const finalPrompt = MASTER_GUIDELINE + "\n[CURRENT_DATE: " + currentDate + "]\n[LATEST_RESEARCH_DATA]:\n" + latestNews + "\n[SELECTED_PERSONA]: " + selectedNarrative + "\n[BLOG_ARCHIVES]:\n" + archiveContext + "\n[TARGET_TOPIC]: " + target + "\n[TARGET_LANGUAGE]: " + targetLangStr + extraPrompt;
+  const finalPrompt = MASTER_GUIDELINE + "\\n[CURRENT_DATE: " + currentDate + "]\\n[LATEST_RESEARCH_DATA]:\\n" + latestNews + "\\n[SELECTED_PERSONA]: " + selectedNarrative + "\\n[BLOG_ARCHIVES]:\\n" + archiveContext + "\\n[TARGET_TOPIC]: " + target + "\\n[TARGET_LANGUAGE]: " + targetLangStr + extraPrompt;
 
   console.log("✍️ [STEP 3] AI 지문 파쇄 및 블로그 포스팅 원고 작성 중...");
   const result = await model.generateContent(finalPrompt);
@@ -852,13 +855,20 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
     }
   } catch (err) {
     console.error("❌ [치명적 오류] AI가 생성한 JSON 데이터 파싱 실패!");
-    console.error("[원음 데이터 시작]==============\n" + rawText + "\n==============[원음 데이터 끝]");
+    console.error("[원음 데이터 시작]==============\\n" + rawText + "\\n==============[원음 데이터 끝]");
     throw err;
+  }
+
+  // [제목 추출 엔진] 본문의 h1 태그에서 실제 제목을 추출하고 본문에서는 제거함
+  let finalTitle = data.title || target;
+  const h1Match = data.content.match(/<h1[^>]*>(.*?)<\/h1>/i);
+  if (h1Match && h1Match[1]) {
+    finalTitle = h1Match[1].replace(/<[^>]+>/g, '').trim();
   }
 
   console.log("-----------------------------------------");
   console.log("📝 [💡 생성된 목차 및 뼈대 구조 확인]");
-  const hRegex = new RegExp("<h[23][^>]*>(.*?)<\/h[23]>", "gi");
+  const hRegex = new RegExp("<h[23][^>]*>(.*?)<\\/h[23]>", "gi");
   const hTags = data.content.match(hRegex) || [];
   hTags.forEach(tag => {
     const isH3 = tag.startsWith("<h3");
@@ -867,10 +877,10 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   });
   console.log("-----------------------------------------");
   const [imgTop, imgMid1, imgMid2, imgBtm] = await Promise.all([
-    genImg("TOP_IMG_1", data.image_prompts.IMG_1 || data.image_prompts["1"], data.title, model),
-    genImg("MID_IMG_2", data.image_prompts.IMG_2 || data.image_prompts["2"], data.title, model),
-    genImg("MID_IMG_3", data.image_prompts.IMG_3 || data.image_prompts["3"], data.title, model),
-    genImg("BTM_IMG_4", data.image_prompts.IMG_4 || data.image_prompts["4"], data.title, model)
+    genImg("TOP_IMG_1", data.image_prompts.IMG_1 || data.image_prompts["1"], finalTitle, model),
+    genImg("MID_IMG_2", data.image_prompts.IMG_2 || data.image_prompts["2"], finalTitle, model),
+    genImg("MID_IMG_3", data.image_prompts.IMG_3 || data.image_prompts["3"], finalTitle, model),
+    genImg("BTM_IMG_4", data.image_prompts.IMG_4 || data.image_prompts["4"], finalTitle, model)
   ]);
   const wrapImg = (i) => '<div style="text-align:center; margin:35px 0;"><img src="' + i.url + '" alt="' + i.alt + '" title="' + i.title + '" style="width:100%; border-radius:15px;"><p style="font-size:12px; color:#888; margin-top:8px;">' + i.alt + '</p></div>';
   let content = cleanHTML(data.content);
@@ -889,16 +899,16 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   
   console.log("-----------------------------------------");
   console.log("📊 [발행 메타데이터 확인]");
-  console.log("   ➤ 제목: " + (data.title || target));
+  console.log("   ➤ 제목: " + finalTitle);
   console.log("   ➤ 라벨: " + labels.join(', '));
   console.log("   ➤ 검색 설명: " + (searchDesc ? searchDesc.substring(0, 50) + "..." : "없음"));
   console.log("   ➤ (참고) Blogger API는 정책상 '맞춤 URL(Permalink)' 설정을 허용하지 않아 자동 생성됩니다.");
   console.log("-----------------------------------------");
-
+  
   const res = await blogger.posts.insert({
     blogId: bId, 
     requestBody: {
-      title: data.title || target, 
+      title: finalTitle, 
       labels: labels, 
       content: fullHtml, 
       customMetaData: searchDesc, // 검색 설명 필드
@@ -932,7 +942,7 @@ async function run() {
     const subPosts = [];
     const seedTopic = config.pillar_topic || (clusters.length > 0 ? clusters[0] : "Life Efficiency");
     
-    console.log("\n====== [기획부장 출격] 오늘의 대주제: [" + seedTopic + "] ======");
+    console.log("\\n====== [기획부장 출격] 오늘의 대주제: [" + seedTopic + "] ======");
     console.log("📝 AI가 대주제를 분석하여 4개의 세부 서브 주제를 기획 중...");
     
     const planPrompt = "You are a professional blog content strategist. Based on the major topic \"" + seedTopic + "\", devise a 4-post content cluster strategy. " + 
@@ -954,11 +964,11 @@ async function run() {
     }
 
     console.log("🎯 기획된 서브 주제: " + subKeywords.join(", "));
-    console.log("\n====== 풀 클러스터 모드 가동 (4 Sub + 1 Main) ======");
+    console.log("\\n====== 풀 클러스터 모드 가동 (4 Sub + 1 Main) ======");
 
     for (let i = 0; i < 4; i++) {
       const subTarget = subKeywords[i] || (seedTopic + " Part " + (i+1));
-      console.log("\n--- [SUB-POST " + (i+1) + "/4] 작성 시작: " + subTarget + " ---");
+      console.log("\\n--- [SUB-POST " + (i+1) + "/4] 작성 시작: " + subTarget + " ---");
       
       const postTime = new Date(baseTime.getTime() + (currentTimeOffset * 60 * 1000));
       console.log("⏰ 예약 발행 예정 시각: " + postTime.toLocaleString());
@@ -973,7 +983,7 @@ async function run() {
       await new Promise(r => setTimeout(r, 30000));
     }
     
-    console.log("\n====== 메인 필러 포스트(Main Pillar) 작성 시작: " + seedTopic + " ======");
+    console.log("\\n====== 메인 필러 포스트(Main Pillar) 작성 시작: " + seedTopic + " ======");
     const pillarTime = new Date(baseTime.getTime() + (currentTimeOffset * 60 * 1000));
     console.log("⏰ 메인 필러 예약 발행 예정 시각: " + pillarTime.toLocaleString());
 

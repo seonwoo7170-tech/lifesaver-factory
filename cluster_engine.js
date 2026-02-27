@@ -122,9 +122,7 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
     data = JSON.parse(clean(rawText));
   } catch (err) {
     console.error("❌ [치명적 오류] AI가 생성한 JSON 데이터 파싱 실패! (따옴표 또는 줄바꿈 오류 의심)");
-    console.error("[원음 데이터 시작]==============
-" + rawText + "
-==============[원음 데이터 끝]");
+    console.error("[원음 데이터 시작]==============\n" + rawText + "\n==============[원음 데이터 끝]");
     throw err;
   }
 

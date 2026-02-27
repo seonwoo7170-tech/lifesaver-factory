@@ -224,9 +224,8 @@ HTML 소스코드를 생성한다.
 ════════════════════════════════════════
 
 ① <h1> 제목
-  25~35자 / [경험신호]+[궁금증]+[결과] 구조를 따르되, 정형화된 틀에 박히지 마세요.
-  메인키워드(제공된 [TARGET_TOPIC])가 제목의 가장 앞부분이나 핵심에 반드시 포함되어야 합니다.
-  (단, [CLUSTER_SUB_POST_ANGLE] 지시가 있는 경우, 해당 앵글의 고유한 제목 스타일을 70% 이상 반영하세요. '완벽 해결', '가이드'와 같은 뻔한 수식어의 반복 사용을 엄격히 금지하며, 각 포스트가 완전히 독립된 주제처럼 보이도록 제목을 설계하세요.)
+  25~35자 / [경험신호]+[궁금증]+[결과] 구조
+  메인키워드 + 경험표현 포함
 
 ② 목차
   파스텔 블루 박스 / 본문 h2 수와 동일(6~7개)
@@ -866,14 +865,10 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   }
 
   // [제목 추출 엔진] 본문의 h1 태그에서 실제 제목을 추출하고 본문에서는 제거함
-  // AI가 지침을 어기고 h1을 여러 개 만들거나 제목 필드와 다르게 만들 경우를 대비해 h1을 최우선 신뢰함
   let finalTitle = data.title || target;
   const h1Match = data.content.match(/<h1[^>]*>(.*?)<\/h1>/i);
   if (h1Match && h1Match[1]) {
     finalTitle = h1Match[1].replace(/<[^>]+>/g, '').trim();
-    console.log("📌 H1 태그에서 제목 추출 완료: " + finalTitle);
-  } else {
-    console.log("💡 H1 태그 미발견, JSON title 필드 사용: " + finalTitle);
   }
 
   console.log("-----------------------------------------");
@@ -957,11 +952,11 @@ async function run() {
     
     const planPrompt = "You are a professional blog content strategist. Based on the major topic \"" + seedTopic + "\", devise a 4-post content cluster strategy. " + 
       "Each of the 4 sub-topics MUST be distinct and cover a unique angle to avoid repetition. " + 
-      "Angle 1: Beginner's Comprehensive Guide & Concept (Example title style: 'What is X? A simple guide for starters'), " +
-      "Angle 2: Advanced Technical Troubleshooting & Expert Secrets (Example title style: 'Hidden settings of X that experts use'), " +
-      "Angle 3: Cost Analysis, Comparison & How to Choose services (Example title style: 'X vs Y: Honest cost comparison'), " +
-      "Angle 4: Future Trends, Prevention & Pro-level Optimization (Example title style: 'How to maintain X for 10 years without issues'). " +
-      "**CRITICAL**: DO NOT use the same words for all 4 titles. DO NOT just append words to the seed topic. Make each title look like a completely independent, high-click-through article. " + 
+      "Angle 1: Beginner's Comprehensive Guide & Concept, " +
+      "Angle 2: Advanced Technical Troubleshooting & Expert Secrets, " +
+      "Angle 3: Cost Analysis, Comparison & How to Choose services, " +
+      "Angle 4: Future Trends, Prevention & Pro-level Optimization. " +
+      "**CRITICAL**: Do NOT just append words to the seed topic. Create new, catchy, SEO-optimized titles for each. " + 
       "Return ONLY a JSON array of 4 strings (titles) in " + (config.blog_lang === 'en' ? 'English' : 'Korean') + ". Example: [\"Title1\", \"Title2\", \"Title3\", \"Title4\"]";
     
     let subKeywords = [];
@@ -988,8 +983,7 @@ async function run() {
       const angleDirective = "\n\n[CLUSTER_SUB_POST_ANGLE]: You are writing one of the 4 cluster posts. " + 
         "Your specific perspective for THIS post is: **" + angles[i] + "**.\n" +
         "**CRITICAL**: DO NOT write a general guide. Stay strictly focused on this angle. " +
-        "Your <h1> title MUST incorporate the essence of this angle and be DIFFERENT from a general title. " +
-        "Ensure the [TARGET_TOPIC] provided is your core title foundation, but expand it to be catchy and unique.";
+        "Your <h1> title MUST be unique and directly related to this specific angle and the [TARGET_TOPIC].";
       
       return (async () => {
         console.log("🚀 [서브 태스트 " + (i+1) + "] 작성 시작: " + subTarget + " (예약 시각: " + postTime.toLocaleString() + ")");
@@ -1013,15 +1007,13 @@ async function run() {
 
     const subContext = subPosts.map((p, idx) => "[SUB_POST_" + (idx + 1) + "] Title: " + p.title + " / URL: " + p.url).join('\n');
     const btnText = config.blog_lang === 'en' ? '👉 Read the Full Guide' : '👉 자세한 세부 가이드 보러가기';
-    const pillarAngleTitle = seedTopic + (config.blog_lang === 'en' ? " (The Ultimate Oracle Guide)" : " (종결판 마스터 가이드)");
-    const extraPromptPillar = "\n\n[CLUSTER_MAIN_PILLAR_DIRECTIVE]: You are writing the MAIN PILLAR post (The Authority) that connects " + subPosts.length + " sub-posts.\n" +
-      "Your title MUST be the most authoritative and comprehensive-sounding one.\n" +
+    const extraPrompt = "\n\n[CLUSTER_MAIN_PILLAR_DIRECTIVE]: You are writing the MAIN PILLAR post that connects " + subPosts.length + " sub-posts.\n" +
       "Here are the published sub-posts:\n" + subContext + "\n" +
       "**CRITICAL RULE**: Do NOT put all links at the end or in the TOC. Instead, distribute them! For each H2 section, integrate the topic of one sub-post naturally, and AT THE VERY END of that H2 section, you MUST insert a highly visible HTML button linking to that SUB_POST URL.\n" +
       "**LENGTH RULE**: The MAIN PILLAR post MUST be authoritative and comprehensive. Target length is 4,500 to 5,500 Korean characters. You MUST cover all sub-posts deeply. However, because of your physical 8,192 max token limit, prioritize closing the JSON structure flawlessly. A complete post is 100 times better than a long, broken one!\n" +
       "Example button HTML (use SINGLE quotes): <div style='text-align:center; margin:20px 0;'><a href='[INSERT_URL_HERE]' style='display:inline-block; padding:12px 24px; background:#3b82f6; color:#fff; font-weight:bold; border-radius:8px; text-decoration:none;'>" + btnText + "</a></div>";
 
-    await writeAndPost(model, pillarAngleTitle, blogger, config.blog_id, pillarTime, config.blog_lang, extraPromptPillar);
+    await writeAndPost(model, seedTopic, blogger, config.blog_id, pillarTime, config.blog_lang, extraPrompt);
 
   } else {
     const target = clusters.length > 0 ? clusters[Math.floor(Math.random() * clusters.length)] : "Blog Post";

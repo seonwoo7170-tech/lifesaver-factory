@@ -174,6 +174,9 @@
 
         const target = config.clusters[Math.floor(Math.random()*config.clusters.length)];
         await writeAndPost(model, target, blogger, config.blog_id, new Date());
-}
-        run();
-        
+      }
+      run().catch(err => {
+          console.error("❌ Critical Engine Failure:", err);
+          process.exit(1);
+      });
+      

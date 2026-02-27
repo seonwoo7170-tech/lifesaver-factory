@@ -90,10 +90,10 @@ HTML 소스코드를 생성한다.
       ④번: 플레이스홀더 alt 기반 영문 프롬프트 (16:9 가로형, 블로그 삽입용)
   → HTML 주석(<!-- -->) 삽입 금지
 
-■ 분량: 3,500자 ~ 최대 5,000자 (순수 한글 텍스트 기준)
-  ★ [초강력 경고]: 이전처럼 무조건 시각적으로 꽉 차고 긴 글을 작성하세요. 요약된 개조식 리스트(<ul>, <ol>) 남발을 금지하며, 압도적인 서사(전문가의 썰, 구체적 예시, 풍부한 설명)를 텍스트 단락(<p>)으로 길게 풀어내어 분량을 강제로 늘리세요.
-  ★ 단, JSON 출력 한계(최대 8192 토큰)가 있으므로 5,500자를 넘겨서 JSON 응답이 중간에 끊어지는 일은 절대 없어야 합니다. 완벽한 마무리는 필수입니다.
-  구조 기준: h2 섹션당 p 태그를 4~5개 이상 사용하고, 각 p 태그 내에 최소 4~5문장 이상을 꽉꽉 채우세요. 단답형 요약을 절대 금지합니다.
+■ 분량: 4,000자 ~ 최대 5,000자 (순수 한글 텍스트 기준)
+  ★ [초강력 경고]: 이전처럼 무조건 시각적으로 꽉 차고 긴 글을 작성하세요. 요약된 개조식 리스트(<ul>, <ol>) 남발을 금지하며, 압도적인 서사(전문가의 썰, 구체적 예시, 풍부한 설명)를 텍스트 단락(<p>)으로 풍성하게 풀어내어 분량을 확보하세요.
+  ★ 단, JSON 출력 한계(최대 8192 토큰)가 있으므로 5,500자를 넘겨서 JSON 응답이 중간에 끊어지는 일은 최소화해야 합니다. 분량 확보와 동시에 반드시 마지막 JSON 구조('}')를 Flawless하게 닫는 것에 집중하십시오.
+  구조 기준: h2 섹션당 p 태그를 4~5개 사용하고, 각 p 태그 내에 최소 4~5문장 이상을 채워 넣어 밀도를 높이세요.
 
 ■ 검색 의도별 구조 가이드:
   정보형(Know)       h2 5~6개 × p 4개 × 각 4문장
@@ -695,29 +695,48 @@ function clean(raw) {
   if (!raw) return '';
   let json = raw.trim();
   const start = json.indexOf('{');
-  const end = json.lastIndexOf('}');
-  if (start !== -1) {
-    if (end !== -1 && end > start) {
-      json = json.substring(start, end + 1);
-    } else {
-      json = json.substring(start);
+  if (start === -1) return '';
+  json = json.substring(start);
+  
+  // [초강력 지능형 JSON 복구 엔진]
+  try {
+    const end = json.lastIndexOf('}');
+    if (end !== -1) {
+      const candidate = json.substring(0, end + 1);
+      JSON.parse(candidate);
+      return candidate;
+    }
+  } catch (e) {}
+
+  console.log("⚠️ 끊긴 데이터 감지, 초정밀 수술 집도 중...");
+  let repaired = json.trim();
+  
+  // 1. 열린 문자열 닫기
+  let quoteCount = 0;
+  for (let i = 0; i < repaired.length; i++) {
+    if (repaired[i] === '"' && (i === 0 || repaired[i-1] !== '\\')) quoteCount++;
+  }
+  if (quoteCount % 2 !== 0) repaired += '"';
+  
+  // 2. 누락된 중괄호 보충 (심폐소생술)
+  if (!repaired.endsWith('}')) {
+    if (!repaired.endsWith('"') && !repaired.endsWith('}')) repaired += '"}';
+    else repaired += '}';
+  }
+  
+  // 3. 마지막 수단: 중첩 구조 강제 종료
+  try {
+    JSON.parse(repaired);
+    return repaired;
+  } catch (e2) {
+    try {
+      let finalTry = repaired + '"} }';
+      JSON.parse(finalTry);
+      return finalTry;
+    } catch (e3) {
+      return json; // 복구 실패 시 원본 반환
     }
   }
-  json = json.trim();
-try {
-  JSON.parse(json);
-  return json;
-} catch (e) {
-  console.log("⚠️ 끊긴 JSON 감지, 긴급 복구 시스템 가동...");
-  let repaired = json;
-  if (!repaired.endsWith('}')) {
-    const lastQuote = repaired.lastIndexOf('"');
-    const lastColon = repaired.lastIndexOf(':');
-    if (lastQuote > lastColon) repaired += '"';
-    repaired += ' }';
-  }
-  try { JSON.parse(repaired); return repaired; } catch (e2) { return json; }
-}
 }
 
 function cleanHTML(h) {
@@ -929,7 +948,7 @@ async function run() {
     const extraPrompt = "\\n\\n[CLUSTER_MAIN_PILLAR_DIRECTIVE]: You are writing the MAIN PILLAR post that connects " + subPosts.length + " sub-posts.\\n" +
       "Here are the published sub-posts:\\n" + subContext + "\\n" +
       "**CRITICAL RULE**: Do NOT put all links at the end or in the TOC. Instead, distribute them! For each H2 section, integrate the topic of one sub-post naturally, and AT THE VERY END of that H2 section, you MUST insert a highly visible HTML button linking to that SUB_POST URL.\\n" +
-      "**LENGTH RULE**: The MAIN PILLAR post MUST be massive. Aim for 5,000 to 6,500 Korean characters. However, as the 8,192 token limit is a hard physical ceiling for Gemini 2.0 Flash, you MUST manage your output length strategically. If you are approaching the limit, wrap up your points quickly and PRIORITIZE closing the JSON structure correctly. It is better to have 5,000 high-quality characters with a perfect JSON than 7,000 characters with a broken JSON.\\n" +
+      "**LENGTH RULE**: The MAIN PILLAR post MUST be massive and comprehensive. Target length is 5,000 to 6,000 Korean characters. You MUST cover all sub-posts deeply. However, because of your physical 8,192 max token limit, if you feel you are getting close to the limit, prioritize closing the JSON structure flawlessly to prevent Parse errors. Push your length to the absolute maximum without breaking!\\n" +
       "Example button HTML (use SINGLE quotes): <div style='text-align:center; margin:20px 0;'><a href='[INSERT_URL_HERE]' style='display:inline-block; padding:12px 24px; background:#3b82f6; color:#fff; font-weight:bold; border-radius:8px; text-decoration:none;'>" + btnText + "</a></div>";
 
     await writeAndPost(model, seedTopic, blogger, config.blog_id, pillarTime, config.blog_lang, extraPrompt);

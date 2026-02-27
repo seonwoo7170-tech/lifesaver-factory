@@ -166,7 +166,7 @@ async function run() {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.0-flash',
-    generationConfig: { responseMimeType: "application/json" }
+    generationConfig: { responseMimeType: "application/json", maxOutputTokens: 8192 }
   });
   const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
   auth.setCredentials({refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
@@ -191,6 +191,7 @@ async function run() {
   const extraPrompt = "\n\n[CLUSTER_MAIN_PILLAR_DIRECTIVE]: You are writing the MAIN PILLAR post that connects " + subPosts.length + " sub-posts.\n" +
     "Here are the published sub-posts:\n" + subContext + "\n" +
     "**CRITICAL RULE**: Do NOT put all links at the end or in the TOC. Instead, distribute them! For each H2 section, integrate the topic of one sub-post naturally, and AT THE VERY END of that H2 section, you MUST insert a highly visible HTML button linking to that SUB_POST URL.\n" +
+    "**LENGTH RULE**: The MAIN PILLAR post MUST be substantially broader and longer than normal posts. Explain each sub-post concept in deep detail before providing the button. Do not just briefly summarize; elaborate thoroughly! Aim for an extended word count.\n" +
     "Example button HTML (use SINGLE quotes): <div style='text-align:center; margin:20px 0;'><a href='[INSERT_URL_HERE]' style='display:inline-block; padding:12px 24px; background:#3b82f6; color:#fff; font-weight:bold; border-radius:8px; text-decoration:none;'>" + btnText + "</a></div>";
 
   await writeAndPost(model, config.pillar_topic, blogger, config.blog_id, new Date(), config.blog_lang, extraPrompt);

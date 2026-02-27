@@ -224,8 +224,9 @@ HTML 소스코드를 생성한다.
 ════════════════════════════════════════
 
 ① <h1> 제목
-  25~35자 / [경험신호]+[궁금증]+[결과] 구조
-  메인키워드 + 경험표현 포함
+  25~35자 / [경험신호]+[궁금증]+[결과] 구조를 따르되, 정형화된 틀에 박히지 마세요.
+  메인키워드(제공된 [TARGET_TOPIC])가 제목의 가장 앞부분이나 핵심에 반드시 포함되어야 합니다.
+  (단, [CLUSTER_SUB_POST_ANGLE] 지시가 있는 경우, 해당 앵글의 고유한 제목 스타일을 70% 이상 반영하세요. '완벽 해결', '가이드'와 같은 뻔한 수식어의 반복 사용을 엄격히 금지하며, 각 포스트가 완전히 독립된 주제처럼 보이도록 제목을 설계하세요.)
 
 ② 목차
   파스텔 블루 박스 / 본문 h2 수와 동일(6~7개)
@@ -642,27 +643,10 @@ YMYL 감지 시 적용:
   5단계: 사후 검수 (POST 1~15) → 미충족 시 해당 부분만 수정
   6단계: 출력
 
-출력 형식:
-  마크다운 코드블록 안에 순수 HTML 소스코드
-  → 반드시 <h1>으로 시작
-  → 본문 안에 "태그: ..." 텍스트 없음
-  → Schema는 맨 마지막 독립 배치
-  → 코드블록 바깥에 아래만 출력:
-
-    🔗 클러스터 키워드: A, B, C, D, E
-    📎 퍼머링크: 영문 - 소문자 - 하이픈 - 슬러그
-    🏷 라벨: 연관 키워드 10개 쉼표 구분(블로그스팟 라벨 칸에 복붙)
-    📝 검색 설명: 스니펫 기반 150자 이내 메타 디스크립션
-    🖼 이미지 프롬프트:
-      ①번: 플레이스홀더 alt 기반 영문 프롬프트(16: 9 가로형, 블로그 삽입용)
-      ②번: 플레이스홀더 alt 기반 영문 프롬프트(16: 9 가로형, 블로그 삽입용)
-      ③번: 플레이스홀더 alt 기반 영문 프롬프트(16: 9 가로형, 블로그 삽입용)
-      ④번: 플레이스홀더 alt 기반 영문 프롬프트(16: 9 가로형, 블로그 삽입용)
-  → 그 외 텍스트 없음
-
+  6단계: 출력
 
 ## ════ PART X — 시스템 연동용 출력 규격(JSON) ════
-※ 위 지침의 모든 서사 / 디자인 규칙(PART A~N)을 따르되, 최종 출력은 아래 JSON 구조를 지키세요.
+※ 위 지침의 모든 서사 / 디자인 규칙(PART A~N)을 따르되, 최종 출력은 **반드시 마크다운 코드블록 내의 순수 JSON 구조**만 지키세요. JSON 외의 서술이나 인사말은 절대로 금지합니다.
 
 {
     "title": "h1 제목",
@@ -700,7 +684,7 @@ function clean(raw) {
   if (start === Infinity) return '';
   json = json.substring(start);
   
-  // [초강력 지능형 JSON 복구 엔진]
+  // [초강력 지능형 JSON 복구 엔진 - v2.0]
   try {
     const end = Math.max(json.lastIndexOf('}'), json.lastIndexOf(']'));
     if (end !== -1) {
@@ -710,7 +694,7 @@ function clean(raw) {
     }
   } catch (e) {}
 
-  console.log("⚠️ 끊긴 JSON 데이터 감지, 긴급 복구 시스템 가동...");
+  console.log("⚠️ 끊긴 JSON 데이터 감지, 초정밀 심폐소생술 집도 중...");
   let repaired = json.trim();
   
   // 1. 열린 문자열 닫기
@@ -720,23 +704,42 @@ function clean(raw) {
   }
   if (quoteCount % 2 !== 0) repaired += '"';
   
-  // 2. 누락된 중괄호 보충 (심폐소생술)
-  if (!repaired.endsWith('}')) {
-    if (!repaired.endsWith('"') && !repaired.endsWith('}')) repaired += '"}';
-    else repaired += '}';
+  // 2. 누락된 모든 괄호 추적 및 강제 폐쇄 (재귀적 봉합)
+  const stack = [];
+  for (let i = 0; i < repaired.length; i++) {
+    const char = repaired[i];
+    if (char === '{' || char === '[') stack.push(char === '{' ? '}' : ']');
+    else if (char === '}' || char === ']') {
+      if (stack.length > 0 && stack[stack.length - 1] === char) stack.pop();
+    }
   }
   
-  // 3. 마지막 수단: 중첩 구조 강제 종료
+  // 3. 마지막 요소가 콤마로 끝나면 제거
+  repaired = repaired.replace(/,\s*$/, "");
+  
+  // 괄호 스택 반대로 닫아주기
+  while (stack.length > 0) {
+    const target = stack.pop();
+    if (repaired.endsWith('"') || repaired.match(/[0-9a-z]$/i)) {
+       repaired += target;
+    } else {
+       repaired += '"' + target; // 문자열 중간에 끊긴 경우 처리
+    }
+  }
+
+  // 최종 유효성 검증 및 재시도
   try {
     JSON.parse(repaired);
     return repaired;
-  } catch (e2) {
+  } catch (err) {
+    // 최후의 수단: 단순히 끝에 부족한 만큼 괄호를 붙여보는 무식한 방법
+    if (!repaired.endsWith('}')) repaired += '"}';
     try {
-      let finalTry = repaired + '"} }';
-      JSON.parse(finalTry);
-      return finalTry;
-    } catch (e3) {
-      return json; // 복구 실패 시 원본 반환
+      JSON.parse(repaired);
+      return repaired;
+    } catch (e) {
+      if (!repaired.endsWith('}')) repaired += '}';
+      return repaired; // 어찌됐든 보냄
     }
   }
 }
@@ -843,8 +846,11 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   const targetLangStr = lang === 'en' ? 'English (US)' : 'Korean';
   const finalPrompt = MASTER_GUIDELINE + "\n[CURRENT_DATE: " + currentDate + "]\n[LATEST_RESEARCH_DATA]:\n" + latestNews + "\n[SELECTED_PERSONA]: " + selectedNarrative + "\n[BLOG_ARCHIVES]:\n" + archiveContext + "\n[TARGET_TOPIC]: " + target + "\n[TARGET_LANGUAGE]: " + targetLangStr + extraPrompt;
 
-  console.log("✍️ [STEP 3] AI 지문 파쇄 및 블로그 포스팅 원고 작성 중...");
-  const result = await model.generateContent(finalPrompt);
+  console.log("✍️ [STEP 3] AI 지문 파쇄 및 블로그 포스팅 원고 작성 중... (Angle 최적화)");
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: MASTER_GUIDELINE + "\n[CURRENT_DATE: " + currentDate + "]\n[LATEST_RESEARCH_DATA]:\n" + latestNews + "\n[SELECTED_PERSONA]: " + selectedNarrative + "\n[BLOG_ARCHIVES]:\n" + archiveContext + "\n[TARGET_TOPIC]: " + target + "\n[TARGET_LANGUAGE]: " + targetLangStr + extraPrompt }]}],
+    generationConfig: { temperature: 0.8 }
+  });
   const rawText = result.response.text();
   let data;
   try {
@@ -855,15 +861,19 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
     }
   } catch (err) {
     console.error("❌ [치명적 오류] AI가 생성한 JSON 데이터 파싱 실패!");
-    console.error("[원음 데이터 시작]==============\n" + rawText + "\n==============[원음 데이터 끝]");
+    console.error("[원음 데이터 시작]==============\n" + rawText.substring(0, 1000) + "\n==============[원음 데이터 끝]");
     throw err;
   }
 
   // [제목 추출 엔진] 본문의 h1 태그에서 실제 제목을 추출하고 본문에서는 제거함
+  // AI가 지침을 어기고 h1을 여러 개 만들거나 제목 필드와 다르게 만들 경우를 대비해 h1을 최우선 신뢰함
   let finalTitle = data.title || target;
   const h1Match = data.content.match(/<h1[^>]*>(.*?)<\/h1>/i);
   if (h1Match && h1Match[1]) {
     finalTitle = h1Match[1].replace(/<[^>]+>/g, '').trim();
+    console.log("📌 H1 태그에서 제목 추출 완료: " + finalTitle);
+  } else {
+    console.log("💡 H1 태그 미발견, JSON title 필드 사용: " + finalTitle);
   }
 
   console.log("-----------------------------------------");
@@ -947,11 +957,11 @@ async function run() {
     
     const planPrompt = "You are a professional blog content strategist. Based on the major topic \"" + seedTopic + "\", devise a 4-post content cluster strategy. " + 
       "Each of the 4 sub-topics MUST be distinct and cover a unique angle to avoid repetition. " + 
-      "Angle 1: Beginner's Comprehensive Guide & Concept, " +
-      "Angle 2: Advanced Technical Troubleshooting & Expert Secrets, " +
-      "Angle 3: Cost Analysis, Comparison & How to Choose services, " +
-      "Angle 4: Future Trends, Prevention & Pro-level Optimization. " +
-      "**CRITICAL**: Do NOT just append words to the seed topic. Create new, catchy, SEO-optimized titles for each. " + 
+      "Angle 1: Beginner's Comprehensive Guide & Concept (Example title style: 'What is X? A simple guide for starters'), " +
+      "Angle 2: Advanced Technical Troubleshooting & Expert Secrets (Example title style: 'Hidden settings of X that experts use'), " +
+      "Angle 3: Cost Analysis, Comparison & How to Choose services (Example title style: 'X vs Y: Honest cost comparison'), " +
+      "Angle 4: Future Trends, Prevention & Pro-level Optimization (Example title style: 'How to maintain X for 10 years without issues'). " +
+      "**CRITICAL**: DO NOT use the same words for all 4 titles. DO NOT just append words to the seed topic. Make each title look like a completely independent, high-click-through article. " + 
       "Return ONLY a JSON array of 4 strings (titles) in " + (config.blog_lang === 'en' ? 'English' : 'Korean') + ". Example: [\"Title1\", \"Title2\", \"Title3\", \"Title4\"]";
     
     let subKeywords = [];
@@ -966,14 +976,25 @@ async function run() {
     console.log("🎯 기획된 서브 주제: " + subKeywords.join(", "));
     console.log("\n====== [슈퍼 터보] 병렬 클러스터 모드 가동 (4 Sub 동시 진행) ======");
 
+    const angles = [
+      "Angle 1: Beginner's Comprehensive Guide (Focus on concepts, basic terms, and 'how to start')",
+      "Angle 2: Advanced Expert Secrets (Focus on technical troubleshooting, deep optimization, and hidden pro-tips)",
+      "Angle 3: Comparison & Cost Analysis (Focus on market prices, service comparisons, and 'how to choose' criteria)",
+      "Angle 4: Future Trends & Prevention (Focus on new tech trends, long-term maintenance, and problem prevention)"
+    ];
+
     const subPromises = subKeywords.slice(0, 4).map((subTarget, i) => {
-      // 각 포스트의 예약 발행 시각 설정 (첫 번째 포스트 이후 90~150분 간격 분산)
       const postTime = new Date(baseTime.getTime() + ((currentTimeOffset + (i * 120)) * 60 * 1000));
+      const angleDirective = "\n\n[CLUSTER_SUB_POST_ANGLE]: You are writing one of the 4 cluster posts. " + 
+        "Your specific perspective for THIS post is: **" + angles[i] + "**.\n" +
+        "**CRITICAL**: DO NOT write a general guide. Stay strictly focused on this angle. " +
+        "Your <h1> title MUST incorporate the essence of this angle and be DIFFERENT from a general title. " +
+        "Ensure the [TARGET_TOPIC] provided is your core title foundation, but expand it to be catchy and unique.";
       
       return (async () => {
         console.log("🚀 [서브 태스트 " + (i+1) + "] 작성 시작: " + subTarget + " (예약 시각: " + postTime.toLocaleString() + ")");
         try {
-          const res = await writeAndPost(model, subTarget, blogger, config.blog_id, postTime, config.blog_lang);
+          const res = await writeAndPost(model, subTarget, blogger, config.blog_id, postTime, config.blog_lang, angleDirective);
           return res;
         } catch (err) {
           console.error("❌ [서브 태스크 " + (i+1) + "] 실패: " + err.message);
@@ -992,13 +1013,15 @@ async function run() {
 
     const subContext = subPosts.map((p, idx) => "[SUB_POST_" + (idx + 1) + "] Title: " + p.title + " / URL: " + p.url).join('\n');
     const btnText = config.blog_lang === 'en' ? '👉 Read the Full Guide' : '👉 자세한 세부 가이드 보러가기';
-    const extraPrompt = "\n\n[CLUSTER_MAIN_PILLAR_DIRECTIVE]: You are writing the MAIN PILLAR post that connects " + subPosts.length + " sub-posts.\n" +
+    const pillarAngleTitle = seedTopic + (config.blog_lang === 'en' ? " (The Ultimate Oracle Guide)" : " (종결판 마스터 가이드)");
+    const extraPromptPillar = "\n\n[CLUSTER_MAIN_PILLAR_DIRECTIVE]: You are writing the MAIN PILLAR post (The Authority) that connects " + subPosts.length + " sub-posts.\n" +
+      "Your title MUST be the most authoritative and comprehensive-sounding one.\n" +
       "Here are the published sub-posts:\n" + subContext + "\n" +
       "**CRITICAL RULE**: Do NOT put all links at the end or in the TOC. Instead, distribute them! For each H2 section, integrate the topic of one sub-post naturally, and AT THE VERY END of that H2 section, you MUST insert a highly visible HTML button linking to that SUB_POST URL.\n" +
       "**LENGTH RULE**: The MAIN PILLAR post MUST be authoritative and comprehensive. Target length is 4,500 to 5,500 Korean characters. You MUST cover all sub-posts deeply. However, because of your physical 8,192 max token limit, prioritize closing the JSON structure flawlessly. A complete post is 100 times better than a long, broken one!\n" +
       "Example button HTML (use SINGLE quotes): <div style='text-align:center; margin:20px 0;'><a href='[INSERT_URL_HERE]' style='display:inline-block; padding:12px 24px; background:#3b82f6; color:#fff; font-weight:bold; border-radius:8px; text-decoration:none;'>" + btnText + "</a></div>";
 
-    await writeAndPost(model, seedTopic, blogger, config.blog_id, pillarTime, config.blog_lang, extraPrompt);
+    await writeAndPost(model, pillarAngleTitle, blogger, config.blog_id, pillarTime, config.blog_lang, extraPromptPillar);
 
   } else {
     const target = clusters.length > 0 ? clusters[Math.floor(Math.random() * clusters.length)] : "Blog Post";

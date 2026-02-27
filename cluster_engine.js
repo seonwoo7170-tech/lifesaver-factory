@@ -1,4 +1,3 @@
-
 const { google } = require('googleapis');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs');
@@ -19,10 +18,12 @@ async function searchWeb(query) {
 
 function clean(raw) {
   if (!raw) return '';
-  let t = raw.replace(/${BT}${BT}${BT}(json|html)?/gi, '').trim();
-  if (t.startsWith('{') && t.endsWith('}')) return t;
-  const match = t.match(/\{.*?\}/s);
-  return match ? match[0] : t;
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  if (start !== -1 && end !== -1 && end > start) {
+    return raw.substring(start, end + 1);
+  }
+  return raw.trim();
 }
 
 function cleanHTML(h) {
@@ -38,13 +39,14 @@ function insertSchema(c, title) {
     faqs.push({ q: m[1].replace(/<[^>]*>/g, '').trim(), a: m[2].replace(/<[^>]*>/g, '').trim() });
   }
   const s = {"@context": "https://schema.org", "@graph": [{"@type": "Article", "headline": title, "datePublished": new Date().toISOString() }, {"@type": "FAQPage", "mainEntity": faqs.map(f => ({"@type": "Question", "name": f.q, "acceptedAnswer": {"@type": "Answer", "text": f.a } })) }] };
-  return c + `\n<script type="application/ld+json">${DOLLAR}{JSON.stringify(s)}<\/script>`;
+  return c + `\n<script type="application/ld+json">${DOLLAR}{JSON.stringify(s)}<\\/script>`;
 }
 
 async function genImg(label, prompt, title, model) {
   const kieKey = process.env.KIE_API_KEY;
   const imgbbKey = process.env.IMGBB_API_KEY;
   let imageUrl = '';
+  console.log("🎨 [" + label + "] 생성중: " + prompt);
   if (kieKey) {
     try {
       const res = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', {model: 'z-image', input: {prompt: prompt + ", premium photography, 8k, professional lightning", aspect_ratio: "16:9" } }, {headers: {Authorization: 'Bearer ' + kieKey } });
@@ -78,9 +80,9 @@ async function writeAndPost(model, target, blogger, bId, pTime) {
   const currentDate = new Date().toISOString().split('T')[0];
   const latestNews = await searchWeb(target + " 최신 정보");
   const archiveRes = await blogger.posts.list({blogId: bId, maxResults: 50, fields: 'items(title,url)' });
-  const archiveContext = (archiveRes.data.items || []).map(p => p.title + " (" + p.url + ")").join("\\n");
+  const archiveContext = (archiveRes.data.items || []).map(p => p.title + " (" + p.url + ")").join("\n");
   const selectedNarrative = NARRATIVES[Math.floor(Math.random() * NARRATIVES.length)];
-  const finalPrompt = MASTER_GUIDELINE + "\\n[CURRENT_DATE: " + currentDate + "]\\n[LATEST_RESEARCH_DATA]:\\n" + latestNews + "\\n[SELECTED_PERSONA]: " + selectedNarrative + "\\n[BLOG_ARCHIVES]:\\n" + archiveContext + "\\n[TARGET_TOPIC]: " + target;
+  const finalPrompt = MASTER_GUIDELINE + "\n[CURRENT_DATE: " + currentDate + "]\n[LATEST_RESEARCH_DATA]:\n" + latestNews + "\n[SELECTED_PERSONA]: " + selectedNarrative + "\n[BLOG_ARCHIVES]:\n" + archiveContext + "\n[TARGET_TOPIC]: " + target;
   const result = await model.generateContent(finalPrompt);
   const data = JSON.parse(clean(result.response.text()));
   const [imgTop, imgMid1, imgMid2, imgBtm] = await Promise.all([
@@ -100,7 +102,10 @@ async function writeAndPost(model, target, blogger, bId, pTime) {
 async function run() {
   const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({model: 'gemini-2.0-flash' });
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash',
+    generationConfig: { responseMimeType: "application/json" }
+  });
   const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
   auth.setCredentials({refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
   const blogger = google.blogger({version: 'v3', auth });
@@ -108,4 +113,3 @@ async function run() {
   await writeAndPost(model, target, blogger, config.blog_id, new Date());
 }
 run().catch(err => { console.error("❌ 오류:", err); process.exit(1); });
-      

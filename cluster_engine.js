@@ -64,7 +64,7 @@ function cleanHTML(h){
 
     function insertSchema(c, title) {
         const faqs = [];
-        const rx = /<strong>Q.s*(.+?)</strong>s*<p>A.s*(.+?)</p>/gi;
+        const rx = /<strong>Q\.\s*(.+?)<\/strong>\s*<p>A\.\s*(.+?)<\/p>/gi;
         let m;
         while ((m = rx.exec(c)) !== null && faqs.length < 10) {
             faqs.push({ q: m[1].replace(/<[^>]*>/g, '').trim(), a: m[2].replace(/<[^>]*>/g, '').trim() });
@@ -73,7 +73,7 @@ function cleanHTML(h){
         const fe = faqs.map(f => ({ "@type": "Question", "name": f.q, "acceptedAnswer": { "@type": "Answer", "text": f.a } }));
         const s = { "@context": "https://schema.org", "@graph": [{ "@type": "Article", "headline": title, "datePublished": new Date().toISOString() }, { "@type": "FAQPage", "mainEntity": fe }] };
         return c + `
-<script type="application/ld+json">${JSON.stringify(s)}</script>`;
+<script type="application/ld+json">${JSON.stringify(s)}<\/script>`;
     }
 
 async function genImg(prompt, title, model) {

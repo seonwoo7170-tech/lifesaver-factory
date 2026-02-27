@@ -39,7 +39,7 @@ function insertSchema(c, title) {
     faqs.push({ q: m[1].replace(/<[^>]*>/g, '').trim(), a: m[2].replace(/<[^>]*>/g, '').trim() });
   }
   const s = {"@context": "https://schema.org", "@graph": [{"@type": "Article", "headline": title, "datePublished": new Date().toISOString() }, {"@type": "FAQPage", "mainEntity": faqs.map(f => ({"@type": "Question", "name": f.q, "acceptedAnswer": {"@type": "Answer", "text": f.a } })) }] };
-  return c + `\n<script type="application/ld+json">${DOLLAR}{JSON.stringify(s)}<\\/script>`;
+  return c + `\n<script type="application/ld+json">${JSON.stringify(s)}<\\/script>`;
 }
 
 async function genImg(label, prompt, title, model) {
@@ -91,7 +91,9 @@ async function writeAndPost(model, target, blogger, bId, pTime) {
     genImg("MID2", data.image_prompts.mid2 || data.image_prompts["3"], data.title, model),
     genImg("BTM", data.image_prompts.btm || data.image_prompts["4"], data.title, model)
   ]);
-  const wrapImg = (i, t, h) => `${BT}<div style="text-align:center; margin:35px 0;"><img src="${DOLLAR}{i.url}" alt="${DOLLAR}{i.alt}" title="${DOLLAR}{h}" style="width:100%; border-radius:15px;"><p style="font-size:12px; color:#888; margin-top:8px;">${DOLLAR}{i.alt}</p></div>${BT}`;
+  const wrapImg = (i, t, h) => `
+<div style="text-align:center; margin:35px 0;"><img src="${i.url}" alt="${i.alt}" title="${h}" style="width:100%; border-radius:15px;"><p style="font-size:12px; color:#888; margin-top:8px;">${i.alt}</p></div>
+`;
   let content = cleanHTML(data.content);
   content = content.replace('[[IMG_MID1]]', wrapImg(imgMid1, imgMid1.alt, data.title)).replace('[[IMG_MID2]]', wrapImg(imgMid2, imgMid2.alt, data.title)).replace('[[IMG_BTM]]', wrapImg(imgBtm, imgBtm.alt, data.title));
   const fullHtml = wrapImg(imgTop, imgTop.alt, data.title) + insertSchema(content, data.title);

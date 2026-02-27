@@ -116,6 +116,7 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   const finalPrompt = MASTER_GUIDELINE + "\n[CURRENT_DATE: " + currentDate + "]\n[LATEST_RESEARCH_DATA]:\n" + latestNews + "\n[SELECTED_PERSONA]: " + selectedNarrative + "\n[BLOG_ARCHIVES]:\n" + archiveContext + "\n[TARGET_TOPIC]: " + target + "\n[TARGET_LANGUAGE]: " + targetLangStr + extraPrompt;
   
   console.log("✍️ [STEP 3] AI 지문 파쇄 및 블로그 포스팅 원고 작성 중... (이 작업은 1~2분 소요될 수 있습니다)");
+  const result = await model.generateContent(finalPrompt);
   const rawText = result.response.text();
   let data;
   try {

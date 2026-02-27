@@ -791,7 +791,7 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
 
   console.log("-----------------------------------------");
   console.log("📝 [💡 생성된 목차 및 뼈대 구조 확인]");
-  const hTags = data.content.match(/<h[23][^>]*>(.*?)</h[23]>/gi) || [];
+  const hTags = data.content.match(/<h[23][^>]*>(.*?)<\/h[23]>/gi) || [];
   hTags.forEach(tag => {
     const isH3 = tag.startsWith("<h3");
     const text = tag.replace(/<[^>]+>/g, "").trim();
@@ -814,7 +814,7 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   if (!content.includes(imgTop.url)) content = wrapImg(imgTop) + content;
   console.log("✅ [STEP 4] 블로그 발행 준비 및 통합 완료");
   // [가독성 향상] HTML 태그 뒤에 줄바꿈을 넣어 소스코드 가독성 확보 (Prettify)
-  const fullHtml = content.replace(/>/g, '>\n').trim();
+  const fullHtml = content.replace(/>/g, '>\\n').trim();
   
   const labels = Array.isArray(data.labels) ? data.labels : (data.labels || "").split(',').map(s=>s.trim()).filter(s=>s);
   const searchDesc = data.description || '';

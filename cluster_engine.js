@@ -693,12 +693,31 @@ async function searchWeb(query, lang) {
 
 function clean(raw) {
   if (!raw) return '';
-  const start = raw.indexOf('{');
-  const end = raw.lastIndexOf('}');
-  if (start !== -1 && end !== -1 && end > start) {
-    return raw.substring(start, end + 1);
+  let json = raw.trim();
+  const start = json.indexOf('{');
+  const end = json.lastIndexOf('}');
+  if (start !== -1) {
+    if (end !== -1 && end > start) {
+      json = json.substring(start, end + 1);
+    } else {
+      json = json.substring(start);
+    }
   }
-  return raw.trim();
+  json = json.trim();
+try {
+  JSON.parse(json);
+  return json;
+} catch (e) {
+  console.log("⚠️ 끊긴 JSON 감지, 긴급 복구 시스템 가동...");
+  let repaired = json;
+  if (!repaired.endsWith('}')) {
+    const lastQuote = repaired.lastIndexOf('"');
+    const lastColon = repaired.lastIndexOf(':');
+    if (lastQuote > lastColon) repaired += '"';
+    repaired += ' }';
+  }
+  try { JSON.parse(repaired); return repaired; } catch (e2) { return json; }
+}
 }
 
 function cleanHTML(h) {
@@ -719,12 +738,12 @@ async function genImg(label, detail, fallbackTitle, model) {
   let imageUrl = '';
   if (kieKey) {
     try {
-      const res = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', {model: 'z-image', input: {prompt: pText + ", premium photography, 8k, professional lightning", aspect_ratio: "16:9" } }, {headers: {Authorization: 'Bearer ' + kieKey } });
+      const res = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { model: 'z-image', input: { prompt: pText + ", premium photography, 8k, professional lightning", aspect_ratio: "16:9" } }, { headers: { Authorization: 'Bearer ' + kieKey } });
       const tid = res.data.taskId || res.data.data?.taskId;
       if (tid) {
         for (let i = 0; i < 40; i++) {
           await new Promise(r => setTimeout(r, 4000));
-          const check = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, {headers: {Authorization: 'Bearer ' + kieKey } });
+          const check = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey } });
           const st = check.data.state || check.data.data?.state;
           if (st === 'success') {
             const rj = check.data.resultJson || check.data.data?.resultJson;
@@ -733,24 +752,24 @@ async function genImg(label, detail, fallbackTitle, model) {
           }
         }
       }
-    } catch(e) {}
+    } catch (e) { }
   }
   if (imageUrl && imgbbKey) {
     try {
       const form = new FormData();
       form.append('image', imageUrl);
-      const upload = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, {headers: form.getHeaders() });
-      return {url: upload.data.data.url, alt: aText, title: tText };
-    } catch(e) { return {url: imageUrl, alt: aText, title: tText }; }
+      const upload = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders() });
+      return { url: upload.data.data.url, alt: aText, title: tText };
+    } catch (e) { return { url: imageUrl, alt: aText, title: tText }; }
   }
-  return {url: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280", alt: aText, title: tText };
+  return { url: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280", alt: aText, title: tText };
 }
 
 async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPrompt = '') {
   console.log("=========================================");
   console.log("🚀 [STEP 1] 클러스터 블로그 엔진 가동 시작");
   console.log("🎯 타겟 키워드: " + target + " / 타겟 언어: " + lang);
-  
+
   console.log("🔍 [STEP 2] 최신 데이터 웹 검색 및 자료 수집 중...");
   const currentDate = new Date().toISOString().split('T')[0];
   const searchSuffix = lang === 'en' ? " latest info" : " 최신 정보";
@@ -766,7 +785,7 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
 
   let archiveContext = "EMPTY_ARCHIVE";
   try {
-    const archiveRes = await blogger.posts.list({blogId: bId, maxResults: 50, fields: 'items(title,url)' });
+    const archiveRes = await blogger.posts.list({ blogId: bId, maxResults: 50, fields: 'items(title,url)' });
     const items = archiveRes.data.items || [];
     if (items.length > 0) archiveContext = items.map(p => p.title + " (" + p.url + ")").join("\n");
     console.log("📎 [STEP 2-1] 내부 링크용 기존 블로그 포스팅 " + items.length + "개 로드 완료");
@@ -776,7 +795,7 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   const selectedNarrative = NARRATIVES[Math.floor(Math.random() * NARRATIVES.length)];
   const targetLangStr = lang === 'en' ? 'English (US)' : 'Korean';
   const finalPrompt = MASTER_GUIDELINE + "\n[CURRENT_DATE: " + currentDate + "]\n[LATEST_RESEARCH_DATA]:\n" + latestNews + "\n[SELECTED_PERSONA]: " + selectedNarrative + "\n[BLOG_ARCHIVES]:\n" + archiveContext + "\n[TARGET_TOPIC]: " + target + "\n[TARGET_LANGUAGE]: " + targetLangStr + extraPrompt;
-  
+
   console.log("✍️ [STEP 3] AI 지문 파쇄 및 블로그 포스팅 원고 작성 중...");
   const result = await model.generateContent(finalPrompt);
   const rawText = result.response.text();
@@ -791,7 +810,8 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
 
   console.log("-----------------------------------------");
   console.log("📝 [💡 생성된 목차 및 뼈대 구조 확인]");
-  const hTags = data.content.match(/<h[23][^>]*>(.*?)<\/h[23]>/gi) || [];
+  const hRegex = new RegExp("<h[23][^>]*>(.*?)<\/h[23]>", "gi");
+  const hTags = data.content.match(hRegex) || [];
   hTags.forEach(tag => {
     const isH3 = tag.startsWith("<h3");
     const text = tag.replace(/<[^>]+>/g, "").trim();
@@ -804,7 +824,7 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
     genImg("MID_IMG_3", data.image_prompts.IMG_3 || data.image_prompts["3"], data.title, model),
     genImg("BTM_IMG_4", data.image_prompts.IMG_4 || data.image_prompts["4"], data.title, model)
   ]);
-  const wrapImg = (i) => `<div style="text-align:center; margin:35px 0;"><img src="${i.url}" alt="${i.alt}" title="${i.title}" style="width:100%; border-radius:15px;"><p style="font-size:12px; color:#888; margin-top:8px;">${i.alt}</p></div>`;
+  const wrapImg = (i) => '<div style="text-align:center; margin:35px 0;"><img src="' + i.url + '" alt="' + i.alt + '" title="' + i.title + '" style="width:100%; border-radius:15px;"><p style="font-size:12px; color:#888; margin-top:8px;">' + i.alt + '</p></div>';
   let content = cleanHTML(data.content);
   content = content
     .replaceAll('[[IMG_1]]', wrapImg(imgTop)).replaceAll('[[IMG_MID1]]', wrapImg(imgTop))
@@ -849,34 +869,58 @@ async function run() {
   const blogger = google.blogger({ version: 'v3', auth });
   const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
 
-  let currentTimeOffset = 0;
+  // [랜덤 셔플 엔진] 입력된 키워드 리스트를 무작위로 섞음
+  let clusters = config.clusters ? [...config.clusters] : [];
+  for (let i = clusters.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [clusters[i], clusters[j]] = [clusters[j], clusters[i]];
+  }
+
+  // [스마트 스케줄링] 첫 번째 글도 0~60분 사이의 랜덤 딜레이로 시작
+  let currentTimeOffset = Math.floor(Math.random() * 60); 
   const baseTime = new Date();
 
   if (config.post_mode === 'cluster') {
     const subPosts = [];
-    const maxSubs = config.clusters.length;
-    console.log("\n====== 풀 클러스터 모드 가동 시작 (" + maxSubs + " Sub + 1 Main) ======");
-    for (let i = 0; i < maxSubs; i++) {
-      console.log("\n--- [SUB-POST " + (i+1) + "/" + maxSubs + "] 작성 시작 ---");
+    const seedTopic = config.pillar_topic || (clusters.length > 0 ? clusters[0] : "Life Efficiency");
+    
+    console.log("\n====== [기획부장 출격] 오늘의 대주제: [" + seedTopic + "] ======");
+    console.log("📝 AI가 대주제를 분석하여 4개의 세부 서브 주제를 기획 중...");
+    
+    const planPrompt = "You are a strategic content planner. Based on the broad topic \"" + seedTopic + "\", generate 4 distinct, SEO-optimized sub-topic keywords for a blog cluster. " + 
+      "Each sub-topic should cover a different angle (e.g., Guide, Problem Solving, Comparison, Future Trends). " + 
+      "Return ONLY a JSON array of 4 strings in " + (config.blog_lang === 'en' ? 'English' : 'Korean') + ". Example: [\"angle1\", \"angle2\", \"angle3\", \"angle4\"]";
+    
+    let subKeywords = [];
+    try {
+      const planRes = await model.generateContent(planPrompt);
+      subKeywords = JSON.parse(clean(planRes.response.text()));
+    } catch (e) {
+      console.log("⚠️ 기획 실패, 기본 키워드 활용");
+      subKeywords = ["기본 가이드", "실전 팁", "문제 해결", "심화 분석"].map(a => seedTopic + " " + a);
+    }
+
+    console.log("🎯 기획된 서브 주제: " + subKeywords.join(", "));
+    console.log("\n====== 풀 클러스터 모드 가동 (4 Sub + 1 Main) ======");
+
+    for (let i = 0; i < 4; i++) {
+      const subTarget = subKeywords[i] || (seedTopic + " Part " + (i+1));
+      console.log("\n--- [SUB-POST " + (i+1) + "/4] 작성 시작: " + subTarget + " ---");
       
-      // [스마트 예약 시스템] 60~150분 사이의 무작위 간격 계산
       const postTime = new Date(baseTime.getTime() + (currentTimeOffset * 60 * 1000));
       console.log("⏰ 예약 발행 예정 시각: " + postTime.toLocaleString());
 
-      const subRes = await writeAndPost(model, config.clusters[i], blogger, config.blog_id, postTime, config.blog_lang);
+      const subRes = await writeAndPost(model, subTarget, blogger, config.blog_id, postTime, config.blog_lang);
       if (subRes && subRes.url) subPosts.push(subRes);
       
-      // 다음 포스팅을 위해 오프셋 증가 (60~150분)
       const nextDelay = Math.floor(Math.random() * (150 - 60 + 1)) + 60;
       currentTimeOffset += nextDelay;
 
-      if (i < maxSubs - 1) {
-        console.log("⏳ 다음 원고 생성 준비 중... (30초)");
-        await new Promise(r => setTimeout(r, 30000));
-      }
+      console.log("⏳ 다음 원고 생성 준비 중... (30초)");
+      await new Promise(r => setTimeout(r, 30000));
     }
     
-    console.log("\n====== 메인 필러 포스트(Main Pillar) 작성 시작 ======");
+    console.log("\n====== 메인 필러 포스트(Main Pillar) 작성 시작: " + seedTopic + " ======");
     const pillarTime = new Date(baseTime.getTime() + (currentTimeOffset * 60 * 1000));
     console.log("⏰ 메인 필러 예약 발행 예정 시각: " + pillarTime.toLocaleString());
 
@@ -885,13 +929,13 @@ async function run() {
     const extraPrompt = "\\n\\n[CLUSTER_MAIN_PILLAR_DIRECTIVE]: You are writing the MAIN PILLAR post that connects " + subPosts.length + " sub-posts.\\n" +
       "Here are the published sub-posts:\\n" + subContext + "\\n" +
       "**CRITICAL RULE**: Do NOT put all links at the end or in the TOC. Instead, distribute them! For each H2 section, integrate the topic of one sub-post naturally, and AT THE VERY END of that H2 section, you MUST insert a highly visible HTML button linking to that SUB_POST URL.\\n" +
-      "**LENGTH RULE**: The MAIN PILLAR post MUST be massive and comprehensive. Target length is 5,000 to 6,500 Korean characters. You MUST cover all sub-posts deeply. However, because of your physical 8192 max token limit, if you feel you are getting close to the limit, prioritize closing the JSON structure flawlessly to prevent Parse errors. Push your length to the absolute maximum without breaking!\\n" +
+      "**LENGTH RULE**: The MAIN PILLAR post MUST be massive. Aim for 5,000 to 6,500 Korean characters. However, as the 8,192 token limit is a hard physical ceiling for Gemini 2.0 Flash, you MUST manage your output length strategically. If you are approaching the limit, wrap up your points quickly and PRIORITIZE closing the JSON structure correctly. It is better to have 5,000 high-quality characters with a perfect JSON than 7,000 characters with a broken JSON.\\n" +
       "Example button HTML (use SINGLE quotes): <div style='text-align:center; margin:20px 0;'><a href='[INSERT_URL_HERE]' style='display:inline-block; padding:12px 24px; background:#3b82f6; color:#fff; font-weight:bold; border-radius:8px; text-decoration:none;'>" + btnText + "</a></div>";
 
-    await writeAndPost(model, config.pillar_topic, blogger, config.blog_id, pillarTime, config.blog_lang, extraPrompt);
+    await writeAndPost(model, seedTopic, blogger, config.blog_id, pillarTime, config.blog_lang, extraPrompt);
 
   } else {
-    const target = config.clusters[Math.floor(Math.random() * config.clusters.length)];
+    const target = clusters.length > 0 ? clusters[Math.floor(Math.random() * clusters.length)] : "Blog Post";
     await writeAndPost(model, target, blogger, config.blog_id, baseTime, config.blog_lang);
   }
 }

@@ -816,8 +816,28 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   // [가독성 향상] HTML 태그 뒤에 줄바꿈을 넣어 소스코드 가독성 확보 (Prettify)
   const fullHtml = content.replace(/>/g, '>
 ').trim();
+  
   const labels = Array.isArray(data.labels) ? data.labels : (data.labels || "").split(',').map(s=>s.trim()).filter(s=>s);
-  const res = await blogger.posts.insert({blogId: bId, requestBody: {title: data.title || target, labels: labels, content: fullHtml, customMetaData: data.description || '', published: pTime.toISOString() } });
+  const searchDesc = data.description || '';
+  
+  console.log("-----------------------------------------");
+  console.log("📊 [발행 메타데이터 확인]");
+  console.log("   ➤ 제목: " + (data.title || target));
+  console.log("   ➤ 라벨: " + labels.join(', '));
+  console.log("   ➤ 검색 설명: " + (searchDesc ? searchDesc.substring(0, 50) + "..." : "없음"));
+  console.log("   ➤ (참고) Blogger API는 정책상 '맞춤 URL(Permalink)' 설정을 허용하지 않아 자동 생성됩니다.");
+  console.log("-----------------------------------------");
+
+  const res = await blogger.posts.insert({
+    blogId: bId, 
+    requestBody: {
+      title: data.title || target, 
+      labels: labels, 
+      content: fullHtml, 
+      customMetaData: searchDesc, // 검색 설명 필드
+      published: pTime.toISOString() 
+    } 
+  });
   console.log("🎉 [STEP 5] 블로그 자동 포스팅 최종 발행 성공!!! (" + res.data.url + ")");
   return {url: res.data.url, title: data.title };
 }
@@ -830,21 +850,37 @@ async function run() {
   const blogger = google.blogger({ version: 'v3', auth });
   const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
 
+  let currentTimeOffset = 0;
+  const baseTime = new Date();
+
   if (config.post_mode === 'cluster') {
     const subPosts = [];
     const maxSubs = config.clusters.length;
     console.log("\n====== 풀 클러스터 모드 가동 시작 (" + maxSubs + " Sub + 1 Main) ======");
     for (let i = 0; i < maxSubs; i++) {
       console.log("\n--- [SUB-POST " + (i+1) + "/" + maxSubs + "] 작성 시작 ---");
-      const subRes = await writeAndPost(model, config.clusters[i], blogger, config.blog_id, new Date(), config.blog_lang);
+      
+      // [스마트 예약 시스템] 60~150분 사이의 무작위 간격 계산
+      const postTime = new Date(baseTime.getTime() + (currentTimeOffset * 60 * 1000));
+      console.log("⏰ 예약 발행 예정 시각: " + postTime.toLocaleString());
+
+      const subRes = await writeAndPost(model, config.clusters[i], blogger, config.blog_id, postTime, config.blog_lang);
       if (subRes && subRes.url) subPosts.push(subRes);
+      
+      // 다음 포스팅을 위해 오프셋 증가 (60~150분)
+      const nextDelay = Math.floor(Math.random() * (150 - 60 + 1)) + 60;
+      currentTimeOffset += nextDelay;
+
       if (i < maxSubs - 1) {
-        console.log("⏳ 자동화 감지 회피 대기 중... (60초)");
-        await new Promise(r => setTimeout(r, 60000));
+        console.log("⏳ 다음 원고 생성 준비 중... (30초)");
+        await new Promise(r => setTimeout(r, 30000));
       }
     }
-    console.log("\n====== 메인 필러 포스트(Main Pillar) 작성 대기 중 ======");
-    await new Promise(r => setTimeout(r, 60000));
+    
+    console.log("\n====== 메인 필러 포스트(Main Pillar) 작성 시작 ======");
+    const pillarTime = new Date(baseTime.getTime() + (currentTimeOffset * 60 * 1000));
+    console.log("⏰ 메인 필러 예약 발행 예정 시각: " + pillarTime.toLocaleString());
+
     const subContext = subPosts.map((p, idx) => "[SUB_POST_" + (idx + 1) + "] Title: " + p.title + " / URL: " + p.url).join('\\n');
     const btnText = config.blog_lang === 'en' ? '👉 Read the Full Guide' : '👉 자세한 세부 가이드 보러가기';
     const extraPrompt = "\\n\\n[CLUSTER_MAIN_PILLAR_DIRECTIVE]: You are writing the MAIN PILLAR post that connects " + subPosts.length + " sub-posts.\\n" +
@@ -853,11 +889,11 @@ async function run() {
       "**LENGTH RULE**: The MAIN PILLAR post MUST be massive and comprehensive. Target length is 5,000 to 6,500 Korean characters. You MUST cover all sub-posts deeply. However, because of your physical 8192 max token limit, if you feel you are getting close to the limit, prioritize closing the JSON structure flawlessly to prevent Parse errors. Push your length to the absolute maximum without breaking!\\n" +
       "Example button HTML (use SINGLE quotes): <div style='text-align:center; margin:20px 0;'><a href='[INSERT_URL_HERE]' style='display:inline-block; padding:12px 24px; background:#3b82f6; color:#fff; font-weight:bold; border-radius:8px; text-decoration:none;'>" + btnText + "</a></div>";
 
-    await writeAndPost(model, config.pillar_topic, blogger, config.blog_id, new Date(), config.blog_lang, extraPrompt);
+    await writeAndPost(model, config.pillar_topic, blogger, config.blog_id, pillarTime, config.blog_lang, extraPrompt);
 
   } else {
     const target = config.clusters[Math.floor(Math.random() * config.clusters.length)];
-    await writeAndPost(model, target, blogger, config.blog_id, new Date(), config.blog_lang);
+    await writeAndPost(model, target, blogger, config.blog_id, baseTime, config.blog_lang);
   }
 }
 run().catch(err => { console.error("❌ 오류:", err); process.exit(1); });

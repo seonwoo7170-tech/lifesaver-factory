@@ -906,9 +906,14 @@ async function run() {
     console.log("\n====== [기획부장 출격] 오늘의 대주제: [" + seedTopic + "] ======");
     console.log("📝 AI가 대주제를 분석하여 4개의 세부 서브 주제를 기획 중...");
     
-    const planPrompt = "You are a strategic content planner. Based on the broad topic \"" + seedTopic + "\", generate 4 distinct, SEO-optimized sub-topic keywords for a blog cluster. " + 
-      "Each sub-topic should cover a different angle (e.g., Guide, Problem Solving, Comparison, Future Trends). " + 
-      "Return ONLY a JSON array of 4 strings in " + (config.blog_lang === 'en' ? 'English' : 'Korean') + ". Example: [\"angle1\", \"angle2\", \"angle3\", \"angle4\"]";
+    const planPrompt = "You are a professional blog content strategist. Based on the major topic \"" + seedTopic + "\", devise a 4-post content cluster strategy. " + 
+      "Each of the 4 sub-topics MUST be distinct and cover a unique angle to avoid repetition. " + 
+      "Angle 1: Beginner's Comprehensive Guide & Concept, " +
+      "Angle 2: Advanced Technical Troubleshooting & Expert Secrets, " +
+      "Angle 3: Cost Analysis, Comparison & How to Choose services, " +
+      "Angle 4: Future Trends, Prevention & Pro-level Optimization. " +
+      "**CRITICAL**: Do NOT just append words to the seed topic. Create new, catchy, SEO-optimized titles for each. " +
+      "Return ONLY a JSON array of 4 strings (titles) in " + (config.blog_lang === 'en' ? 'English' : 'Korean') + ". Example: [\"Title1\", \"Title2\", \"Title3\", \"Title4\"]";
     
     let subKeywords = [];
     try {

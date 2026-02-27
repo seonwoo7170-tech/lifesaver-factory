@@ -686,11 +686,7 @@ async function searchWeb(query, lang) {
   const hl = lang === 'en' ? 'en' : 'ko';
   try {
     const res = await axios.post('https://google.serper.dev/search', { q: query, gl, hl }, { headers: { 'X-API-KEY': key } });
-    return res.data.organic.slice(0, 5).map(o => "[출처: " + o.title + "]
-" + o.snippet + "
-URL: " + o.link).join("
-
-");
+    return res.data.organic.slice(0, 5).map(o => "[출처: " + o.title + "]\n" + o.snippet + "\nURL: " + o.link).join("\n\n");
   } catch (e) { return "검색 실패: " + e.message; }
 }
 
@@ -826,8 +822,7 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   if (latestNews.length > 30) {
     console.log("-----------------------------------------");
     console.log("🌐 [SERPER 참고 자료 요약]");
-    const lines = latestNews.split("
-").filter(l => l.includes("[출처:"));
+    const lines = latestNews.split("\n").filter(l => l.includes("[출처:"));
     lines.forEach(l => console.log("   ➤ " + l));
     console.log("-----------------------------------------");
   }
@@ -836,23 +831,14 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   try {
     const archiveRes = await blogger.posts.list({ blogId: bId, maxResults: 50, fields: 'items(title,url)' });
     const items = archiveRes.data.items || [];
-    if (items.length > 0) archiveContext = items.map(p => p.title + " (" + p.url + ")").join("
-");
+    if (items.length > 0) archiveContext = items.map(p => p.title + " (" + p.url + ")").join("\n");
     console.log("📎 [STEP 2-1] 내부 링크용 기존 블로그 포스팅 " + items.length + "개 로드 완료");
   } catch (e) {
     console.log("⚠️ 내부 블로그 포스팅 로드 실패 (추측성 링크 생성 차단됨)");
   }
   const selectedNarrative = NARRATIVES[Math.floor(Math.random() * NARRATIVES.length)];
   const targetLangStr = lang === 'en' ? 'English (US)' : 'Korean';
-  const finalPrompt = MASTER_GUIDELINE + "
-[CURRENT_DATE: " + currentDate + "]
-[LATEST_RESEARCH_DATA]:
-" + latestNews + "
-[SELECTED_PERSONA]: " + selectedNarrative + "
-[BLOG_ARCHIVES]:
-" + archiveContext + "
-[TARGET_TOPIC]: " + target + "
-[TARGET_LANGUAGE]: " + targetLangStr + extraPrompt;
+  const finalPrompt = MASTER_GUIDELINE + "\n[CURRENT_DATE: " + currentDate + "]\n[LATEST_RESEARCH_DATA]:\n" + latestNews + "\n[SELECTED_PERSONA]: " + selectedNarrative + "\n[BLOG_ARCHIVES]:\n" + archiveContext + "\n[TARGET_TOPIC]: " + target + "\n[TARGET_LANGUAGE]: " + targetLangStr + extraPrompt;
 
   console.log("✍️ [STEP 3] AI 지문 파쇄 및 블로그 포스팅 원고 작성 중...");
   const result = await model.generateContent(finalPrompt);
@@ -866,9 +852,7 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
     }
   } catch (err) {
     console.error("❌ [치명적 오류] AI가 생성한 JSON 데이터 파싱 실패!");
-    console.error("[원음 데이터 시작]==============
-" + rawText + "
-==============[원음 데이터 끝]");
+    console.error("[원음 데이터 시작]==============\n" + rawText + "\n==============[원음 데이터 끝]");
     throw err;
   }
 
@@ -898,8 +882,7 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   if (!content.includes(imgTop.url)) content = wrapImg(imgTop) + content;
   console.log("✅ [STEP 4] 블로그 발행 준비 및 통합 완료");
   // [가독성 향상] HTML 태그 뒤에 줄바꿈을 넣어 소스코드 가독성 확보 (Prettify)
-  const fullHtml = content.replace(/>/g, '>
-').trim();
+  const fullHtml = content.replace(/>/g, '>\\n').trim();
   
   const labels = Array.isArray(data.labels) ? data.labels : (data.labels || "").split(',').map(s=>s.trim()).filter(s=>s);
   const searchDesc = data.description || '';
@@ -949,8 +932,7 @@ async function run() {
     const subPosts = [];
     const seedTopic = config.pillar_topic || (clusters.length > 0 ? clusters[0] : "Life Efficiency");
     
-    console.log("
-====== [기획부장 출격] 오늘의 대주제: [" + seedTopic + "] ======");
+    console.log("\n====== [기획부장 출격] 오늘의 대주제: [" + seedTopic + "] ======");
     console.log("📝 AI가 대주제를 분석하여 4개의 세부 서브 주제를 기획 중...");
     
     const planPrompt = "You are a professional blog content strategist. Based on the major topic \"" + seedTopic + "\", devise a 4-post content cluster strategy. " + 
@@ -972,13 +954,11 @@ async function run() {
     }
 
     console.log("🎯 기획된 서브 주제: " + subKeywords.join(", "));
-    console.log("
-====== 풀 클러스터 모드 가동 (4 Sub + 1 Main) ======");
+    console.log("\n====== 풀 클러스터 모드 가동 (4 Sub + 1 Main) ======");
 
     for (let i = 0; i < 4; i++) {
       const subTarget = subKeywords[i] || (seedTopic + " Part " + (i+1));
-      console.log("
---- [SUB-POST " + (i+1) + "/4] 작성 시작: " + subTarget + " ---");
+      console.log("\n--- [SUB-POST " + (i+1) + "/4] 작성 시작: " + subTarget + " ---");
       
       const postTime = new Date(baseTime.getTime() + (currentTimeOffset * 60 * 1000));
       console.log("⏰ 예약 발행 예정 시각: " + postTime.toLocaleString());
@@ -993,25 +973,16 @@ async function run() {
       await new Promise(r => setTimeout(r, 30000));
     }
     
-    console.log("
-====== 메인 필러 포스트(Main Pillar) 작성 시작: " + seedTopic + " ======");
+    console.log("\n====== 메인 필러 포스트(Main Pillar) 작성 시작: " + seedTopic + " ======");
     const pillarTime = new Date(baseTime.getTime() + (currentTimeOffset * 60 * 1000));
     console.log("⏰ 메인 필러 예약 발행 예정 시각: " + pillarTime.toLocaleString());
 
-    const subContext = subPosts.map((p, idx) => "[SUB_POST_" + (idx + 1) + "] Title: " + p.title + " / URL: " + p.url).join('
-');
+    const subContext = subPosts.map((p, idx) => "[SUB_POST_" + (idx + 1) + "] Title: " + p.title + " / URL: " + p.url).join('\\n');
     const btnText = config.blog_lang === 'en' ? '👉 Read the Full Guide' : '👉 자세한 세부 가이드 보러가기';
-    const extraPrompt = "
-
-[CLUSTER_MAIN_PILLAR_DIRECTIVE]: You are writing the MAIN PILLAR post that connects " + subPosts.length + " sub-posts.
-" +
-      "Here are the published sub-posts:
-" + subContext + "
-" +
-      "**CRITICAL RULE**: Do NOT put all links at the end or in the TOC. Instead, distribute them! For each H2 section, integrate the topic of one sub-post naturally, and AT THE VERY END of that H2 section, you MUST insert a highly visible HTML button linking to that SUB_POST URL.
-" +
-      "**LENGTH RULE**: The MAIN PILLAR post MUST be authoritative and comprehensive. Target length is 4,500 to 5,500 Korean characters. You MUST cover all sub-posts deeply. However, because of your physical 8,192 max token limit, prioritize closing the JSON structure flawlessly. A complete post is 100 times better than a long, broken one!
-" +
+    const extraPrompt = "\\n\\n[CLUSTER_MAIN_PILLAR_DIRECTIVE]: You are writing the MAIN PILLAR post that connects " + subPosts.length + " sub-posts.\\n" +
+      "Here are the published sub-posts:\\n" + subContext + "\\n" +
+      "**CRITICAL RULE**: Do NOT put all links at the end or in the TOC. Instead, distribute them! For each H2 section, integrate the topic of one sub-post naturally, and AT THE VERY END of that H2 section, you MUST insert a highly visible HTML button linking to that SUB_POST URL.\\n" +
+      "**LENGTH RULE**: The MAIN PILLAR post MUST be authoritative and comprehensive. Target length is 4,500 to 5,500 Korean characters. You MUST cover all sub-posts deeply. However, because of your physical 8,192 max token limit, prioritize closing the JSON structure flawlessly. A complete post is 100 times better than a long, broken one!\\n" +
       "Example button HTML (use SINGLE quotes): <div style='text-align:center; margin:20px 0;'><a href='[INSERT_URL_HERE]' style='display:inline-block; padding:12px 24px; background:#3b82f6; color:#fff; font-weight:bold; border-radius:8px; text-decoration:none;'>" + btnText + "</a></div>";
 
     await writeAndPost(model, seedTopic, blogger, config.blog_id, pillarTime, config.blog_lang, extraPrompt);

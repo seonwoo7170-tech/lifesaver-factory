@@ -9,11 +9,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: npm install googleapis @google/generative-ai axios form-data
+      - run: npm install googleapis @google/generative-ai
       - env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
-          IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
           BLOG_ID: ${{ secrets.BLOG_ID }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}

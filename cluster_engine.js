@@ -811,42 +811,55 @@ async function genImg(desc, model, i) {
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
     console.log('   📝 [Draft] 블로그 기획 시작: ' + target);
     const searchData = await searchSerper(target);
-    const bpPrompt = 'Return ONLY valid JSON with title and 7 chapters for: ' + target + '. Format: {title:string, chapters:[7 strings]}. No markdown, no explanation.';
+    const bpPrompt = 'Return ONLY valid JSON with title and 4 to 7 chapters for: ' + target + '. Format: {title:string, chapters:[strings]}. No markdown, no explanation.';
     const bpRes = await callAI(model, bpPrompt);
     let data = {};
     try { data = JSON.parse(clean(bpRes, 'obj') || '{}'); } catch(e) { console.log('   ⚠️ Blueprint parse fail, using fallback'); data = {}; }
     const title = data.title || target;
-    if(!data.chapters || !data.chapters.length) { try { const c2 = await callAI(model, 'Generate 7 short Korean subtitles for: ' + target + '. Return JSON array only.'); data.chapters = JSON.parse(clean(c2, 'arr') || '[]'); } catch(e2) { data.chapters = []; } }
+    if(!data.chapters || !data.chapters.length) { try { const c2 = await callAI(model, 'Generate 4 to 7 short Korean subtitles for: ' + target + '. Return JSON array only.'); data.chapters = JSON.parse(clean(c2, 'arr') || '[]'); } catch(e2) { data.chapters = []; } }
     const chapters = Array.isArray(data.chapters) ? data.chapters : [];
+    if(chapters.length < 4) { chapters.push('핵심 요약'); chapters.push('주의사항'); chapters.push('활용 팁'); }
     console.log('   📋 [Draft] 챕터 구성 완료: ' + chapters.length + '개 섹션');
     
-    console.log('   🚀 [Mission] Trinity Duo 1단계 시작 (서론 및 섹션 1-4)...');
-    let mission1 = "[1/2단계 전용] 키워드: " + target + ". 아래 내용만 작성하라 (반드시 이 순서로, 이 이상 쓰지 마라): 1) <h1> 제목 2) 목차(섹션1~7만 나열) 3) 서론 단락 4) 섹션1 <h2> 5) 섹션2 <h2> 6) 섹션3 <h2> 7) 섹션4 <h2>. 절대 금지: 섹션5/6/7/FAQ/결론을 여기서 쓰는 것. [[IMG_1]], [[IMG_2]] 태그를 본문 중간에 삽입. 한국어만 사용.";
+    const halfIdx = Math.ceil(chapters.length / 2);
+    const p1Chapters = chapters.slice(0, halfIdx);
+    const p2Chapters = chapters.slice(halfIdx);
+    console.log('   🚀 [Mission] Trinity Duo 1단계 시작 (서론 및 전반부)...');
+    let mission1 = '[1/2단계 전용 - 목표 5000자 이상] 키워드: ' + target + '\n\n'
+        + '아래 순서대로만 작성하라 (h1/목차/서론/전반부 외에는 절대 쓰지 마라):\n'
+        + '1) h1 제목 (50자 이내, 클릭유도 강하게)\n'
+        + '2) 목차 리스트 (전체 섹션 나열: ' + chapters.join(', ') + ')\n'
+        + '3) 서론 - 충격적 훅으로 시작, 4~6문단, 총 1000자 이상. 독자 통증 공감 + 해결책 안내\n'
+        + '4) 다음 ' + p1Chapters.length + '개 주제를 각각의 h2 섹션으로 작성:\n'
+        + p1Chapters.map((c, i) => '   - <h2>' + c + '</h2>').join('\n') + '\n'
+        + '   ★ 각 섹션 1000자 이상 매우 풍부하게 쓰라. 반드시 데이터 비교표 1개 이상, 꿀팁박스(연두색) 1개 이상 포함.\n'
+        + '올바른 h2 예: <h2>주제 제목</h2> (섹션 번호 수식어 X)\n'
+        + '절대 금지: FAQ, 결론, 나머지 섹션을 쓰지 마라. [[IMG_1]], [[IMG_2]] 태그 본문 중간 삽입. 한국어만 사용.';
     let part1 = await callAI(model, "STRICT MODE - 1/2:\\n" + MASTER_GUIDELINE + "\\n\\n[현재 지시]:\\n" + mission1 + "\\n\\n[참고 검색]:\\n" + searchData);
-    // part1에서 5번째 h2 이후 내용을 완전히 잘라냄 (AI가 섹션5 이상을 썼을 경우 방지)
+    // part1에서 할당된 섹션 수보다 많이 썼을 경우 잘라냄 (서론 h1/목차 제외, 본문 h2 기준)
     (function trimPart1() {
         const h2Matches = [];
         const rx = /<h2[\s>]/gi;
         let m;
         while ((m = rx.exec(part1)) !== null) h2Matches.push(m.index);
-        if (h2Matches.length >= 5) {
-            part1 = part1.substring(0, h2Matches[4]);
-            console.log('   ✂️ [Trim] part1이 섹션4를 초과하여 자동 잘라냄');
+        if (h2Matches.length > p1Chapters.length) {
+            part1 = part1.substring(0, h2Matches[p1Chapters.length]);
+            console.log('   ✂️ [Trim] part1이 할당된 섹션을 초과하여 자동 잘라냄 (유지: ' + p1Chapters.length + '개)');
         }
     })();
     console.log('   ✅ [Mission] 1단계 완료 (' + part1.length + '자)');
 
-    console.log('   🚀 [Mission] Trinity Duo 2단계 시작 (섹션 5-7, FAQ 및 결론)...');
-    const ch5 = chapters[4] || '심화 분석';
-    const ch6 = chapters[5] || '전문가 팁';
-    const ch7 = chapters[6] || '추가 정보';
-    let mission2 = '[2/2단계 전용] 이전 글에 이어서 다음 4개만 작성하라 (H1/목차/서론 절대 금지):\n' +
-        '1) <h2> ' + ch5 + ' - 본문 충실히\n' +
-        '2) <h2> ' + ch6 + ' - 본문 충실히\n' +
-        '3) <h2> ' + ch7 + ' - 본문 충실히\n' +
-        '4) FAQ (Q&A 10개), 결론 단락\n' +
-        '절대 금지: h2 안에 섹션N, 쭋터N, Step N 식 번호 접두어 표시. 올바른 예: 제목만 쓰는 <h2>제목</h2>\n' +
-        '[[IMG_3]], [[IMG_4]] 태그 본문 중간 삽입. 한국어만 사용.';
+    console.log('   🚀 [Mission] Trinity Duo 2단계 시작 (후반부 및 FAQ)...');
+    let mission2 = '[2/2단계 전용 - 목표 5000자 이상] 이전 글에 이어서 다음 내용만 작성하라 (H1/목차/서론 절대 금지):\n'
+        + '1) 다음 ' + p2Chapters.length + '개 주제를 각각의 h2 섹션으로 작성:\n'
+        + p2Chapters.map((c, i) => '   - <h2>' + c + '</h2>').join('\n') + '\n'
+        + '   ★ 각 섹션 1000자 이상 매우 풍부하게 쓰라. 최신 데이터, 전문가 내밀 팁 등 포함.\n'
+        + '2) FAQ (<h2>자주 묻는 질문</h2>)\n'
+        + '   - Q&A 10~15개 필수, 각 답변 400자 이상 충실히 작성. 원칙: 독자가 실제로 묻는 질문 위주\n'
+        + '3) 결론 단락 (600자 이상). 문제 해결 훅 재강조 + 콜투액션 포함\n'
+        + '콘텐츠 박스: 꿀팁박스(연두색), 주의박스(황색), 정보박스(파란색) 중 2개 이상 삽입\n'
+        + '절대 금지: h2 안에 섹션N, 쭋터N, Step N 번호 접두어\n'
+        + '[[IMG_3]], [[IMG_4]] 태그 본문 중간 삽입. 한국어만 사용.';
     let part2 = await callAI(model, '[2단계 이어쓰기]\n' + MASTER_GUIDELINE + '\n\n[이전 글 끝부분]:\n' + part1.substring(Math.max(0, part1.length - 1500)) + '\n\n[지시사항]:\n' + mission2);
     // part2에서 첫 번째 <h2> 이전의 모든 내용(중복 서론/목차) 제거
     let cleanPart2 = part2;

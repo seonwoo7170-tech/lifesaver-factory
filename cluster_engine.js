@@ -750,37 +750,40 @@ async function genImg(desc, model, i) {
     const kieKey = process.env.KIE_API_KEY;
     const imgbbKey = process.env.IMGBB_API_KEY;
     console.log('   🎨 [Image] ' + i + '번 이미지 생성 시작 (KIE z-image)...');
+    // 프롬프트 영문 번역
     let engPrompt = '';
     try {
-        const r = await callAI(model, 'Translate to English for image generation. NO CHAT, ONLY description: ' + desc);
-        engPrompt = r.replace(/[^a-zA-Z0-9, .!()-]/g, '').trim();
+        const r = await callAI(model, 'Translate to English keywords (3-5 keywords, comma separated, no explanation): "' + desc + '"');
+        engPrompt = r.replace(/[^\x20-\x7E]/g, ' ').replace(/\s+/g, ' ').trim();
     } catch(e) {}
-    if (!engPrompt || engPrompt.length < 5) engPrompt = String(desc).replace(/[^a-zA-Z0-9 ]/g, ' ').trim();
+    if (!engPrompt || engPrompt.length < 5) engPrompt = 'lifestyle objects, clean background, editorial photography';
+    engPrompt += ', photorealistic, high-end, 8k, no text, no people, no faces';
     let finalUrl = '';
-    // 1단계: KIE z-image로 이미지 생성
+    // 1단계: KIE z-image로 이미지 생성 (통합판 동일 방식)
     if (kieKey && kieKey.length > 5) {
         try {
-            console.log('   ㄴ [Kie.ai] z-image 호출 (비율: 16:9)...');
+            console.log('   ㄴ [Kie.ai] z-image 호출 (16:9)...');
             const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', {
                 model: 'z-image',
-                input: { prompt: engPrompt + ', high-end, editorial photography, 8k', aspect_ratio: '16:9' }
-            }, { headers: { Authorization: 'Bearer ' + kieKey }, timeout: 30000 });
-            const tid = cr.data.taskId || (cr.data.data && cr.data.data.taskId);
+                input: { prompt: engPrompt, aspect_ratio: '16:9' }
+            }, { headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + kieKey }, timeout: 30000 });
+            if (cr.data.code !== 200) throw new Error(cr.data.msg || 'KIE API:' + cr.data.code);
+            const tid = cr.data.data && cr.data.data.taskId;
             if (tid) {
-                for (let a = 0; a < 15; a++) {
-                    await new Promise(r => setTimeout(r, 6000));
+                for (let a = 0; a < 60; a++) {
+                    await new Promise(r => setTimeout(r, 3000));
                     const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey } });
-                    const state = pr.data.state || (pr.data.data && pr.data.data.state);
-                    if (state === 'success') {
-                        const resData = pr.data.resultJson || (pr.data.data && pr.data.data.resultJson);
-                        const resJson = typeof resData === 'string' ? JSON.parse(resData) : resData;
+                    const st = pr.data.data ? pr.data.data.state : '';
+                    if (st === 'success') {
+                        const resJson = JSON.parse(pr.data.data.resultJson);
                         finalUrl = resJson.resultUrls[0];
                         console.log('   ✅ [Image] KIE z-image 성공: ' + finalUrl);
                         break;
                     }
-                    if (state === 'fail' || state === 'failed') { console.log('   ⚠️ [Image] KIE 작업 실패'); break; }
+                    if (st === 'fail') { console.log('   ⚠️ [Image] KIE 작업 실패'); break; }
+                    if (a > 0 && a % 5 === 0) console.log('   ⏳ [Image] 대기 중... (' + (a * 3) + '초)');
                 }
-            } else { console.log('   ⚠️ [Kie.ai] 태스크 ID 누락: ' + JSON.stringify(cr.data).slice(0, 100)); }
+            } else { console.log('   ⚠️ [Kie.ai] 태스크 ID 누락: ' + JSON.stringify(cr.data).slice(0, 150)); }
         } catch(e) { console.log('   ⚠️ [Image] KIE 에러: ' + (e.response ? JSON.stringify(e.response.data) : e.message)); }
     } else { console.log('   ℹ️ [Image] KIE_API_KEY 없음 - pollinations fallback'); }
     // KIE 실패 시 pollinations fallback
@@ -789,21 +792,19 @@ async function genImg(desc, model, i) {
         finalUrl = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(engPrompt) + '?width=1280&height=720&nologo=true&seed=' + seed + '&model=flux';
         console.log('   🔄 [Image] Pollinations fallback 사용');
     }
-    // 2단계: ImgBB에 영구 저장
+    // 2단계: ImgBB 영구 저장 (통합판과 동일: URL 직접 전달)
     if (imgbbKey && finalUrl) {
-        console.log('   ☁️ [Image] ImgBB 업로드 시도...');
+        console.log('   ☁️ [Image] ImgBB 영구백업 중...');
         try {
-            const res = await axios.get(finalUrl, { responseType: 'arraybuffer', maxRedirects: 10, timeout: 30000 });
-            if (res.data && res.data.byteLength > 1000) {
-                const form = new FormData();
-                form.append('image', Buffer.from(res.data).toString('base64'));
-                const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders(), timeout: 20000 });
-                if (ir.data && ir.data.data && ir.data.data.url) {
-                    console.log('   ✅ [Image] ImgBB 업로드 성공: ' + ir.data.data.url);
-                    return ir.data.data.url;
-                }
-            } else { console.log('   ⚠️ [Image] 이미지 용량 부족 (' + (res.data ? res.data.byteLength : 0) + ' bytes)'); }
-        } catch(e) { console.log('   ⚠️ [Image] ImgBB 에러: ' + e.message); }
+            const fd = new FormData();
+            fd.append('image', finalUrl);
+            const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, fd, { headers: fd.getHeaders(), timeout: 20000 });
+            if (ir.data && ir.data.success) {
+                console.log('   ✅ [Image] ImgBB 영구보존 완료: ' + ir.data.data.url);
+                return ir.data.data.url;
+            }
+            throw new Error(ir.data.error ? JSON.stringify(ir.data.error) : '업로드 실패');
+        } catch(e) { console.log('   ⚠️ [Image] ImgBB 실패: ' + e.message + ' → KIE URL 사용'); }
     }
     return finalUrl;
 }
@@ -836,13 +837,24 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log('   ✅ [Mission] 1단계 완료 (' + part1.length + '자)');
 
     console.log('   🚀 [Mission] Trinity Duo 2단계 시작 (섹션 5-7, FAQ 및 결론)...');
-    let mission2 = "[STRICT CONTINUATION - 2/2] 이전 글에 이어서 오직 다음 내용만 작성하라: 섹션5, 섹션6, 섹션7, FAQ(10개 질문/답변), 결론 단락. 절대 금지: H1제목, 목차, 서론, 이미 쓴 섹션1~4 재작성 금지. 섹션5 <h2>태그부터 곧바로 시작하라. 중간에 [[IMG_3]], [[IMG_4]] 태그 삽입. 한국어만 사용.";
-    let part2 = await callAI(model, "[이어쓰기 모드] 아래 글에서 이어서 섹션5부터 계속 써라. 절대로 제목/목차/서론을 다시 쓰지 마라. 첫 줄에 <h2> 태그로 섹션5를 바로 시작하라.\\n\\n[이전 글 끝부분]:\\n" + part1.substring(Math.max(0, part1.length - 1500)) + "\\n\\n[지시사항]:\\n" + mission2);
+    const ch5 = chapters[4] || '심화 분석';
+    const ch6 = chapters[5] || '전문가 팁';
+    const ch7 = chapters[6] || '추가 정보';
+    let mission2 = '[2/2단계 전용] 이전 글에 이어서 다음 4개만 작성하라 (H1/목차/서론 절대 금지):\n' +
+        '1) <h2> ' + ch5 + ' - 본문 충실히\n' +
+        '2) <h2> ' + ch6 + ' - 본문 충실히\n' +
+        '3) <h2> ' + ch7 + ' - 본문 충실히\n' +
+        '4) FAQ (Q&A 10개), 결론 단락\n' +
+        '절대 금지: h2 안에 섹션N, 쭋터N, Step N 식 번호 접두어 표시. 올바른 예: 제목만 쓰는 <h2>제목</h2>\n' +
+        '[[IMG_3]], [[IMG_4]] 태그 본문 중간 삽입. 한국어만 사용.';
+    let part2 = await callAI(model, '[2단계 이어쓰기]\n' + MASTER_GUIDELINE + '\n\n[이전 글 끝부분]:\n' + part1.substring(Math.max(0, part1.length - 1500)) + '\n\n[지시사항]:\n' + mission2);
     // part2에서 첫 번째 <h2> 이전의 모든 내용(중복 서론/목차) 제거
     let cleanPart2 = part2;
     const firstH2Idx = cleanPart2.search(/<h2[\s>]/i);
     if (firstH2Idx > 0) cleanPart2 = cleanPart2.substring(firstH2Idx);
     cleanPart2 = cleanPart2.replace(/<h1[\s\S]*?<\/h1>/gi, '');
+    // h2 안에 '섹션 N:', '쭋터 N:', '쉽 N:' 등 번호 접두어 자동 제거
+    cleanPart2 = cleanPart2.replace(/(<h2[^>]*>)(\s*)([섹쭋옵시파\w]*(\s*\d+\s*[::]\s*))/gi, '$1');
     // [핵심] part2의 스타일 없는 <h2>를 배경색 있는 <h2>로 자동 변환
     const PART2_COLORS = ['plum', 'lightsalmon', '#98d8c8', '#ffd700', '#c8e6c9'];
     let p2ci = 0;

@@ -692,7 +692,7 @@ const STYLE = `<style>
   .vue-premium table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 40px 0; border-radius: 15px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.05); border: 1px solid #eee; }
   .vue-premium th { background-color: #333; color: #fff; padding: 20px; font-weight: bold; }
   .vue-premium td { padding: 18px; border-bottom: 1px solid #f0f0f0; background-color: #fff; color: #444; }
-  .vue-premium tip-box { border-left: 6px solid #333; padding: 25px; margin: 35px 0; border-radius: 0 15px 15px 0; box-shadow: 0 5px 20px rgba(0,0,0,0.03); }
+  .internal-link-btn { display: inline-block; padding: 12px 25px; background: #222; color: #fff !important; border-radius: 8px; font-weight: bold; text-decoration: none !important; margin: 20px 0; border: 1px solid #000; }
   .spacer-div { height: 70px; }
 </style>`;
 
@@ -854,79 +854,46 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log('   📝 [Draft] 블로그 기획 시작: ' + target);
     const searchData = await searchSerper(target);
     const langName = (lang === 'ko') ? 'Korean' : (lang === 'ja') ? 'Japanese' : (lang === 'zh') ? 'Chinese' : 'English';
-    const curY = new Date().getFullYear();
-    const bpPrompt = 'Current Year: ' + curY + '\n[Search Reference]:\n' + searchData + '\n\nReference the search data above to create a high-CTR title and 4-7 chapter subtitles for: ' + target + '. All values must be in ' + langName + '. (DO NOT USE OLD YEARS LIKE 2024. ALWAYS USE CURRENT YEAR ' + curY + '). Return ONLY valid JSON: {title:string, chapters:[strings]}.';
-    const bpRes = await callAI(model, bpPrompt);
-    let data = {};
-    try { data = JSON.parse(clean(bpRes, 'obj') || '{}'); } catch(e) { console.log('   ⚠️ Blueprint parse fail, using fallback'); data = {}; }
-    const title = data.title || target;
-    if(!data.chapters || !data.chapters.length) { try { const c2 = await callAI(model, 'Generate 4 to 7 short subtitles in ' + langName + ' for: ' + target + '. Return JSON array only.'); data.chapters = JSON.parse(clean(c2, 'arr') || '[]'); } catch(e2) { data.chapters = []; } }
-    const chapters = Array.isArray(data.chapters) ? data.chapters : [];
-    if(chapters.length < 4) { chapters.push(lang === 'ko' ? '핵심 요약' : 'Key Summary'); chapters.push(lang === 'ko' ? '주의사항' : 'Cautions'); chapters.push(lang === 'ko' ? '활용 팁' : 'Tips'); }
-    console.log('   📋 [Draft] 챕터 구성 완료: ' + chapters.length + '개 섹션');
-    
+    let chapters = [];
+    if (extraLinks && extraLinks.length > 0) {
+        console.log('   🔗 [Pillar] 서브글 기반 챕터 매핑 시작...');
+        chapters = extraLinks.map(l => l.title);
+    } else {
+        const bpPrompt = 'Current Year: ' + curY + '\n[Search Reference]:\n' + searchData + '\n\nReference simple keywords above to create a high-CTR title and 4-7 chapter subtitles for: ' + target + '. All values must be in ' + langName + '. (DO NOT USE OLD YEARS LIKE 2024. ALWAYS USE CURRENT YEAR ' + curY + '). Return ONLY valid JSON: {title:string, chapters:[strings]}.';
+        try {
+            const bpRes = await callAI(model, bpPrompt);
+            const data = JSON.parse(clean(bpRes, 'obj') || '{}');
+            chapters = data.chapters || [];
+        } catch(e) { console.log('   ⚠️ Blueprint fail, using fallback'); }
+    }
+    if(chapters.length < 4) { chapters.push(lang === 'ko' ? '기본 개념 이해' : 'Basic Concept'); chapters.push(lang === 'ko' ? '주의사항 및 팁' : 'Cautions and Tips'); chapters.push(lang === 'ko' ? '실생활 활용 예시' : 'Real-life Examples'); }
     const halfIdx = Math.ceil(chapters.length / 2);
     const p1Chapters = chapters.slice(0, halfIdx);
     const p2Chapters = chapters.slice(halfIdx);
+    
     console.log('   🚀 [Mission] Trinity Duo 1단계 시작 (서론 및 전반부)...');
-    let mission1 = '[1/2단계 전용 - 목표 5000자 이상] 키워드: ' + target + '\n\n'
-        + '아래 순서대로만 작성하라 (h1/목차/서론/전반부 외에는 절대 쓰지 마라):\n'
-        + '1) h1 제목 (50자 이내, 클릭유도 강하게)\n'
-        + '2) 목차 리스트 (주의: 1단계 작성 내용만 넣지 말고, 전체 섹션을 모두 나열할 것: ' + chapters.join(', ') + ')\n'
-        + '3) 본론 시작 전 전체 목차 박스 제공 (반드시 `<div class="toc-box">` 클래스만 사용, 인라인 style 절대 넣지 마라, ' + chapters.length + '개 전체 목차 나열)\n'
-        + '4) 서론 - 충격적 훅으로 시작, 4~6문단, 총 1000자 이상. 독자 통증 공감 + 해결책 안내\n'
-        + '5) 다음 ' + p1Chapters.length + '개 주제를 각각의 h2 섹션으로 작성:\n'
-        + p1Chapters.map((c, i) => '   - <h2>' + c + '</h2>').join('\n') + '\n'
-        + '   ★ 각 섹션 1000자 이상 매우 풍부하게 쓰라. 반드시 데이터 비교표 1개 이상, 꿀팁박스(연두색) 1개 이상 포함.\n'
-        + '올바른 h2 예: <h2>주제 제목</h2> (섹션 번호 수식어 X)\n'
-        + '절대 금지: FAQ, 결론, 나머지 섹션을 미리 쓰지 마라. <script> 태그 및 JSON-LD 절대 생성 금지. [[IMG_1]], [[IMG_2]] 태그 본문 중간 삽입. 한국어만 사용.';
-    let part1 = await callAI(model, "STRICT MODE - 1/2:\\n" + MASTER_GUIDELINE + "\\n\\n[현재 지시]:\\n" + mission1 + "\\n\\n[참고 검색]:\\n" + searchData);
-    // part1에서 할당된 섹션 수보다 많이 썼을 경우 잘라냄 (서론 h1/목차 제외, 본문 h2 기준)
-    (function trimPart1() {
-        const h2Matches = [];
-        const rx = /<h2[\s>]/gi;
-        let m;
-        while ((m = rx.exec(part1)) !== null) h2Matches.push(m.index);
-        if (h2Matches.length > p1Chapters.length) {
-            part1 = part1.substring(0, h2Matches[p1Chapters.length]);
-            console.log('   ✂️ [Trim] part1이 할당된 섹션을 초과하여 자동 잘라냄 (유지: ' + p1Chapters.length + '개)');
-        }
-    })();
+    const linkInstructions1 = (extraLinks && extraLinks.length > 0) ? '\n[PILLAR MAPPING]: This is a Pillar post. Each section header below corresponds to an existing sub-article. You MUST summarize the sub-article and insert the button at the END of each <h2> section: <a href="URL" class="internal-link-btn">➔ 심층 분석: [Title] 자세히 보기</a>\n' + p1Chapters.map((c, i) => '- Section: "' + c + '" -> Link: ' + extraLinks[i].url).join('\n') : '';
+    const mission1 = '[1/2단계] 키워드: ' + target + '\n\n'
+        + '순서: h1 제목 -> 목차 -> 서론(1000자 이상) -> 각 h2 섹션(본문 풍부하게)\n'
+        + '대상 섹션:\n' + p1Chapters.map(c => '<h2>' + c + '</h2>').join('\n') + '\n'
+        + '★ 각 h2 섹션 내부에는 반드시 2~3개의 소주제(h3)를 넣어 내용을 구성하라.' + linkInstructions1;
+    let part1 = await callAI(model, MASTER_GUIDELINE + '\n\n' + mission1 + '\n\n[검색 데이터]:\n' + searchData);
     console.log('   ✅ [Mission] 1단계 완료 (' + part1.length + '자)');
 
     console.log('   🚀 [Mission] Trinity Duo 2단계 시작 (후반부 및 FAQ)...');
-    let mission2 = '[2/2단계 전용 - 목표 5000자 이상] 이전 글(1단계)에 이어서 다음 내용만 이어서 작성하라 (H1/목차/서론 절대 금지):\n\n'
-        + '[전체 기획된 목차]: ' + chapters.join(', ') + '\n'
-        + '[1단계에서 작성 완료된 목차 - 이것들은 절대 다시 쓰지 마라]: ' + p1Chapters.join(', ') + '\n\n'
-        + '아래 2단계 할당량만 작성하라:\n'
-        + '1) 다음 ' + p2Chapters.length + '개 주제를 각각의 h2 섹션으로 작성:\n'
-        + p2Chapters.map((c, i) => '   - <h2>' + c + '</h2>').join('\n') + '\n'
-        + '   ★ 각 섹션 1000자 이상 매우 풍부하게 쓰라. 최신 데이터, 전문가 내밀 팁 등 포함.\n'
-        + '2) FAQ (<h2>자주 묻는 질문</h2>)\n'
-        + '   - Q&A 정확히 5개 필수, 각 답변 3~4문장으로 간결하고 충실히 작성 (글이 도중에 잘리는 것을 막기 위해 5개로 한정)\n'
-        + '3) 결론 단락 (600자 이상). 문제 해결 훅 재강조 + 콜투액션 포함\n'
-        + '콘텐츠 박스: 꿀팁박스(연두색), 주의박스(황색), 정보박스(파란색) 중 2개 이상 삽입\n'
-        + '절대 금지: 이전 1단계 주제 중복 작성 금지. h2 안에 섹션 번호 접두어 금지. <script> 태그 및 FAQ JSON-LD 스키마 절대 생성 금지(HTML 본문만 작성할 것).\n'
-        + '[[IMG_3]], [[IMG_4]] 태그 본문 중간 삽입. 한국어만 사용.';
-    let part2 = await callAI(model, '[2단계 이어쓰기]\n' + MASTER_GUIDELINE + '\n\n[이전 글 끝부분]:\n' + part1.substring(Math.max(0, part1.length - 1500)) + '\n\n[지시사항]:\n' + mission2);
-    // part2에서 첫 번째 <h2> 이전의 모든 내용(중복 서론/목차) 제거
-    let cleanPart2 = part2;
+    const linkInstructions2 = (extraLinks && extraLinks.length > 0) ? '\n[PILLAR MAPPING]: Continue mapping sub-articles to sections. Insert buttons at the END of each <h2> section.\n' + p2Chapters.map((c, i) => '- Section: "' + c + '" -> Link: ' + extraLinks[halfIdx + i].url).join('\n') : '';
+    const mission2 = '[2/2단계] 이전 글에 이어서 작성하라:\n\n'
+        + '대상 섹션:\n' + p2Chapters.map(c => '<h2>' + c + '</h2>').join('\n') + '\n'
+        + '★ 각 h2 섹션 내부에는 반드시 2~3개의 소주제(h3)를 넣어 내용을 구성하라.\n'
+        + '1) FAQ (<h2>자주 묻는 질문</h2>) - 5개 필수\n'
+        + '2) 결론 단락 (600자 이상)\n' + linkInstructions2;
+    let part2 = await callAI(model, MASTER_GUIDELINE + '\n\n' + mission2 + '\n\n[이전 내용]:\n' + part1.substring(part1.length - 1200));
+    let cleanPart2 = part2.replace(/<h1[\s\S]*?<\/h1>/gi, '').replace(/<div class="toc-box">[\s\S]*?<\/div>/gi, '');
     const firstH2Idx = cleanPart2.search(/<h2[\s>]/i);
     if (firstH2Idx > 0) cleanPart2 = cleanPart2.substring(firstH2Idx);
-    cleanPart2 = cleanPart2.replace(/<h1[\s\S]*?<\/h1>/gi, '');
-    // h2 안에 '섹션 N:', '쭋터 N:', '쉽 N:' 등 번호 접두어 자동 제거
-    cleanPart2 = cleanPart2.replace(/(<h2[^>]*>)(\s*)([섹쭋옵시파\w]*(\s*\d+\s*[::]\s*))/gi, '$1');
-    // [핵심] part2의 스타일 없는 <h2>를 배경색 있는 <h2>로 자동 변환
-    const PART2_COLORS = ['plum', 'lightsalmon', '#98d8c8', '#ffd700', '#c8e6c9'];
-    let p2ci = 0;
-    cleanPart2 = cleanPart2.replace(/<h2((?![^>]*style)[^>]*)>(.*?)<\/h2>/gi, function(match, attrs, text) {
-        const bg = PART2_COLORS[p2ci++ % PART2_COLORS.length];
-        return "<h2 style='font-size:22px; font-weight:bold; color:#111; border-left:5px solid #111; padding-left:16px; margin:48px 0 24px; background-color:" + bg + "; padding:12px; border-radius:8px;'" + attrs + ">" + text + "</h2>";
-    });
-    console.log('   ✅ [Mission] 2단계 완료 (' + part2.length + '자, h2스타일 자동보정 완료)');
-
+    
     let fullContent = part1 + '\n' + cleanPart2;
-    console.log('   📊 [Stat] 전체 원고 길이: ' + fullContent.length + '자 생성 완료');
+    console.log('   📊 [Stat] 전체 원고 생성 완료 (' + fullContent.length + '자)');
     
     const disclaimer = "<br><br><div style='font-size:14px; color:#888; border-top:1px solid #eee; padding-top:20px; margin-top:50px;'>* 본 포스팅은 정보 제공을 목적으로 작성되었으며, 실제 서비스 이용 시 공식 채널의 정보를 다시 확인하시기 바랍니다. 콘텐츠의 정확성을 기했으나 주관적인 견해가 포함될 수 있습니다.</div>";
 
@@ -976,10 +943,9 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
             const url = await genImg(p.prompt, model, i);
             if (url) {
                 const imgHtml = "<img src='" + url + "' alt='" + p.alt + "' title='" + p.title + "' style='width:100%; border-radius:15px; margin: 30px 0;'>";
-                finalHtml = finalHtml.split(placeholder).join(imgHtml);
-            } else {
-                finalHtml = finalHtml.split(placeholder).join('');
+                finalHtml = finalHtml.replace(placeholder, imgHtml);
             }
+            finalHtml = finalHtml.split(placeholder).join('');
         }
     }
 
@@ -1087,19 +1053,22 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     let finalBody = STYLE + '<div class=\"vue-premium\">' + bodyWithoutH1 + extraLinksHtml + disclaimer + '</div>';
 
     console.log('   🚀 [Post] Blogger 포스팅 시도: ' + finalTitle);
+    let postUrl = '';
     try {
         const postRes = await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: finalBody, labels, published: pTime.toISOString() } });
-        console.log('   🎉 [Post] 포스팅 성공! URL: ' + postRes.data.url);
+        postUrl = postRes.data.url;
+        console.log('   🎉 [Post] 포스팅 성공! URL: ' + postUrl);
     } catch (e) {
         if (String(e.message).includes('429')) {
             console.log('   ⚠️ [Blogger] API 한도 초과 감지. 60초 후 재시도합니다...');
             await new Promise(res => setTimeout(res, 60000));
-            await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: finalBody, labels, published: pTime.toISOString() } });
+            const postRes2 = await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: finalBody, labels, published: pTime.toISOString() } });
+            postUrl = postRes2.data.url;
         } else {
             console.log('   ❌ [Blogger] 포스팅 실패 사유:', e.response?.data?.error || e.message);
         }
     }
-    return { title: finalTitle };
+    return { title: finalTitle, url: postUrl };
   }
   async function run() {
     const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
@@ -1124,16 +1093,23 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         } catch(e) { console.log('   ⚠️ 서브주제 생성 실패, 시드만 사용'); }
         console.log('   📌 서브 주제 목록:', subTopics);
     }
-    for (let i = 0; i < subTopics.length; i++) {
+    const clusterResults = [];
+    // 1. Cluster Articles (Sub Topics) 먼저 작성
+    for (let i = 1; i < subTopics.length; i++) {
         try {
-            console.log('   ✍️ [' + (i+1) + '/' + subTopics.length + '] 주제: ' + subTopics[i]);
-            const pTime = new Date(Date.now() + i * 5 * 60 * 1000);
-            await writeAndPost(model, subTopics[i], config.blog_lang, blogger, config.blog_id, pTime, [], i+1, subTopics.length);
-            if (i < subTopics.length - 1) { console.log('   ⏱ 30초 대기 후 다음 글 작성...'); await new Promise(r => setTimeout(r, 30000)); }
-        } catch(err) {
-            console.log('   ❌ [' + (i+1) + '/' + subTopics.length + '] 글 생성 중 치명적 오류 발생 (건너뜀): ' + err.message);
-        }
+            console.log('   ✍️ [Cluster ' + i + '/' + (subTopics.length-1) + '] 서브주제: ' + subTopics[i]);
+            const pTime = new Date(Date.now() + i * 10 * 60 * 1000);
+            const res = await writeAndPost(model, subTopics[i], config.blog_lang, blogger, config.blog_id, pTime, []);
+            clusterResults.push(res);
+            console.log('   ⏱ 다음 작업을 위해 30초 대기...'); await new Promise(r => setTimeout(r, 30000));
+        } catch(err) { console.log('   ❌ Cluster 작성 실패: ' + err.message); }
     }
+    // 2. Pillar Article (Main Topic) 마지막에 작성 (서브들 링크 포함)
+    try {
+        console.log('   🏰 [Pillar] 메인 기둥 글 작성 시작: ' + subTopics[0]);
+        const pTime = new Date(Date.now() + subTopics.length * 10 * 60 * 1000);
+        await writeAndPost(model, subTopics[0], config.blog_lang, blogger, config.blog_id, pTime, clusterResults);
+    } catch(err) { console.log('   ❌ Pillar 작성 실패: ' + err.message); }
     console.log('   ✨ [Done] 클러스터 연재 ' + subTopics.length + '개 완료!');
   }
   run();

@@ -3,6 +3,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs');
 const axios = require('axios');
 const FormData = require('form-data');
+const { createCanvas, loadImage } = require('canvas');
 
 const MASTER_GUIDELINE = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Vue blog — 통합 멀티플랫폼 블로그 에이전트
@@ -648,6 +649,7 @@ YMYL 감지 시 적용:
     🏷 라벨: 연관 키워드 10개 쉼표 구분 (블로그스팟 라벨 칸에 복붙)
     📝 검색 설명: 스니펫 기반 150자 이내 메타 디스크립션
     🖼 이미지 프롬프트:
+      IMG_0: { prompt: "영문 프롬프트 16:9 (썸네일 배경)", alt: "썸네일 배경 묘사", title: "유튜브 썸네일 스타일의 어그로 카피 (15자 이내)" }
       IMG_1: { prompt: "영문 프롬프트 16:9", alt: "1번 이미지 구체적 한글 묘사", title: "핵심 인사이트 한글 제목(툴팁)" }
       IMG_2: { prompt: "영문 프롬프트 16:9", alt: "2번 이미지 구체적 한글 묘사", title: "핵심 인사이트 한글 제목(툴팁)" }
       IMG_3: { prompt: "영문 프롬프트 16:9", alt: "3번 이미지 구체적 한글 묘사", title: "핵심 인사이트 한글 제목(툴팁)" }
@@ -671,7 +673,11 @@ YMYL 감지 시 적용:
    - ① 본인의 뼈아픈 **실패/후회담** 1건
    - ② 타사 제품/서비스와의 직접적 **비교 분석** 1건
    - ③ 업계 종사자만 아는 **비밀/내부 폭로** 정보 1건
-6. **JSON 한 줄 출력**: content 내부에 실제 줄바꿈을 넣지 말고 오직 한 줄로 길게 연결하라.`;
+6. **유튜브 썸네일 카피 강제**: IMG_0의 title(썸네일 텍스트)은 반드시 다음의 '유튜브 썸네일 카피라이팅 기법'을 따르라.
+   - 분량: 공백 포함 무조건 15자 이내로 짧고 강렬하게 (절대 글 제목을 그대로 쓰지 말 것).
+   - 기법: 시청자의 호기심/손실 회피(FOMO) 심리를 자극하거나 결과를 먼저 제시할 것. (예: "안 보면 100만 원 손해?", "99%가 모르는 이것", "이거 하나면 종결")
+   - 숫자 활용: 구체적 숫자를 넣어 신뢰도와 클릭률을 높일 것 (예: "5분 만에 끝내는 법")
+7. **JSON 한 줄 출력**: content 내부에 실제 줄바꿈을 넣지 말고 오직 한 줄로 길게 연결하라.`;
 const NARRATIVE_HINTS = `["실전 경험이 왜 중요한지 제가 직접 몸소 느꼈던 이야기를 해보려 합니다. 이론만 알 때는 몰랐던 진짜 현장의 목소리가 있더라고요.","솔직히 고백하자면 저도 처음엔 시간 낭비를 엄청나게 했습니다. 이 방법을 몰라서 며칠 밤을 꼬박 새우며 헛수고를 했던 기억이 나네요.","지금 이 글을 읽는 분들이 느끼실 그 막막함, 저도 누구보다 잘 압니다. 처음에 저도 컴퓨터 앞에서 어디서부터 손을 대야 할지 몰라 한참을 멍하니 있었거든요.","결국 정답은 아주 가까운 개인적인 경험에 있더라고요. 수많은 기교를 부리다가 결국 다시 처음으로 돌아와서야 비로소 깨달은 핵심을 공유합니다.","많은 전문가들이 말하지 않는 맹점이 하나 있습니다. 겉으로 보기엔 완벽해 보이지만, 실제로는 치명적인 허점이 숨겨져 있는 그런 부분들이죠.","이 고민 때문에 며칠 동안 밤잠를 설쳤던 것 같아요. 어떻게 하면 더 효율적이고 정확하게 처리할 수 있을까 고민하다 찾아낸 비책입니다.","제가 겪은 뼈아픈 실패의 기록이 여러분께는 소중한 교훈이 되었으면 합니다. 제 돈과 시간을 버려가며 얻어낸 '진짜' 데이터들입니다.","제 초보 시절을 떠올려보고 싶습니다. 그때 제가 지금의 저를 만났다면 제 고생이 훨씬 줄어들었을 텐데 말이죠.","요즘 들어 제게 가장 자주 물어보시는 질문들을 하나로 모았습니다. 사실 다들 비슷비슷한 부분에서 고민하고 계시다는 걸 알게 됐거든요."]`;
 
 const STYLE = `<style>
@@ -745,7 +751,7 @@ async function searchSerper(query) {
         return snippets;
     } catch(e) { console.log('   ❌ [Search] 검색 실패'); return ''; }
 }
-async function genImg(desc, model, i) {
+async function genImg(desc, model, i, overlayText) {
     if(!desc) return '';
     const kieKey = process.env.KIE_API_KEY;
     const imgbbKey = process.env.IMGBB_API_KEY;
@@ -759,10 +765,8 @@ async function genImg(desc, model, i) {
     if (!engPrompt || engPrompt.length < 5) engPrompt = 'lifestyle objects, clean background, editorial photography';
     engPrompt += ', photorealistic, high-end, 8k, no text, no people, no faces';
     let finalUrl = '';
-    // 1단계: KIE z-image로 이미지 생성 (통합판 동일 방식)
     if (kieKey && kieKey.length > 5) {
         try {
-            console.log('   ㄴ [Kie.ai] z-image 호출 (16:9)...');
             const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', {
                 model: 'z-image',
                 input: { prompt: engPrompt, aspect_ratio: '16:9' }
@@ -780,31 +784,61 @@ async function genImg(desc, model, i) {
                         console.log('   ✅ [Image] KIE z-image 성공: ' + finalUrl);
                         break;
                     }
-                    if (st === 'fail') { console.log('   ⚠️ [Image] KIE 작업 실패'); break; }
-                    if (a > 0 && a % 5 === 0) console.log('   ⏳ [Image] 대기 중... (' + (a * 3) + '초)');
+                    if (st === 'fail') break;
                 }
-            } else { console.log('   ⚠️ [Kie.ai] 태스크 ID 누락: ' + JSON.stringify(cr.data).slice(0, 150)); }
-        } catch(e) { console.log('   ⚠️ [Image] KIE 에러: ' + (e.response ? JSON.stringify(e.response.data) : e.message)); }
-    } else { console.log('   ℹ️ [Image] KIE_API_KEY 없음 - pollinations fallback'); }
-    // KIE 실패 시 pollinations fallback
+            }
+        } catch(e) { console.log('   ⚠️ [Image] KIE 에러: ' + e.message); }
+    }
     if (!finalUrl) {
         const seed = Math.floor(Math.random()*1000000);
         finalUrl = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(engPrompt) + '?width=1280&height=720&nologo=true&seed=' + seed + '&model=flux';
         console.log('   🔄 [Image] Pollinations fallback 사용');
     }
-    // 2단계: ImgBB 영구 저장 (통합판과 동일: URL 직접 전달)
     if (imgbbKey && finalUrl) {
-        console.log('   ☁️ [Image] ImgBB 영구백업 중...');
         try {
             const fd = new FormData();
-            fd.append('image', finalUrl);
-            const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, fd, { headers: fd.getHeaders(), timeout: 20000 });
-            if (ir.data && ir.data.success) {
-                console.log('   ✅ [Image] ImgBB 영구보존 완료: ' + ir.data.data.url);
-                return ir.data.data.url;
+            if (overlayText) {
+                console.log('   🖼 [Thumbnail] 캔버스 오버레이 생성 중... (텍스트: ' + overlayText + ')');
+                const imgRes = await axios.get(finalUrl, { responseType: 'arraybuffer' });
+                const img = await loadImage(Buffer.from(imgRes.data));
+                const cvs = createCanvas(img.width, img.height);
+                const ctx = cvs.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+                ctx.fillRect(0, 0, cvs.width, cvs.height);
+                ctx.font = 'bold 70px sans-serif';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                ctx.shadowBlur = 15;
+                ctx.shadowOffsetX = 3;
+                ctx.shadowOffsetY = 3;
+                // 줄바꿈 처리 로직
+                const words = overlayText.split(' ');
+                let line = ''; let lines = [];
+                for(let n = 0; n < words.length; n++) {
+                    let testLine = line + words[n] + ' ';
+                    let metrics = ctx.measureText(testLine);
+                    if (metrics.width > cvs.width * 0.8 && n > 0) {
+                        lines.push(line); line = words[n] + ' ';
+                    } else { line = testLine; }
+                }
+                lines.push(line);
+                let startY = cvs.height / 2 - (lines.length - 1) * 45;
+                lines.forEach((l) => {
+                    ctx.fillText(l.trim(), cvs.width / 2, startY);
+                    startY += 90;
+                });
+                const b64 = cvs.toBuffer('image/jpeg').toString('base64');
+                fd.append('image', b64);
+            } else {
+                fd.append('image', finalUrl);
             }
-            throw new Error(ir.data.error ? JSON.stringify(ir.data.error) : '업로드 실패');
-        } catch(e) { console.log('   ⚠️ [Image] ImgBB 실패: ' + e.message + ' → KIE URL 사용'); }
+            const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, fd, { headers: fd.getHeaders(), timeout: 20000 });
+            if (ir.data && ir.data.success) return ir.data.data.url;
+            throw new Error('업로드 실패');
+        } catch(e) { console.log('   ⚠️ [Image] ImgBB 오버레이/업로드 실패: ' + e.message + ' → 원본 URL 사용'); }
     }
     return finalUrl;
 }
@@ -953,9 +987,23 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     // 구글 애드센스가 삽입될 수 있는 넉넉한 공간(Spacer)을 각 H2 전에 추가
     bodyWithoutH1 = bodyWithoutH1.replace(/<h2/gi, '<div style=\'margin: 60px 0; padding: 20px 0; clear: both;\' class=\'adsense-spacer\'></div><h2');
 
-    // 목차 강제 보정 (AI가 인라인 스타일을 쓸 경우 toc-box로 덮어쓰기)
-    bodyWithoutH1 = bodyWithoutH1.replace(/<div(?:[^>]*?목차[^>]*?|[^>]*?)>[\\s]*<p[^>]*>.*?목차.*?<\/p>/gi, '<div class=\'toc-box\'><p style=\'font-size:20px; font-weight:bold; color:#111; margin-bottom:15px;\'>📋 목차</p>');
+    // 목차 강제 보정 (AI가 생성한 다양한 형태의 목차 박스를 감지하여 썸네일과 프리미엄 스타일로 덮어쓰기)
+    bodyWithoutH1 = bodyWithoutH1.replace(/<div[^>]*?>[\s\S]*?(?:목차|Table of Contents)[\s\S]*?<ul[^>]*>/gi, '[[IMG_0]]<div class=\'toc-box\' style=\'background:#E8F4FD; border-left:5px solid #3B82F6; border-radius:12px; padding:20px; margin:40px 0; overflow:hidden; clear:both;\'><p style=\'font-size:18px; font-weight:bold; color:#1E40AF; margin:0 0 15px;\'>📋 목차</p><ul style=\'list-style:none; padding:0; margin:0;\'>');
     
+    // 썸네일(IMG_0) 생성 및 삽입
+    let p0 = imgPrompts['0'];
+    if (p0 && p0.prompt && bodyWithoutH1.includes('[[IMG_0]]')) {
+        const thumbUrl = await genImg(p0.prompt, model, 0, p0.title || target);
+        if (thumbUrl) {
+            const thumbHtml = "<img src='" + thumbUrl + "' alt='" + p0.alt + "' title='" + p0.title + "' style='width:100%; border-radius:15px; margin: 0 0 40px 0; box-shadow: 0 8px 30px rgba(0,0,0,0.1);'>";
+            bodyWithoutH1 = bodyWithoutH1.replace('[[IMG_0]]', thumbHtml);
+        } else {
+            bodyWithoutH1 = bodyWithoutH1.replace('[[IMG_0]]', '');
+        }
+    } else {
+        bodyWithoutH1 = bodyWithoutH1.replace('[[IMG_0]]', '');
+    }
+
     // 목차 ID <-> 본문 H2 ID 강제 매칭 보정
     let tocCounter = 1;
     let h2Counter = 1;
@@ -963,11 +1011,11 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     bodyWithoutH1 = bodyWithoutH1.replace(/<h2([^>]*)id=[\'\"]?[^\'\"\\s>]+[\'\"]?([^>]*)>/gi, function(match, p1, p2) {
         return '<h2 id=\'toc-' + (h2Counter++) + '\'' + p1 + p2 + '>';
     });
-    bodyWithoutH1 = bodyWithoutH1.replace(/<div(?:[^>]*?)toc-box(?:[^>]*?)>([\\s\\S]*?)<\/div>/gi, function(match, innerHtml) {
+    bodyWithoutH1 = bodyWithoutH1.replace(/<div[^>]*toc-box[^>]*>([\s\S]*?)<\/div>/gi, function(match, innerHtml) {
         const newInner = innerHtml.replace(/<a([^>]*)href=[\'\"]?[^\'\"\\s>]+[\'\"]?([^>]*)>/gi, function(m2, p1, p2) {
             return '<a href=\'#toc-' + (tocCounter++) + '\'' + p1 + p2 + '>';
         });
-        return '<div class=\'toc-box\'>' + newInner + '</div>';
+        return match.replace(innerHtml, newInner);
     });
 
     let extraLinksHtml = '';

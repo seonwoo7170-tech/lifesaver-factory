@@ -42,11 +42,10 @@ function repairHTML(html) {
   const lastOpen = repaired.lastIndexOf('<');
   const lastClose = repaired.lastIndexOf('>');
   if (lastOpen > lastClose) repaired = repaired.substring(0, lastOpen);
-  
   const stack = [];
-  const tags = repaired.match(/<\/?([a-z1-6]+)/gi) || [];
+  const tagRegex = /<\/?([a-z1-6]+)/gi;
+  const tags = repaired.match(tagRegex) || [];
   const selfClosing = ['img', 'br', 'hr', 'input', 'meta', 'link'];
-  
   for (let tag of tags) {
     const tagName = tag.replace('<', '').replace('/', '').replace('>', '').split(' ')[0].toLowerCase();
     if (selfClosing.includes(tagName)) continue;
@@ -66,7 +65,7 @@ function cleanHTML(h) {
   return h.replace(h1Regex, '').trim();
 }
 
-async function genImg(label, detail, fallbackTitle, model) {
+async function genImg(label, detail, fallbackTitle, model, keyword) {
   const pText = (typeof detail === 'string' ? detail : detail?.prompt) || fallbackTitle;
   const aText = (typeof detail === 'string' ? fallbackTitle : detail?.alt) || fallbackTitle;
   const tText = (typeof detail === 'string' ? fallbackTitle : detail?.title) || fallbackTitle;
@@ -76,7 +75,7 @@ async function genImg(label, detail, fallbackTitle, model) {
   let imageUrl = '';
   if (kieKey) {
     try {
-      const res = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { model: 'z-image', input: { prompt: pText + ", premium photography, 8k, professional lightning", aspect_ratio: "16:9" } }, { headers: { Authorization: 'Bearer ' + kieKey } });
+      const res = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', { model: 'z-image', input: { prompt: pText + ", premium photography, 8k, professional lightning, cinematic", aspect_ratio: "16:9" } }, { headers: { Authorization: 'Bearer ' + kieKey } });
       const tid = res.data.taskId || res.data.data?.taskId;
       if (tid) {
         for (let i = 0; i < 40; i++) {
@@ -97,10 +96,19 @@ async function genImg(label, detail, fallbackTitle, model) {
       const form = new FormData();
       form.append('image', imageUrl);
       const upload = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders() });
-      return { url: upload.data.data.url, alt: aText, title: tText };
-    } catch (e) { return { url: imageUrl, alt: aText, title: tText }; }
+      if (upload.data && upload.data.data && upload.data.data.url) {
+        console.log("   ➤ [ImgBB] 이미지 영구 저장 성공! ✅");
+        return { url: upload.data.data.url, alt: aText, title: tText };
+      }
+    } catch (e) { console.log("   ➤ [ImgBB] 업로드 실패, KIE 주소 유지 중... ⚠️"); }
   }
-  return { url: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1280", alt: aText, title: tText };
+  if (!imageUrl) {
+    // KIE 실패 시 키워드 기반 랜덤 이미지 생성
+    const cleanWord = (keyword || "technology").split(' ')[0];
+    imageUrl = "https://loremflickr.com/1280/720/" + encodeURIComponent(cleanWord) + "?random=" + Math.random();
+    console.log("   ➤ [FALLBACK] 키워드 기반 랜덤 이미지 적용 완료! 📸");
+  }
+  return { url: imageUrl, alt: aText, title: tText };
 }
 
 async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPrompt = '') {
@@ -127,37 +135,30 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
     console.error("❌ JSON 파싱 실패! 복구 시도 중...");
     data = { title: target, content: rawText, labels: ["General"], image_prompts: {} };
   }
-  
-  // 데이터 정규화 (필수 필드 누락 방지)
   data.image_prompts = data.image_prompts || {};
   let content = repairHTML(data.content || "");
   let finalTitle = data.title || target;
-  
   const h1Match = content.match(/<h1[^>]*>(.*?)<\/h1>/i);
   if (h1Match && h1Match[1]) {
     finalTitle = h1Match[1].replace(/<[^>]+>/g, '').trim();
     console.log("📌 H1 제목 추출: " + finalTitle);
   }
-
   const [img1, img2, img3, img4] = await Promise.all([
-    genImg("IMG_1", data.image_prompts.IMG_1 || data.image_prompts["1"], finalTitle, model),
-    genImg("IMG_2", data.image_prompts.IMG_2 || data.image_prompts["2"], finalTitle, model),
-    genImg("IMG_3", data.image_prompts.IMG_3 || data.image_prompts["3"], finalTitle, model),
-    genImg("IMG_4", data.image_prompts.IMG_4 || data.image_prompts["4"], finalTitle, model)
+    genImg("IMG_1", data.image_prompts.IMG_1 || data.image_prompts["1"], finalTitle, model, target),
+    genImg("IMG_2", data.image_prompts.IMG_2 || data.image_prompts["2"], finalTitle, model, target),
+    genImg("IMG_3", data.image_prompts.IMG_3 || data.image_prompts["3"], finalTitle, model, target),
+    genImg("IMG_4", data.image_prompts.IMG_4 || data.image_prompts["4"], finalTitle, model, target)
   ]);
-  
   const wrapImg = (i) => '<div style="text-align:center; margin:35px 0;"><img src="' + i.url + '" alt="' + i.alt + '" title="' + i.title + '" style="width:100%; border-radius:15px;"><p style="font-size:12px; color:#888; margin-top:8px;">' + i.alt + '</p></div>';
   content = cleanHTML(content);
   content = content.replaceAll('[[IMG_1]]', wrapImg(img1)).replaceAll('[[IMG_2]]', wrapImg(img2)).replaceAll('[[IMG_3]]', wrapImg(img3)).replaceAll('[[IMG_4]]', wrapImg(img4));
   if (!content.includes(img1.url)) content = wrapImg(img1) + content;
-  
   const lbls = Array.isArray(data.labels) ? data.labels : (typeof data.labels === 'string' ? data.labels.split(',').map(s => s.trim()) : ["Blog"]);
-
-  const res = await blogger.posts.insert({
+  await blogger.posts.insert({
     blogId: bId,
     requestBody: { title: finalTitle, labels: lbls, content: content, customMetaData: data.description || '', published: pTime.toISOString() }
   });
-  console.log("🎉 발행 성공: " + res?.data?.url);
+  console.log("🎉 발행 성공: " + finalTitle);
 }
 
 async function run() {
@@ -175,7 +176,7 @@ async function run() {
   const baseTime = new Date();
   if (config.post_mode === 'cluster') {
     const seed = clusters[0] || "Blog Topic";
-    const planPrompt = "Plan 4 unique blog titles for: " + seed + ". Return ONLY a JSON array of 4 strings.";
+    const planPrompt = "Plan 4 dramatically distinct blog titles for: " + seed + ". Return ONLY a JSON array of 4 strings.";
     const planRes = await model.generateContent(planPrompt);
     const subKeywords = JSON.parse(clean(planRes.response.text()));
     for (let i = 0; i < subKeywords.length; i++) {

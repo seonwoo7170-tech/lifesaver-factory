@@ -747,26 +747,65 @@ async function searchSerper(query) {
 }
 async function genImg(desc, model, i) {
     if(!desc) return '';
-    console.log('   🎨 [Image] 이미지 ' + i + '번 시각화 프롬프트 생성 중...');
+    const kieKey = process.env.KIE_API_KEY;
+    const imgbbKey = process.env.IMGBB_API_KEY;
+    console.log('   🎨 [Image] ' + i + '번 이미지 생성 시작 (KIE z-image)...');
     let engPrompt = '';
     try {
-        const engPromptRes = await callAI(model, 'Translate visual description to English for image generation. NO CHAT: ' + desc);
-        engPrompt = engPromptRes.replace(/[^a-zA-Z0-9, ]/g, '').trim();
-    } catch(e) { engPrompt = desc; }
-    if(!engPrompt || engPrompt === '오류 발생.') engPrompt = desc;
-    let imageUrl = "https://image.pollinations.ai/prompt/" + encodeURIComponent(engPrompt) + "?width=1280&height=720&nologo=true&seed=" + Math.floor(Math.random()*1000000) + "&model=flux";
-    const imgbbKey = process.env.IMGBB_API_KEY;
-    if(imgbbKey) {
-        console.log('   ☁️ [Image] ImgBB 영구 저장소에 업로드 시도...');
+        const r = await callAI(model, 'Translate to English for image generation. NO CHAT, ONLY description: ' + desc);
+        engPrompt = r.replace(/[^a-zA-Z0-9, .!()-]/g, '').trim();
+    } catch(e) {}
+    if (!engPrompt || engPrompt.length < 5) engPrompt = String(desc).replace(/[^a-zA-Z0-9 ]/g, ' ').trim();
+    let finalUrl = '';
+    // 1단계: KIE z-image로 이미지 생성
+    if (kieKey && kieKey.length > 5) {
         try {
-            const res = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-            const form = new FormData(); form.append('image', Buffer.from(res.data).toString('base64'));
-            const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders() });
-            console.log('   ✅ [Image] ImgBB 업로드 성공: ' + ir.data.data.url);
-            return ir.data.data.url;
-        } catch(e) { console.log('   ⚠️ [Image] ImgBB 업로드 실패, 원본 링크 사용'); }
+            console.log('   ㄴ [Kie.ai] z-image 호출 (비율: 16:9)...');
+            const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', {
+                model: 'z-image',
+                input: { prompt: engPrompt + ', high-end, editorial photography, 8k', aspect_ratio: '16:9' }
+            }, { headers: { Authorization: 'Bearer ' + kieKey }, timeout: 30000 });
+            const tid = cr.data.taskId || (cr.data.data && cr.data.data.taskId);
+            if (tid) {
+                for (let a = 0; a < 15; a++) {
+                    await new Promise(r => setTimeout(r, 6000));
+                    const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey } });
+                    const state = pr.data.state || (pr.data.data && pr.data.data.state);
+                    if (state === 'success') {
+                        const resData = pr.data.resultJson || (pr.data.data && pr.data.data.resultJson);
+                        const resJson = typeof resData === 'string' ? JSON.parse(resData) : resData;
+                        finalUrl = resJson.resultUrls[0];
+                        console.log('   ✅ [Image] KIE z-image 성공: ' + finalUrl);
+                        break;
+                    }
+                    if (state === 'fail' || state === 'failed') { console.log('   ⚠️ [Image] KIE 작업 실패'); break; }
+                }
+            } else { console.log('   ⚠️ [Kie.ai] 태스크 ID 누락: ' + JSON.stringify(cr.data).slice(0, 100)); }
+        } catch(e) { console.log('   ⚠️ [Image] KIE 에러: ' + (e.response ? JSON.stringify(e.response.data) : e.message)); }
+    } else { console.log('   ℹ️ [Image] KIE_API_KEY 없음 - pollinations fallback'); }
+    // KIE 실패 시 pollinations fallback
+    if (!finalUrl) {
+        const seed = Math.floor(Math.random()*1000000);
+        finalUrl = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(engPrompt) + '?width=1280&height=720&nologo=true&seed=' + seed + '&model=flux';
+        console.log('   🔄 [Image] Pollinations fallback 사용');
     }
-    return imageUrl;
+    // 2단계: ImgBB에 영구 저장
+    if (imgbbKey && finalUrl) {
+        console.log('   ☁️ [Image] ImgBB 업로드 시도...');
+        try {
+            const res = await axios.get(finalUrl, { responseType: 'arraybuffer', maxRedirects: 10, timeout: 30000 });
+            if (res.data && res.data.byteLength > 1000) {
+                const form = new FormData();
+                form.append('image', Buffer.from(res.data).toString('base64'));
+                const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders(), timeout: 20000 });
+                if (ir.data && ir.data.data && ir.data.data.url) {
+                    console.log('   ✅ [Image] ImgBB 업로드 성공: ' + ir.data.data.url);
+                    return ir.data.data.url;
+                }
+            } else { console.log('   ⚠️ [Image] 이미지 용량 부족 (' + (res.data ? res.data.byteLength : 0) + ' bytes)'); }
+        } catch(e) { console.log('   ⚠️ [Image] ImgBB 에러: ' + e.message); }
+    }
+    return finalUrl;
 }
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
     console.log('   📝 [Draft] 블로그 기획 시작: ' + target);
@@ -804,7 +843,14 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     const firstH2Idx = cleanPart2.search(/<h2[\s>]/i);
     if (firstH2Idx > 0) cleanPart2 = cleanPart2.substring(firstH2Idx);
     cleanPart2 = cleanPart2.replace(/<h1[\s\S]*?<\/h1>/gi, '');
-    console.log('   ✅ [Mission] 2단계 완료 (' + part2.length + '자)');
+    // [핵심] part2의 스타일 없는 <h2>를 배경색 있는 <h2>로 자동 변환
+    const PART2_COLORS = ['plum', 'lightsalmon', '#98d8c8', '#ffd700', '#c8e6c9'];
+    let p2ci = 0;
+    cleanPart2 = cleanPart2.replace(/<h2((?![^>]*style)[^>]*)>(.*?)<\/h2>/gi, function(match, attrs, text) {
+        const bg = PART2_COLORS[p2ci++ % PART2_COLORS.length];
+        return "<h2 style='font-size:22px; font-weight:bold; color:#111; border-left:5px solid #111; padding-left:16px; margin:48px 0 24px; background-color:" + bg + "; padding:12px; border-radius:8px;'" + attrs + ">" + text + "</h2>";
+    });
+    console.log('   ✅ [Mission] 2단계 완료 (' + part2.length + '자, h2스타일 자동보정 완료)');
 
     let fullContent = part1 + '\n' + cleanPart2;
     console.log('   📊 [Stat] 전체 원고 길이: ' + fullContent.length + '자 생성 완료');
@@ -829,17 +875,33 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     let finalHtml = clean(fullContent, 'text');
 
     console.log('   🖼 [Image] 이미지 삽입 및 생성 프로세스 시작...');
+    // [[IMG_X]] 태그 없으면 h2 뒤에 자동 삽입
+    const h2EndPositions = [...finalHtml.matchAll(/<\/h2>/gi)].map(m => m.index + 5);
+    let offset = 0;
     for (let i = 1; i <= 4; i++) {
-        const placeholder = "[[IMG_" + i + "]]";
+        const ph = '[[IMG_' + i + ']]';
+        if (!finalHtml.includes(ph) && h2EndPositions[i - 1] !== undefined) {
+            const pos = h2EndPositions[i - 1] + offset;
+            finalHtml = finalHtml.slice(0, pos) + ph + finalHtml.slice(pos);
+            offset += ph.length;
+            console.log('   🔧 [Image] [[IMG_' + i + ']] 자동 삽입 완료');
+        }
+    }
+    for (let i = 1; i <= 4; i++) {
+        const placeholder = '[[IMG_' + i + ']]';
         if (finalHtml.includes(placeholder)) {
             let p = imgPrompts[i];
             if (!p || !p.prompt) {
-                const visualPrompt = await callAI(model, 'Generate a cinematic image prompt (visual only) for a blog about ' + target + ' and subtitle ' + (chapters[i-1] || target) + '. Return ONLY the visual description.');
+                const visualPrompt = await callAI(model, 'Generate a cinematic image prompt (visual only) for a blog about ' + target + '. Return ONLY English visual description.');
                 p = { prompt: visualPrompt, alt: target, title: target };
             }
             const url = await genImg(p.prompt, model, i);
-            const imgHtml = "<img src='" + url + "' alt='" + p.alt + "' title='" + p.title + "' style='width:100%; border-radius:15px; margin: 30px 0;'>";
-            finalHtml = finalHtml.split(placeholder).join(imgHtml);
+            if (url) {
+                const imgHtml = "<img src='" + url + "' alt='" + p.alt + "' title='" + p.title + "' style='width:100%; border-radius:15px; margin: 30px 0;'>";
+                finalHtml = finalHtml.split(placeholder).join(imgHtml);
+            } else {
+                finalHtml = finalHtml.split(placeholder).join('');
+            }
         }
     }
 

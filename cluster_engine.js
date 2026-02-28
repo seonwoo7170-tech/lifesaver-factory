@@ -1097,7 +1097,6 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
             await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: finalBody, labels, published: pTime.toISOString() } });
         } else {
             console.log('   ❌ [Blogger] 포스팅 실패 사유:', e.response?.data?.error || e.message);
-            throw e;
         }
     }
     return { title: finalTitle };
@@ -1112,12 +1111,12 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     const blogger = google.blogger({ version: 'v3', auth });
     const pool = config.clusters || []; if(!pool.length) { console.log('   ❌ [System] 키워드 풀이 비어있습니다.'); return; }
     const dailyCount = config.daily_count || 1;
-    const seedKw = pool[Math.floor(Math.random()*pool.length)];
-    console.log('   🏠 [Cluster] 메인 키워드: ' + seedKw + ' | 서브 주제 ' + dailyCount + '개 생성 예정');
-    let subTopics = [seedKw];
+    const mainSeed = config.pillar_topic || (pool.length > 0 ? pool[0] : 'Blog Topic');
+    console.log('   🏠 [Cluster] 메인 시드: ' + mainSeed + ' | 총 ' + dailyCount + '개 (메인 1 + 서브 ' + (dailyCount-1) + ') 생성 예정');
+    let subTopics = [mainSeed];
     if (dailyCount > 1) {
         const langName = config.blog_lang === 'ko' ? 'Korean' : 'English';
-        const subPrompt = 'Main keyword: ' + seedKw + '. Generate ' + dailyCount + ' different sub-topic blog subjects. Each is a unique angle: beginner, advanced, troubleshooting, review, comparison, etc. No duplicates. ' + (config.blog_lang === 'ko' ? 'Reply in Korean.' : 'Reply in English.') + ' Return ONLY a JSON array of strings.';
+        const subPrompt = 'Main topic: ' + mainSeed + '. Generate ' + dailyCount + ' blog article titles for a cluster strategy. One title must be a Main Pillar (comprehensive, foundational guide), and the other ' + (dailyCount-1) + ' titles must be specific Clusters (narrow angles like niche case studies, specific tutorials, advanced tips, or comparisons). Ensure they are all related but distinct. ' + (config.blog_lang === 'ko' ? 'Reply in Korean.' : 'Reply in English.') + ' Return ONLY a JSON array of strings.';
         try {
             const subRes = await callAI(model, subPrompt);
             const arrMatch = subRes.replace(/```(json)?/gi,'').trim().match(/\[[\s\S]*\]/);
@@ -1126,10 +1125,14 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         console.log('   📌 서브 주제 목록:', subTopics);
     }
     for (let i = 0; i < subTopics.length; i++) {
-        console.log('   ✍️ [' + (i+1) + '/' + subTopics.length + '] 주제: ' + subTopics[i]);
-        const pTime = new Date(Date.now() + i * 5 * 60 * 1000);
-        await writeAndPost(model, subTopics[i], config.blog_lang, blogger, config.blog_id, pTime, [], i+1, subTopics.length);
-        if (i < subTopics.length - 1) { console.log('   ⏱ 30초 대기 후 다음 글 작성...'); await new Promise(r => setTimeout(r, 30000)); }
+        try {
+            console.log('   ✍️ [' + (i+1) + '/' + subTopics.length + '] 주제: ' + subTopics[i]);
+            const pTime = new Date(Date.now() + i * 5 * 60 * 1000);
+            await writeAndPost(model, subTopics[i], config.blog_lang, blogger, config.blog_id, pTime, [], i+1, subTopics.length);
+            if (i < subTopics.length - 1) { console.log('   ⏱ 30초 대기 후 다음 글 작성...'); await new Promise(r => setTimeout(r, 30000)); }
+        } catch(err) {
+            console.log('   ❌ [' + (i+1) + '/' + subTopics.length + '] 글 생성 중 치명적 오류 발생 (건너뜀): ' + err.message);
+        }
     }
     console.log('   ✨ [Done] 클러스터 연재 ' + subTopics.length + '개 완료!');
   }

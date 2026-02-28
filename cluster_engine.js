@@ -250,9 +250,7 @@ HTML 소스코드를 생성한다.
 ⑦ 면책조항
   YMYL 시 강화 문구 추가
 
-⑧ 관련 포스팅 슬롯
-  2~3개 / href="#" 기본값
-  (사용자가 실제 URL 제공 시 교체)
+⑧ (항목 삭제 - 엔진이 자동 삽입함)
 
 ⑨ 마무리 박스
   결론 요약 + CTA + 댓글·공유 유도
@@ -433,19 +431,17 @@ HTML 소스코드를 생성한다.
   이미지 사이에 텍스트만 있는 섹션 확보 → 자동광고 삽입 공간
 
 [5-9] 면책조항
-  배경 #F9FAFB / border 1px solid #E5E7EB / radius 8px / padding 16px / overflow hidden
-  텍스트: 13px / #999 / line-height 1.7 / margin 0
+  박스 전체 (div): margin 50px 0 30px 0 / 배경 #F9FAFB / border 1px solid #E5E7EB / radius 8px / padding 18px / overflow hidden
+  타이틀 (p 태그): "📌 면책조항 및 안내" (font-size 14px, font-weight bold, color #777, margin 0 0 8px 0)
+  본문 (p 태그): font-size 13px / color #999 / line-height 1.7 / margin 0
   기본문: "본 포스팅은 개인 경험과 공개 자료를 바탕으로 작성되었으며,
   전문적인 의료·법률·재무 조언을 대체하지 않습니다.
   정확한 정보는 해당 분야 전문가 또는 공식 기관에 확인하시기 바랍니다."
   YMYL 추가문: "본 글의 내용은 정보 제공 목적이며, 개인 상황에 따라
   결과가 다를 수 있습니다. 반드시 전문가와 상담 후 결정하시기 바랍니다."
 
-[5-10] 내부 관련 포스팅 슬롯 (내부 링크)
-  p: font-size 15px / color #555 / margin 30px 0 / font-weight bold
-  형식: "👉 함께 보면 좋은 글: <a href='URL' style='color:#3B82F6; text-decoration:underline;'>포스팅 제목</a>"
-  지시사항: 제공된 [BLOG_ARCHIVES] 리스트(과거 포스팅 제목 및 URL)를 분석하여, 현재 작성하는 주제와 가장 맥락이 닿아 있는 글 최대 **5개**를 선별해 a 태그로 정확히 연결하세요.
-  [BLOG_ARCHIVES] 데이터가 없거나 텅 비어있다면, 아예 이 섹션 자체를 생성하지 마세요. (추측성 링크 절대 금지)
+[5-10] 내부 관련 포스팅 슬롯
+  **[강력 경고] 시스템 엔진이 포스팅 발행 직전에 자동으로 관련 링크 5개를 본문 맨 아래에 삽입하므로, AI는 "👉 함께 보면 좋은 글", "관련 포스팅" 등의 섹션을 일절 스스로 텍스트로 생성하지 마세요.**
 
 [5-11] 마무리 박스
   배경 #F9FAFB / border 1px solid #E5E7EB / radius 12px / padding 20px / overflow hidden / clear both
@@ -609,7 +605,7 @@ YMYL 감지 시 적용:
 [사후 검수 — 생성 완료 후, 출력 전]
 
   POST-1  구조: h1 → 목차 → 스니펫 → 후킹 → 본문(테이블1+이미지4+박스3~4)
-                → FAQ 5개 → 면책 → 관련포스팅 → 마무리 → Schema
+                → FAQ 5개 → 면책 → 마무리 → Schema (관련포스팅은 스스로 절대 생성 금지)
   POST-2  금지: PART D [2]의 금지 표현 0개
   POST-3  박스: ≤4개 / 같은 타입 ≤1 / 연속 0 / 텍스트만 섹션 ≥2
   POST-4  문체: 문단 길이 불규칙 / 종결어미 3연속 없음 / 시작어 3연속 없음

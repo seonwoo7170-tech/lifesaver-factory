@@ -854,40 +854,41 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log('   📝 [Draft] 블로그 기획 시작: ' + target);
     const searchData = await searchSerper(target);
     const langName = (lang === 'ko') ? 'Korean' : (lang === 'ja') ? 'Japanese' : (lang === 'zh') ? 'Chinese' : 'English';
+    const curY = new Date().getFullYear();
     let chapters = [];
+    let blueprintData = {};
+
     if (extraLinks && extraLinks.length > 0) {
-        console.log('   🔗 [Pillar] 서브글 기반 챕터 매핑 시작...');
-        chapters = extraLinks.map(l => l.title);
-    } else {
-        const bpPrompt = 'Current Year: ' + curY + '\n[Search Reference]:\n' + searchData + '\n\nReference simple keywords above to create a high-CTR title and 4-7 chapter subtitles for: ' + target + '. All values must be in ' + langName + '. (DO NOT USE OLD YEARS LIKE 2024. ALWAYS USE CURRENT YEAR ' + curY + '). Return ONLY valid JSON: {title:string, chapters:[strings]}.';
+        console.log('   🔗 [Pillar] 서브글들(4개)을 바탕으로 기둥 글 목차 기획...');
+        const bpPrompt = 'Current Year: ' + curY + '\n\n' + 'We already posted 4 sub-articles. Now create a Pillar post that summarizes and links them. \n' + '[Sub-Articles]:\n' + extraLinks.map(l => '- ' + l.title).join('\n') + '\n\n' + 'Create a Pillar Post Title and 4 section titles (H2) that complement these. DO NOT use identical titles. Write related, insightful angles. Return JSON: {title:string, chapters:[strings]}. (Language: ' + langName + ')';
         try {
             const bpRes = await callAI(model, bpPrompt);
-            const data = JSON.parse(clean(bpRes, 'obj') || '{}');
-            chapters = data.chapters || [];
-        } catch(e) { console.log('   ⚠️ Blueprint fail, using fallback'); }
+            blueprintData = JSON.parse(clean(bpRes, 'obj') || '{}');
+            chapters = blueprintData.chapters || [];
+        } catch(e) { console.log('   ⚠️ Pillar BP fail'); }
+    } else {
+        const bpPrompt = 'Current Year: ' + curY + '\n[Search]: ' + searchData + '\n\n' + 'Create a title and 4-6 subtitles for: ' + target + '. Return JSON: {title:string, chapters:[strings]}. (Language: ' + langName + ')';
+        try {
+            const bpRes = await callAI(model, bpPrompt);
+            blueprintData = JSON.parse(clean(bpRes, 'obj') || '{}');
+            chapters = blueprintData.chapters || [];
+        } catch(e) { console.log('   ⚠️ Single BP fail'); }
     }
-    if(chapters.length < 4) { chapters.push(lang === 'ko' ? '기본 개념 이해' : 'Basic Concept'); chapters.push(lang === 'ko' ? '주의사항 및 팁' : 'Cautions and Tips'); chapters.push(lang === 'ko' ? '실생활 활용 예시' : 'Real-life Examples'); }
+    const title = blueprintData.title || target;
+    if(chapters.length < 4) { chapters.push(lang === 'ko' ? '기본 가이드' : 'Basic Guide'); chapters.push(lang === 'ko' ? '심화 분석' : 'Deep Dive'); }
     const halfIdx = Math.ceil(chapters.length / 2);
     const p1Chapters = chapters.slice(0, halfIdx);
     const p2Chapters = chapters.slice(halfIdx);
     
-    console.log('   🚀 [Mission] Trinity Duo 1단계 시작 (서론 및 전반부)...');
-    const linkInstructions1 = (extraLinks && extraLinks.length > 0) ? '\n[PILLAR MAPPING]: This is a Pillar post. Each section header below corresponds to an existing sub-article. You MUST summarize the sub-article and insert the button at the END of each <h2> section: <a href="URL" class="internal-link-btn">➔ 심층 분석: [Title] 자세히 보기</a>\n' + p1Chapters.map((c, i) => '- Section: "' + c + '" -> Link: ' + extraLinks[i].url).join('\n') : '';
-    const mission1 = '[1/2단계] 키워드: ' + target + '\n\n'
-        + '순서: h1 제목 -> 목차 -> 서론(1000자 이상) -> 각 h2 섹션(본문 풍부하게)\n'
-        + '대상 섹션:\n' + p1Chapters.map(c => '<h2>' + c + '</h2>').join('\n') + '\n'
-        + '★ 각 h2 섹션 내부에는 반드시 2~3개의 소주제(h3)를 넣어 내용을 구성하라.' + linkInstructions1;
-    let part1 = await callAI(model, MASTER_GUIDELINE + '\n\n' + mission1 + '\n\n[검색 데이터]:\n' + searchData);
-    console.log('   ✅ [Mission] 1단계 완료 (' + part1.length + '자)');
-
-    console.log('   🚀 [Mission] Trinity Duo 2단계 시작 (후반부 및 FAQ)...');
-    const linkInstructions2 = (extraLinks && extraLinks.length > 0) ? '\n[PILLAR MAPPING]: Continue mapping sub-articles to sections. Insert buttons at the END of each <h2> section.\n' + p2Chapters.map((c, i) => '- Section: "' + c + '" -> Link: ' + extraLinks[halfIdx + i].url).join('\n') : '';
-    const mission2 = '[2/2단계] 이전 글에 이어서 작성하라:\n\n'
-        + '대상 섹션:\n' + p2Chapters.map(c => '<h2>' + c + '</h2>').join('\n') + '\n'
-        + '★ 각 h2 섹션 내부에는 반드시 2~3개의 소주제(h3)를 넣어 내용을 구성하라.\n'
-        + '1) FAQ (<h2>자주 묻는 질문</h2>) - 5개 필수\n'
-        + '2) 결론 단락 (600자 이상)\n' + linkInstructions2;
-    let part2 = await callAI(model, MASTER_GUIDELINE + '\n\n' + mission2 + '\n\n[이전 내용]:\n' + part1.substring(part1.length - 1200));
+    console.log('   🚀 [Mission] Trinity Duo 1단계 시작 (전반부)...');
+    const map1 = (extraLinks && extraLinks.length > 0) ? '\n[PILLAR]: Write related content for each H2 and link to sub-article at the end of section.\n' + p1Chapters.map((c, i) => '- H2: "' + c + '" -> Sub-Post: "' + extraLinks[i].title + '" (URL: ' + extraLinks[i].url + ')').join('\n') + '\nButton: <a href="URL" class="internal-link-btn">➔ 심층 분석: [Sub-Post Title] 자세히 보기</a>' : '';
+    const mission1 = '[1/2단계] ' + target + '\n\n' + '1) H1\n2) 목차\n3) 서론(1000자)\n4) 섹션(H2):\n' + p1Chapters.map(c => '<h2>' + c + '</h2>').join('\n') + '\n★ H2 내에 H3 소주제 2~3개 필수.' + map1;
+    let part1 = await callAI(model, MASTER_GUIDELINE + '\n\n' + mission1 + '\n\n[Search]:\n' + searchData);
+    
+    console.log('   🚀 [Mission] Trinity Duo 2단계 시작 (후반부)...');
+    const map2 = (extraLinks && extraLinks.length > 0) ? '\n[PILLAR]: Continue linking.\n' + p2Chapters.map((c, i) => '- H2: "' + c + '" -> Sub-Post: "' + extraLinks[halfIdx + i].title + '" (URL: ' + extraLinks[halfIdx + i].url + ')').join('\n') + '\nButton: <a href="URL" class="internal-link-btn">➔ 심층 분석: [Sub-Post Title] 자세히 보기</a>' : '';
+    const mission2 = '[2/2단계] 이어서 작성:\n' + p2Chapters.map(c => '<h2>' + c + '</h2>').join('\n') + '\n1) FAQ(H2)\n2) 결론(600자)\n★ H2 내에 H3 소주제 2~3개 필수.' + map2;
+    let part2 = await callAI(model, MASTER_GUIDELINE + '\n\n' + mission2 + '\n\n[Previous]:\n' + part1.substring(part1.length - 1200));
     let cleanPart2 = part2.replace(/<h1[\s\S]*?<\/h1>/gi, '').replace(/<div class="toc-box">[\s\S]*?<\/div>/gi, '');
     const firstH2Idx = cleanPart2.search(/<h2[\s>]/i);
     if (firstH2Idx > 0) cleanPart2 = cleanPart2.substring(firstH2Idx);
@@ -986,7 +987,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     }
 
     // 핀터레스트용 숨겨진 썸네일(IMG_PIN) 생성 및 삽입
-    let pPin = imgPrompts['PIN'];
+    let pPin = imgPrompts['PIN'] || imgPrompts['0'];
     if (pPin && pPin.prompt) {
         console.log('   📌 [Pinterest] 핀터레스트용 2:3 세로 썸네일 생성 시도...');
         const pinUrl = await genImg(pPin.prompt, model, 'PIN', pPin.title || target, '2:3');
@@ -1094,20 +1095,20 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         console.log('   📌 서브 주제 목록:', subTopics);
     }
     const clusterResults = [];
-    // 1. Cluster Articles (Sub Topics) 먼저 작성
+    // 1. Cluster Articles (Sub Topics) 먼저 4개 작성
     for (let i = 1; i < subTopics.length; i++) {
         try {
-            console.log('   ✍️ [Cluster ' + i + '/' + (subTopics.length-1) + '] 서브주제: ' + subTopics[i]);
-            const pTime = new Date(Date.now() + i * 10 * 60 * 1000);
+            console.log('   ✍️ [Cluster ' + i + '/' + (subTopics.length-1) + '] 서브 글 작성 시작: ' + subTopics[i]);
+            const pTime = new Date(Date.now() + i * 15 * 60 * 1000);
             const res = await writeAndPost(model, subTopics[i], config.blog_lang, blogger, config.blog_id, pTime, []);
-            clusterResults.push(res);
-            console.log('   ⏱ 다음 작업을 위해 30초 대기...'); await new Promise(r => setTimeout(r, 30000));
-        } catch(err) { console.log('   ❌ Cluster 작성 실패: ' + err.message); }
+            if(res && res.url) clusterResults.push(res);
+            console.log('   ⏱ 다음 작업을 위해 40초 대기...'); await new Promise(r => setTimeout(r, 40000));
+        } catch(err) { console.log('   ❌ Cluster ' + i + ' 작성 실패: ' + err.message); }
     }
-    // 2. Pillar Article (Main Topic) 마지막에 작성 (서브들 링크 포함)
+    // 2. Pillar Article (Main Topic) 마지막에 작성 (위에서 발행된 4개 링크 포함)
     try {
-        console.log('   🏰 [Pillar] 메인 기둥 글 작성 시작: ' + subTopics[0]);
-        const pTime = new Date(Date.now() + subTopics.length * 10 * 60 * 1000);
+        console.log('   🏰 [Pillar] 메인 기둥 글 작성 시작 (서브글 4개 연동): ' + subTopics[0]);
+        const pTime = new Date(Date.now() + subTopics.length * 15 * 60 * 1000);
         await writeAndPost(model, subTopics[0], config.blog_lang, blogger, config.blog_id, pTime, clusterResults);
     } catch(err) { console.log('   ❌ Pillar 작성 실패: ' + err.message); }
     console.log('   ✨ [Done] 클러스터 연재 ' + subTopics.length + '개 완료!');

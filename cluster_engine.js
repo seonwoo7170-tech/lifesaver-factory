@@ -672,7 +672,7 @@ YMYL 감지 시 적용:
    - ② 타사 제품/서비스와의 직접적 **비교 분석** 1건
    - ③ 업계 종사자만 아는 **비밀/내부 폭로** 정보 1건
 6. **JSON 한 줄 출력**: content 내부에 실제 줄바꿈을 넣지 말고 오직 한 줄로 길게 연결하라.`;
-const NARRATIVE_HINTS = `["실전 경험이 왜 중요한지 제가 직접 몸소 느꼈던 이야기를 해보려 합니다. 이론만 알 때는 몰랐던 진짜 현장의 목소리가 있더라고요.","솔직히 고백하자면 저도 처음엔 시간 낭비를 엄청나게 했습니다. 이 방법을 몰라서 며칠 밤을 꼬박 새우며 헛수고를 했던 기억이 나네요.","지금 이 글을 읽는 분들이 느끼실 그 막막함, 저도 누구보다 잘 압니다. 처음에 저도 컴퓨터 앞에서 어디서부터 손을 대야 할지 몰라 한참을 멍하니 있었거든요.","결국 정답은 아주 가까운 기본기에 있더라고요. 수많은 기교를 부리다가 결국 다시 처음으로 돌아와서야 비로소 깨달은 핵심을 공유합니다.","많은 전문가들이 말하지 않는 맹점이 하나 있습니다. 겉으로 보기엔 완벽해 보이지만, 실제로는 치명적인 허점이 숨겨져 있는 그런 부분들이죠.","이 고민 때문에 며칠 동안 밤잠를 설쳤던 것 같아요. 어떻게 하면 더 효율적이고 정확하게 처리할 수 있을까 고민하다 찾아낸 비책입니다.","제가 겪은 뼈아픈 실패의 기록이 여러분께는 소중한 교훈이 되었으면 합니다. 제 돈과 시간을 버려가며 얻어낸 '진짜' 데이터들입니다.","제 초보 시절을 떠올려보고 싶습니다. 그때 제가 지금의 저를 만났다면 제 고생이 훨씬 줄어들었을 텐데 말이죠.","요즘 들어 제게 가장 자주 물어보시는 질문들을 하나로 모았습니다. 사실 다들 비슷비슷한 부분에서 고민하고 계시다는 걸 알게 됐거든요."]`;
+const NARRATIVE_HINTS = `["실전 경험이 왜 중요한지 제가 직접 몸소 느꼈던 이야기를 해보려 합니다. 이론만 알 때는 몰랐던 진짜 현장의 목소리가 있더라고요.","솔직히 고백하자면 저도 처음엔 시간 낭비를 엄청나게 했습니다. 이 방법을 몰라서 며칠 밤을 꼬박 새우며 헛수고를 했던 기억이 나네요.","지금 이 글을 읽는 분들이 느끼실 그 막막함, 저도 누구보다 잘 압니다. 처음에 저도 컴퓨터 앞에서 어디서부터 손을 대야 할지 몰라 한참을 멍하니 있었거든요.","결국 정답은 아주 가까운 개인적인 경험에 있더라고요. 수많은 기교를 부리다가 결국 다시 처음으로 돌아와서야 비로소 깨달은 핵심을 공유합니다.","많은 전문가들이 말하지 않는 맹점이 하나 있습니다. 겉으로 보기엔 완벽해 보이지만, 실제로는 치명적인 허점이 숨겨져 있는 그런 부분들이죠.","이 고민 때문에 며칠 동안 밤잠를 설쳤던 것 같아요. 어떻게 하면 더 효율적이고 정확하게 처리할 수 있을까 고민하다 찾아낸 비책입니다.","제가 겪은 뼈아픈 실패의 기록이 여러분께는 소중한 교훈이 되었으면 합니다. 제 돈과 시간을 버려가며 얻어낸 '진짜' 데이터들입니다.","제 초보 시절을 떠올려보고 싶습니다. 그때 제가 지금의 저를 만났다면 제 고생이 훨씬 줄어들었을 텐데 말이죠.","요즘 들어 제게 가장 자주 물어보시는 질문들을 하나로 모았습니다. 사실 다들 비슷비슷한 부분에서 고민하고 계시다는 걸 알게 됐거든요."]`;
 
 const STYLE = `<style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Pretendard:wght@400;700&display=swap');
@@ -695,12 +695,14 @@ function clean(raw, defType = 'obj') {
         t = t.replace(/<(!DOCTYPE|html|body|head|meta|link).*?>/gi, '').replace(/<\/(html|body|head|title|meta)>/gi, '');
         t = t.replace(/<title[\s\S]*?<\/title>/gi, '');
         t = t.replace(/\*\*+(.*?)\*\*+/g, '<b>$1</b>');
-        t = t.replace(/\[(EDITORIAL|시행지침|가이드라인|RULE|V-LOGIC|연계.*?)\]/gi, '');
+        t = t.replace(/\\[(EDITORIAL|시행지침|가이드라인|RULE|V-LOGIC|연계.*?)\\]/gi, '');
         t = t.replace(/패턴\s*[A-O](\s*(.*?))?(:)?/gi, '');
         t = t.replace(/^(서론|본론|결론|부록|주의|참고|Introduction|Summary|Conclusion|주의|날짜|장|절|챕터\s*\d+|섹션\s*타이틀|핵심\s*요약|해결책|FAQ)[:\s]*/gmi, '');
         t = t.replace(/^#{1,6}\s+.*$/gm, '');
         t = t.replace(/<script type=\"application\/ld\+json\">[\s\S]*?<\/script>/gi, '');
-        t = t.replace(/^[🔗📎🏷📝🖼].*$/gm, '');
+        t = t.replace(/IMG_\d+:\s*\{[\s\S]*?\}/gi, '');
+        t = t.replace(/^[🔗📎🏷📝🖼\#\>].*$/gm, '');
+        t = t.replace(/^(Part|Mission|Trinity Mission|트리니티 미션).*/gmi, '');
         return t.trim();
     }
     try {
@@ -778,24 +780,24 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     const chapters = Array.isArray(data.chapters) ? data.chapters : [];
     console.log('   📋 [Draft] 챕터 구성 완료: ' + chapters.length + '개 섹션');
     
-    const vLogicPatterns = ['패턴 A', '패턴 B', '패턴 C', '패턴 D', '패턴 E', '패턴 F', '패턴 G', '패턴 H', '패턴 I', '패턴 J', '패턴 K', '패턴 L', '패턴 M', '패턴 N', '패턴 O'].sort(() => Math.random() - 0.5);
-
     console.log('   🚀 [Mission] Trinity Mission 1단계 시작 (서론 및 섹션 1-3)...');
     let mission1 = "[트리니티 미션 1/3] 키워드: " + target + ". H1 제목 + 목차 + 서론 + 섹션1-3 작성. 필독: 반드시 '한국어'로만 작성하라. 영어 사용 금지. 본문 중간중간에 [[IMG_1]], [[IMG_2]] 태그를 삽입하라.";
     let part1 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n" + mission1 + "\\n\\nSearch: " + searchData);
     console.log('   ✅ [Mission] 1단계 완료 (' + part1.length + '자)');
 
     console.log('   🚀 [Mission] Trinity Mission 2단계 시작 (섹션 4-7, 말투 복제)...');
-    let mission2 = "[트리니티 미션 2/3] 섹션4-7 작성. 필독: 100% '한국어'로 작성하라. 절대로 제목(H1)이나 목차를 다시 쓰지 마라. 앞의 말투를 복제하고 본문 내용만 이어가라. 중간에 [[IMG_3]] 태그 삽입.";
-    let part2 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n[CONTEXT]:\\n" + part1.substring(Math.max(0, part1.length - 8000)) + "\\n\\n[CURRENT]:\\n" + mission2);
+    let mission2 = "[트리니티 미션 2/3] 섹션4-7 작성. '절대로' 제목(H1)이나 목차를 다시 쓰지 마라. 섹션4부터 곧바로 시작하라. 한국어로만 작성하라. 중간에 [[IMG_3]] 태그 삽입.";
+    let part2 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n[CONTEXT (LAST 2000 CHARS)]:\\n" + part1.substring(Math.max(0, part1.length - 2000)) + "\\n\\n[ACTION]:\\n" + mission2);
+    let cleanPart2 = part2.replace(/<h1.*?>.*?<\/h1>/gi, '').replace(/<div.*?목차.*?<\/div>/gi, '');
     console.log('   ✅ [Mission] 2단계 완료 (' + part2.length + '자)');
 
     console.log('   🚀 [Mission] Trinity Mission 3단계 시작 (FAQ 및 결론)...');
-    let mission3 = "[트리니티 미션 3/3] FAQ(10개) + 결론 + 태그 작성. 필독: 100% '한국어'로 작성하라. '절대로' 앞 부분(제목, 서론, 섹션1-7)을 다시 쓰지 마라. 오직 FAQ와 결론만 써라. 분량을 아주 상세히 채워라. 본문 마지막에 [[IMG_4]] 태그 삽입.";
-    let part3 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n[CONTEXT]:\\n" + (part1 + part2).substring(Math.max(0, (part1 + part2).length - 12000)) + "\\n\\n[CURRENT]:\\n" + mission3);
+    let mission3 = "[트리니티 미션 3/3] FAQ(10개) + 결론 + 태그 작성. '절대로' 제목, 서론, 섹션1-7을 다시 쓰지 마라. FAQ부터 곧바로 시작하라. 한국어로만 작성하라. 본문 마지막에 [[IMG_4]] 태그 삽입.";
+    let part3 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n[CONTEXT (LAST 2000 CHARS)]:\\n" + part2.substring(Math.max(0, part2.length - 2000)) + "\\n\\n[ACTION]:\\n" + mission3);
+    let cleanPart3 = part3.replace(/<h1.*?>.*?<\/h1>/gi, '').replace(/<div.*?목차.*?<\/div>/gi, '');
     console.log('   ✅ [Mission] 3단계 완료 (' + part3.length + '자)');
 
-    let fullContent = part1 + '\n' + part2 + '\n' + part3;
+    let fullContent = part1 + '\n' + cleanPart2 + '\n' + cleanPart3;
     console.log('   📊 [Stat] 전체 원고 길이: ' + fullContent.length + '자 생성 완료');
     
     const disclaimer = "<br><br><div style='font-size:14px; color:#888; border-top:1px solid #eee; padding-top:20px; margin-top:50px;'>* 본 포스팅은 정보 제공을 목적으로 작성되었으며, 실제 서비스 이용 시 공식 채널의 정보를 다시 확인하시기 바랍니다. 콘텐츠의 정확성을 기했으나 주관적인 견해가 포함될 수 있습니다.</div>";
@@ -827,25 +829,15 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
                 p = { prompt: visualPrompt, alt: target, title: target };
             }
             const url = await genImg(p.prompt, model, i);
-            const imgHtml = "<img src=\\\"" + url + "\\\" alt=\\\"" + p.alt + "\\\" title=\\\"" + p.title + "\\\" style=\\\"width:100%; border-radius:15px; margin: 30px 0;\\\">";
-            finalHtml = finalHtml.replace(placeholder, imgHtml);
+            const imgHtml = "<img src='" + url + "' alt='" + p.alt + "' title='" + p.title + "' style='width:100%; border-radius:15px; margin: 30px 0;'>";
+            finalHtml = finalHtml.split(placeholder).join(imgHtml);
         }
     }
 
-    console.log('   🎨 [Design] 파스텔 톤 박스 디자인 적용 중...');
-    function getRandomPastel() {
-      const hues = [0, 30, 60, 120, 180, 210, 270, 330];
-      const h = hues[Math.floor(Math.random() * hues.length)];
-      return "hsl(" + h + ", 70%, 92%)";
-    }
-    const colors = Array.from({ length: 7 }, getRandomPastel);
-    colors.forEach((color, idx) => {
-      finalHtml = finalHtml.replace("id=\\\"s" + (idx+1) + "\\\"", "id=\\\"s" + (idx+1) + "\\\" style=\\\"background-color: " + color + "; border-left: 12.1px solid " + color.replace('92%', '40%') + ";\\\"");
-    });
-
     const h1Match = finalHtml.match(/<h1.*?>(.*?)<\/h1>/i);
     const finalTitle = h1Match ? h1Match[1].replace(/<[^>]*>/g, '').trim() : target;
-    let finalBody = STYLE + '<div class=\"vue-premium\">' + finalHtml + disclaimer + '</div>';
+    let bodyWithoutH1 = finalHtml.replace(/<h1.*?>.*?<\/h1>/gi, '');
+    let finalBody = STYLE + '<div class=\"vue-premium\">' + bodyWithoutH1 + disclaimer + '</div>';
 
     console.log('   🚀 [Post] Blogger 포스팅 시도: ' + finalTitle);
     try {

@@ -313,7 +313,7 @@ HTML 소스코드를 생성한다.
   같은 타입 최대 1개.
   연속 2개 박스 배치 금지.
   박스 없는 순수 텍스트 섹션 ≥ 2개.
-  ★ 서사 흐름과 충돌 시 → 박스를 빼거나 위치를 옮긴다 (서사 우선).
+  ★ [초강력 규칙] 모든 콘텐츠 박스(꿀팁, 경험담, 주의사항, 데이터 등)는 문서 흐름이 끊기지 않도록 반드시 해당 <h2> 섹션 본문이 모두 끝나는 **마지막 단락 아래(다음 <h2>가 나오기 직전)**에만 통째로 배치하라. 섹션 중간에 박스를 삽입하여 문맥을 절단하는 행위를 절대 금지한다.
 
 
 ════════════════════════════════════════
@@ -664,9 +664,9 @@ YMYL 감지 시 적용:
 위의 모든 오리지널 지침에 더하여, 아래의 **VUE Studio 최종 통합 종결판 규칙**을 강제로 추가 적용한다.
 
 1. **페르소나 최적화**: 전문가 톤을 유지하되, 어미를 더 친근한 구어체(**"~거든요", "~더라고요", "~인 거예요", "~잖아요"**)로 변형하여 베테랑 블로거느낌을 극대화하라.
-2. **분량 하한선 강제**: 어떠한 경우에도 공백 제외 **순수 한글 텍스트 기준 4,000자 미만으로 작성하지 마라.** (YMYL은 5,500자 이상)
+2. **분량 하한선 강제**: 어떠한 경우에도 공백 제외 **순수 한글 가이드 글 4,000자 미만으로 작성하지 마라.** (YMYL은 5,500자 이상)
 3. **마크다운 완전 금지**: 본문 내 단 한 개의 별표(**)나 샵(#) 기호도 쓰지 마라. 모든 서식은 HTML 태그(<strong>, <h2> 등)로만 구현하라.
-4. **FAQ 확장**: 기존 5개 규칙 대신, 반드시 **8~10개**의 고품질 FAQ를 생성하고 스키마에 포함하라.
+4. **FAQ 품질**: 고정 5개의 FAQ를 생성하고 스키마에 포함하되, 본문에 나오지 않은 실생활의 구체적 의문을 반영하라. (글이 도중에 끊기는 것을 방지하기 위해 5개를 절대 초과하지 말 것)
 5. **강제 서사 3대 요소**: 본문 내에 다음을 반드시 자연스럽게 포함하라.
    - ① 본인의 뼈아픈 **실패/후회담** 1건
    - ② 타사 제품/서비스와의 직접적 **비교 분석** 1건
@@ -829,8 +829,9 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         + '아래 순서대로만 작성하라 (h1/목차/서론/전반부 외에는 절대 쓰지 마라):\n'
         + '1) h1 제목 (50자 이내, 클릭유도 강하게)\n'
         + '2) 목차 리스트 (주의: 1단계 작성 내용만 넣지 말고, 전체 섹션을 모두 나열할 것: ' + chapters.join(', ') + ')\n'
-        + '3) 서론 - 충격적 훅으로 시작, 4~6문단, 총 1000자 이상. 독자 통증 공감 + 해결책 안내\n'
-        + '4) 다음 ' + p1Chapters.length + '개 주제를 각각의 h2 섹션으로 작성:\n'
+        + '3) 본론 시작 전 전체 목차 박스 제공 (반드시 `<div class="toc-box">` 클래스만 사용, 인라인 style 절대 넣지 마라, ' + chapters.length + '개 전체 목차 나열)\n'
+        + '4) 서론 - 충격적 훅으로 시작, 4~6문단, 총 1000자 이상. 독자 통증 공감 + 해결책 안내\n'
+        + '5) 다음 ' + p1Chapters.length + '개 주제를 각각의 h2 섹션으로 작성:\n'
         + p1Chapters.map((c, i) => '   - <h2>' + c + '</h2>').join('\n') + '\n'
         + '   ★ 각 섹션 1000자 이상 매우 풍부하게 쓰라. 반드시 데이터 비교표 1개 이상, 꿀팁박스(연두색) 1개 이상 포함.\n'
         + '올바른 h2 예: <h2>주제 제목</h2> (섹션 번호 수식어 X)\n'
@@ -858,7 +859,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         + p2Chapters.map((c, i) => '   - <h2>' + c + '</h2>').join('\n') + '\n'
         + '   ★ 각 섹션 1000자 이상 매우 풍부하게 쓰라. 최신 데이터, 전문가 내밀 팁 등 포함.\n'
         + '2) FAQ (<h2>자주 묻는 질문</h2>)\n'
-        + '   - Q&A 10~15개 필수, 각 답변 400자 이상 충실히 작성. 원칙: 독자가 실제로 묻는 질문 위주\n'
+        + '   - Q&A 정확히 5개 필수, 각 답변 3~4문장으로 간결하고 충실히 작성 (글이 도중에 잘리는 것을 막기 위해 5개로 한정)\n'
         + '3) 결론 단락 (600자 이상). 문제 해결 훅 재강조 + 콜투액션 포함\n'
         + '콘텐츠 박스: 꿀팁박스(연두색), 주의박스(황색), 정보박스(파란색) 중 2개 이상 삽입\n'
         + '절대 금지: 이전 1단계 주제 중복 작성 금지. h2 안에 섹션 번호 접두어 금지. <script> 태그 및 FAQ JSON-LD 스키마 절대 생성 금지(HTML 본문만 작성할 것).\n'
@@ -936,6 +937,38 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     const h1Match = finalHtml.match(/<h1.*?>(.*?)<\/h1>/i);
     const finalTitle = h1Match ? h1Match[1].replace(/<[^>]*>/g, '').trim() : target;
     let bodyWithoutH1 = finalHtml.replace(/<h1.*?>.*?<\/h1>/gi, '');
+
+    // 태그 닫기 보정 (글이 잘려서 태그가 덜 닫힌 경우 UI가 깨지는 것 방지)
+    const tagsToClose = ['p', 'blockquote', 'table', 'li', 'ul', 'ol', 'div'];
+    tagsToClose.forEach(tag => {
+        const openCount = (bodyWithoutH1.match(new RegExp(`<${tag}[>\s]`, 'gi')) || []).length;
+        const closeCount = (bodyWithoutH1.match(new RegExp(`</${tag}>`, 'gi')) || []).length;
+        if (openCount > closeCount) {
+            for (let i = 0; i < (openCount - closeCount); i++) {
+                bodyWithoutH1 += `</${tag}>`;
+            }
+        }
+    });
+
+    // 구글 애드센스가 삽입될 수 있는 넉넉한 공간(Spacer)을 각 H2 전에 추가
+    bodyWithoutH1 = bodyWithoutH1.replace(/<h2/gi, '<div style=\'margin: 60px 0; padding: 20px 0; clear: both;\' class=\'adsense-spacer\'></div><h2');
+
+    // 목차 강제 보정 (AI가 인라인 스타일을 쓸 경우 toc-box로 덮어쓰기)
+    bodyWithoutH1 = bodyWithoutH1.replace(/<div(?:[^>]*?목차[^>]*?|[^>]*?)>[\\s]*<p[^>]*>.*?목차.*?<\/p>/gi, '<div class=\'toc-box\'><p style=\'font-size:20px; font-weight:bold; color:#111; margin-bottom:15px;\'>📋 목차</p>');
+    
+    // 목차 ID <-> 본문 H2 ID 강제 매칭 보정
+    let tocCounter = 1;
+    let h2Counter = 1;
+    bodyWithoutH1 = bodyWithoutH1.replace(/<h2((?![^>]*id)[^>]*)>/gi, '<h2 id=\'toc-REPLACEME\'$1>');
+    bodyWithoutH1 = bodyWithoutH1.replace(/<h2([^>]*)id=[\'\"]?[^\'\"\\s>]+[\'\"]?([^>]*)>/gi, function(match, p1, p2) {
+        return '<h2 id=\'toc-' + (h2Counter++) + '\'' + p1 + p2 + '>';
+    });
+    bodyWithoutH1 = bodyWithoutH1.replace(/<div(?:[^>]*?)toc-box(?:[^>]*?)>([\\s\\S]*?)<\/div>/gi, function(match, innerHtml) {
+        const newInner = innerHtml.replace(/<a([^>]*)href=[\'\"]?[^\'\"\\s>]+[\'\"]?([^>]*)>/gi, function(m2, p1, p2) {
+            return '<a href=\'#toc-' + (tocCounter++) + '\'' + p1 + p2 + '>';
+        });
+        return '<div class=\'toc-box\'>' + newInner + '</div>';
+    });
 
     let extraLinksHtml = '';
     try {

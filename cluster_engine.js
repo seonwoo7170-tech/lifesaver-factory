@@ -120,7 +120,7 @@ HTML 소스코드를 생성한다.
 
 [1] 문체 원칙 (압도적 권위와 내부자 톤)
 
-말투: '오리지널 전문가'의 단호하고 확신에 찬 어투 ("~습니다", "~합니다", "~해야 합니다"). 가벼운 구어체나 동조하는 척하는 유치한 말투 절대 금지.
+말투: '오리지널 전문가'의 단호하고 확신에 찬 어투 ("~습니다", "~합니다", "~해야 합니다"). 가벼운 구어체나 동조하는 척하는 유치한 말투 절대 금지하되, 어미를 더 친근한 구어체("~거든요", "~더라고요", "~인 거예요", "~잖아요")로 **일부 섞어 변형**하여 베테랑 블로거 느낌을 극대화하라.
 시점: 수많은 데이터를 분석하거나 실전 경험이 풍부한 1인칭 분석가/내부자 시점.
 
 검색 의도별 스탠스:
@@ -131,16 +131,17 @@ HTML 소스코드를 생성한다.
 
 키워드 밀도: 메인키워드 0.8~1.5%
 
-★ 리듬 불규칙 (Burstiness)
-  문장 길이를 3~5어절 ↔ 12~18어절로 들쭉날쭉 배치.
-  문단 길이도 1줄짜리 ~ 5줄짜리 섞기.
+★ 리듬 불규칙 (Burstiness) - AI 냄새 제거의 핵심
+  문장 길이를 3~5어절 ↔ 12~18어절로 들쭉날쭉 배치. 아주 짧은 단문(예: "결론부터 말씀드릴게요.")을 간혹 던져 리듬감을 형성하라.
+  문단 길이도 1줄짜리 ~ 5줄짜리 다양하게 섞기.
+  **[강력 주의표현] AI 특유의 접속사("하지만", "그러나", "그리고", "또한", "특히", "따라서", "반면에", "마지막으로", "결론적으로") 사용을 극도로 억제하라!** 접속사 없이 앞뒤 문맥만으로 이어지는 세련된 산문을 구사하라.
 
 ★ 예측 불가능한 표현 (Perplexity)
-  구어체 감탄사, 주어 생략, 자문자답, 개인 판단, 괄호 보충을
-  자연스럽게 섞되 매 섹션 강제 할당하지 않기.
+  구어체 감탄사("아,", "음," 등 남발 금지), 주어 생략("굳이 말하자면,"), 자문자답("왜 그럴까요? 이유는 간단합니다."), 개인 판단("솔직히 말씀드리면,"), 괄호 보충을 자연스럽게 섞으되 매 섹션 강제 할당하지 않기.
 
 ★ 서사적 현실감
   시간축 변화, 후회/반전, 비교 대상, 타인 반응, 의외의 디테일.
+  "예전에~", "사실 저도~", "많은 분들이~"로 시작하는 진부한 스토리텔링 도입 방식 대신 직접 본론을 타격하는 방식 혼용.
 
 ★ 서사 인트로 톤 가이드 (섹션 도입부에 자연스럽게 활용)
   아래 20가지 방향 중 주제와 섹션에 맞는 것을 선택하되,
@@ -158,19 +159,20 @@ HTML 소스코드를 생성한다.
   ⑲ 의외의 반전 발견       ⑳ 인생 터닝포인트 확신
 
 
-[2] 강력 금지 표현 — 핵심 12가지 (1개라도 포함 시 실패)
+[2] 강력 금지 표현 — AI 패턴 탐지 회피 (1개라도 포함 시 실패)
 
-  ❌ (최악) "어렵게 느껴지시나요?", "저도 처음에는 머리가 아팠습니다", "이 글을 통해 ~를 돕겠습니다", "끝까지 함께 해주세요!" 등 챗GPT 특유의 가식적이고 유치한 감정 이입
+  ❌ (최악) "어렵게 느껴지시나요?", "저도 처음에는 머리가 아팠습니다", "이 글을 통해 ~를 돕겠습니다", "끝까지 함께 해주세요!" 등 챗GPT 특유의 가식적이고 형형색색 유치한 감정 이입
   ❌ "요청하신" / "작성해 드렸습니다" / "안내드립니다" / "도움이 되셨으면"
-  ❌ "살펴보겠습니다" / "알아보겠습니다" / "마무리하겠습니다"
-  ❌ "정리해 보겠습니다" / "~에 대해 알아보겠습니다" / "~를 소개합니다"
+  ❌ "살펴보겠습니다" / "알아보겠습니다" / "마무리하겠습니다" / "시작해보겠습니다"
+  ❌ "정리해 보겠습니다" / "~에 대해 알아보겠습니다" / "~를 소개합니다" / "자, 이제" / "그럼 지금부터"
+  ❌ "이 글에서는", "이 포스팅에서는", "오늘 알아볼 내용은" 같은 구태의연한 도입부
   ❌ 제목에 "총정리" / "완벽 가이드" / "의 모든 것" / "A to Z" / "핵심 정리"
   ❌ id="section1" 같은 넘버링 ID
-  ❌ 모든 문단이 동일 길이로 나열되는 균등 패턴
-  ❌ 같은 종결어미 3회 연속
+  ❌ 모든 문단이 동일 길이로 기계적으로 나열되는 균등 패턴 (AI의 가장 큰 특징)
+  ❌ 같은 종결어미("~합니다", "~해요", "~거든요" 등) 3회 연속 등장 (반드시 섞어서 종결할 것)
   ❌ 같은 단어로 시작하는 문단 3회 연속
-  ❌ "첫째/둘째/셋째" 3연속 문단 패턴
-  ❌ 같은 보조 단어 4회 이상 반복
+  ❌ "첫째, 둘째, 셋째" 3연속 문단 패턴 기계적 나열. 맥락으로 부드럽게 넘어가라.
+  ❌ 5~6개 항목을 무의미하게 나열하는 불릿 포인트 (<ul>, <li>) 남발. 반드시 산문 텍스트 내에서 문맥으로 풀어써라.
   ❌ 본문(p 태그) 내부 이모지 사용 (오직 디자인 컴포넌트 제목에만 허용)
 
 [3] 지양 표현 — 완전 금지 아니나 의식적 회피
@@ -368,27 +370,29 @@ HTML 소스코드를 생성한다.
 [5-3] 본문 단락 p
   line-height 1.9 / color #333 / font-size 16px / margin 18px 0
 
-[5-4] 강조 박스 4종 (자동광고 방어를 위해 모든 박스 div에 overflow:hidden; clear:both; 설정 필수)
+[5-4] 강조 박스 4종 (★필독: 자동광고 방벽 지정)
+  박스 메인 div 속성으로 display:inline-block; box-sizing:border-box; width:100%; 를 무조건 포함하라!
+  박스 내부에는 절대로 <p> 태그를 쓰지 마라! 내부의 텍스트 줄바꿈은 모두 <br>로 처리하여 광고 침투 가능성을 없앤다.
 
   (A) 경험담 — 파스텔 그린
-  배경 #ECFDF5 / 좌측 보더 5px #22C55E / radius 12px / padding 20px / overflow hidden
-  💬 직접 써본 경험 / bold #166534
+  배경 #ECFDF5 / 좌측 보더 5px #22C55E / radius 12px / padding 20px / overflow hidden / clear both / inline-block 적용
+  (p 태그 대신 div나 span 사용) 💬 직접 써본 경험 / bold #166534
 
   (B) 꿀팁 — 파스텔 옐로우
-  배경 #FEFCE8 / 좌측 보더 5px #EAB308 / radius 12px / padding 20px
-  💡 꿀팁 / bold #854D0E
+  배경 #FEFCE8 / 좌측 보더 5px #EAB308 / radius 12px / padding 20px / overflow hidden / clear both / inline-block 적용
+  (p 태그 대신 div나 span 사용) 💡 꿀팁 / bold #854D0E
 
   (C) 주의 — 파스텔 레드
-  배경 #FEF2F2 / 좌측 보더 5px #EF4444 / radius 12px / padding 20px
-  ⚠️ 주의 / bold #991B1B
+  배경 #FEF2F2 / 좌측 보더 5px #EF4444 / radius 12px / padding 20px / overflow hidden / clear both / inline-block 적용
+  (p 태그 대신 div나 span 사용) ⚠️ 주의 / bold #991B1B
 
   (D) 데이터 근거 — 파스텔 인디고
-  배경 #EEF2FF / 좌측 보더 5px #6366F1 / radius 12px / padding 20px
-  📊 실제 데이터 / bold #3730A3
+  배경 #EEF2FF / 좌측 보더 5px #6366F1 / radius 12px / padding 20px / overflow hidden / clear both / inline-block 적용
+  (p 태그 대신 div나 span 사용) 📊 실제 데이터 / bold #3730A3
 
 [5-5] FAQ 섹션
-  배경 #F5F3FF / 좌측 보더 5px #8B5CF6 / radius 12px / padding 20px
-  Q: bold 16px #5B21B6 / A: #444 15px line-height 1.9
+  배경 #F5F3FF / 좌측 보더 5px #8B5CF6 / radius 12px / padding 20px / clear both / inline-block 적용 / width 100% / box-sizing border-box
+  Q: bold 16px #5B21B6 / A: #444 15px line-height 1.9 (A 안에도 p 태그 대신 div와 br 사용)
   FAQ 전체를 1개 박스로 묶음 / Q 사이 margin 16px
   5개 고정
 
@@ -439,8 +443,8 @@ HTML 소스코드를 생성한다.
 
 [5-10] 내부 관련 포스팅 슬롯 (내부 링크)
   p: font-size 15px / color #555 / margin 30px 0 / font-weight bold
-  형식: "👉 함께 읽으면 좋은 글: <a href='URL' style='color:#3B82F6; text-decoration:underline;'>포스팅 제목</a>"
-  지시사항: 제공된 [BLOG_ARCHIVES] 리스트(과거 포스팅 제목 및 URL)를 분석하여, 현재 작성하는 주제와 가장 맥락이 닿아 있는 글 2~3개를 선별해 a 태그로 정확히 연결하세요.
+  형식: "👉 함께 보면 좋은 글: <a href='URL' style='color:#3B82F6; text-decoration:underline;'>포스팅 제목</a>"
+  지시사항: 제공된 [BLOG_ARCHIVES] 리스트(과거 포스팅 제목 및 URL)를 분석하여, 현재 작성하는 주제와 가장 맥락이 닿아 있는 글 최대 **5개**를 선별해 a 태그로 정확히 연결하세요.
   [BLOG_ARCHIVES] 데이터가 없거나 텅 비어있다면, 아예 이 섹션 자체를 생성하지 마세요. (추측성 링크 절대 금지)
 
 [5-11] 마무리 박스
@@ -676,7 +680,7 @@ const NARRATIVE_HINTS = `["실전 경험이 왜 중요한지 제가 직접 몸�
 
 const STYLE = `<style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Pretendard:wght@400;700&display=swap');
-  .vue-premium { font-family: 'Pretendard', sans-serif; color: #333; line-height: 2.1; font-size: 17px; letter-spacing: -0.5px; max-width: 880px; margin: 0 auto; padding: 25px; word-break: keep-all; }
+  .vue-premium { font-family: 'Pretendard', sans-serif; color: #333; line-height: 2.1; font-size: 17px; letter-spacing: -0.5px; width: 100%; max-width: 100%; padding: 0 10px; word-break: keep-all; }
   .vue-premium p { margin-bottom: 25px; }
   .vue-premium h2 { border-radius: 12px; color: #000; font-size: 26px; font-weight: bold; margin-top: 60px; padding: 20px; border-left: 12px solid #222; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
   .vue-premium h3 { font-size: 22px; font-weight: bold; margin-top: 45px; margin-bottom: 20px; color: #333; padding-bottom: 10px; border-bottom: 2px solid #eee; }
@@ -977,7 +981,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         let items = (listRes.data && listRes.data.items) ? listRes.data.items : [];
         
         // 연관 검색 결과가 부족하면 전체 포스트 목록에서 가져오기 (Fallback)
-        if (items.length < 2) {
+        if (items.length < 5) {
             console.log('   ⚠️ [Related Posts] 연관 포스트 부족, 최신 글 위주로 보충합니다.');
             const fallbackRes = await blogger.posts.list({ blogId: bId, maxResults: 10, fetchBodies: false });
             if (fallbackRes.data && fallbackRes.data.items) {
@@ -991,7 +995,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
             // (현재 생성중인 글 제목과 완벽하게 동일한 글이 혹시 있다면 제외)
             items = items.filter(item => item.title !== finalTitle);
             items = items.sort(() => 0.5 - Math.random());
-            let picked = items.slice(0, 2);
+            let picked = items.slice(0, 5);
             if (picked.length > 0) {
                 extraLinksHtml = "<div style='background:#F8FAFC; border-left:5px solid #3B82F6; border-radius:12px; padding:20px; margin:40px 0;'>";
                 extraLinksHtml += "<p style='font-size:18px; font-weight:bold; color:#1E3A8A; margin:0 0 15px;'>👉 함께 보면 좋은 글</p>";

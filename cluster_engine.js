@@ -20,13 +20,13 @@ async function searchWeb(query, lang) {
 }
 
 function clean(raw) {
-  if (!raw) return '';
+  if (!raw) return '{}';
   let json = raw.trim();
   const start = Math.min(
     json.indexOf('{') === -1 ? Infinity : json.indexOf('{'),
     json.indexOf('[') === -1 ? Infinity : json.indexOf('[')
   );
-  if (start === Infinity) return '';
+  if (start === Infinity) return '{}';
   json = json.substring(start);
   const lastBracket = Math.max(json.lastIndexOf('}'), json.lastIndexOf(']'));
   if (lastBracket !== -1) {
@@ -37,14 +37,14 @@ function clean(raw) {
 }
 
 function repairHTML(html) {
+  if (!html) return '';
   let repaired = html.trim();
   const lastOpen = repaired.lastIndexOf('<');
   const lastClose = repaired.lastIndexOf('>');
   if (lastOpen > lastClose) repaired = repaired.substring(0, lastOpen);
   
   const stack = [];
-  const tagRegex = /<\/?([a-z1-6]+)/gi;
-  const tags = repaired.match(tagRegex) || [];
+  const tags = repaired.match(/<\/?([a-z1-6]+)/gi) || [];
   const selfClosing = ['img', 'br', 'hr', 'input', 'meta', 'link'];
   
   for (let tag of tags) {
@@ -56,22 +56,21 @@ function repairHTML(html) {
       stack.push(tagName);
     }
   }
-  while (stack.length > 0) {
-    repaired += '</' + stack.pop() + '>';
-  }
+  while (stack.length > 0) { repaired += '</' + stack.pop() + '>'; }
   return repaired;
 }
 
 function cleanHTML(h) {
+  if (!h) return '';
   const h1Regex = /<h1[^>]*>.*?<\/h1>/gi;
   return h.replace(h1Regex, '').trim();
 }
 
 async function genImg(label, detail, fallbackTitle, model) {
-  const pText = typeof detail === 'string' ? detail : (detail?.prompt || '');
-  const aText = typeof detail === 'string' ? fallbackTitle : (detail?.alt || fallbackTitle);
-  const tText = typeof detail === 'string' ? fallbackTitle : (detail?.title || fallbackTitle);
-  console.log("🎨 [" + label + "] KIE AI 이미지 생성 가동");
+  const pText = (typeof detail === 'string' ? detail : detail?.prompt) || fallbackTitle;
+  const aText = (typeof detail === 'string' ? fallbackTitle : detail?.alt) || fallbackTitle;
+  const tText = (typeof detail === 'string' ? fallbackTitle : detail?.title) || fallbackTitle;
+  console.log("🎨 [" + label + "] KIE AI 이미지 생성 가동: " + pText.substring(0, 30));
   const kieKey = process.env.KIE_API_KEY;
   const imgbbKey = process.env.IMGBB_API_KEY;
   let imageUrl = '';
@@ -86,8 +85,8 @@ async function genImg(label, detail, fallbackTitle, model) {
           const st = check.data.state || check.data.data?.state;
           if (st === 'success') {
             const rj = check.data.resultJson || check.data.data?.resultJson;
-            imageUrl = (typeof rj === 'string' ? JSON.parse(rj).resultUrls : rj.resultUrls)[0];
-            break;
+            const rUrls = (typeof rj === 'string' ? JSON.parse(rj).resultUrls : rj?.resultUrls) || [];
+            if (rUrls.length > 0) { imageUrl = rUrls[0]; break; }
           }
         }
       }
@@ -111,7 +110,7 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   const latestNews = await searchWeb(target + searchSuffix, lang);
   let archiveContext = "EMPTY_ARCHIVE";
   try {
-    const archiveRes = await blogger.posts.list({ blogId: bId, maxResults: 50, fields: 'items(title,url)' });
+    const archiveRes = await blogger.posts.list({ blogId: bId, maxResults: 50 });
     const items = archiveRes.data.items || [];
     if (items.length > 0) archiveContext = items.map(p => p.title + " (" + p.url + ")").join("\n");
   } catch (e) { }
@@ -124,30 +123,39 @@ async function writeAndPost(model, target, blogger, bId, pTime, lang, extraPromp
   let data;
   try {
     data = JSON.parse(clean(rawText));
-    if (data.content) data.content = repairHTML(data.content);
   } catch (err) {
-    console.error("❌ JSON 파싱 실패!");
-    throw err;
+    console.error("❌ JSON 파싱 실패! 복구 시도 중...");
+    data = { title: target, content: rawText, labels: ["General"], image_prompts: {} };
   }
+  
+  // 데이터 정규화 (필수 필드 누락 방지)
+  data.image_prompts = data.image_prompts || {};
+  let content = repairHTML(data.content || "");
   let finalTitle = data.title || target;
-  const h1Match = data.content.match(/<h1[^>]*>(.*?)<\/h1>/i);
+  
+  const h1Match = content.match(/<h1[^>]*>(.*?)<\/h1>/i);
   if (h1Match && h1Match[1]) {
     finalTitle = h1Match[1].replace(/<[^>]+>/g, '').trim();
     console.log("📌 H1 제목 추출: " + finalTitle);
   }
+
   const [img1, img2, img3, img4] = await Promise.all([
-    genImg("IMG_1", data.image_prompts.IMG_1, finalTitle, model),
-    genImg("IMG_2", data.image_prompts.IMG_2, finalTitle, model),
-    genImg("IMG_3", data.image_prompts.IMG_3, finalTitle, model),
-    genImg("IMG_4", data.image_prompts.IMG_4, finalTitle, model)
+    genImg("IMG_1", data.image_prompts.IMG_1 || data.image_prompts["1"], finalTitle, model),
+    genImg("IMG_2", data.image_prompts.IMG_2 || data.image_prompts["2"], finalTitle, model),
+    genImg("IMG_3", data.image_prompts.IMG_3 || data.image_prompts["3"], finalTitle, model),
+    genImg("IMG_4", data.image_prompts.IMG_4 || data.image_prompts["4"], finalTitle, model)
   ]);
+  
   const wrapImg = (i) => '<div style="text-align:center; margin:35px 0;"><img src="' + i.url + '" alt="' + i.alt + '" title="' + i.title + '" style="width:100%; border-radius:15px;"><p style="font-size:12px; color:#888; margin-top:8px;">' + i.alt + '</p></div>';
-  let content = cleanHTML(data.content);
+  content = cleanHTML(content);
   content = content.replaceAll('[[IMG_1]]', wrapImg(img1)).replaceAll('[[IMG_2]]', wrapImg(img2)).replaceAll('[[IMG_3]]', wrapImg(img3)).replaceAll('[[IMG_4]]', wrapImg(img4));
   if (!content.includes(img1.url)) content = wrapImg(img1) + content;
-  await blogger.posts.insert({
+  
+  const lbls = Array.isArray(data.labels) ? data.labels : (typeof data.labels === 'string' ? data.labels.split(',').map(s => s.trim()) : ["Blog"]);
+
+  const res = await blogger.posts.insert({
     blogId: bId,
-    requestBody: { title: finalTitle, labels: data.labels, content: content, customMetaData: data.description, published: pTime.toISOString() }
+    requestBody: { title: finalTitle, labels: lbls, content: content, customMetaData: data.description || '', published: pTime.toISOString() }
   });
   console.log("🎉 발행 성공: " + res?.data?.url);
 }

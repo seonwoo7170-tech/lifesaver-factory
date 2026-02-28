@@ -684,7 +684,7 @@ const STYLE = `<style>
   .vue-premium table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 40px 0; border-radius: 15px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.05); border: 1px solid #eee; }
   .vue-premium th { background-color: #333; color: #fff; padding: 20px; font-weight: bold; }
   .vue-premium td { padding: 18px; border-bottom: 1px solid #f0f0f0; background-color: #fff; color: #444; }
-  .tip-box { border-left: 6px solid #333; padding: 25px; margin: 35px 0; border-radius: 0 15px 15px 0; box-shadow: 0 5px 20px rgba(0,0,0,0.03); }
+  .vue-premium tip-box { border-left: 6px solid #333; padding: 25px; margin: 35px 0; border-radius: 0 15px 15px 0; box-shadow: 0 5px 20px rgba(0,0,0,0.03); }
   .spacer-div { height: 70px; }
 </style>`;
 
@@ -781,7 +781,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log('   📋 [Draft] 챕터 구성 완료: ' + chapters.length + '개 섹션');
     
     console.log('   🚀 [Mission] Trinity Duo 1단계 시작 (서론 및 섹션 1-4)...');
-    let mission1 = "[트리니티 듀오 1/2] 키워드: " + target + ". H1 제목 + 목차 + 서론 + 섹션1-4 작성. 필독: 반드시 '한국어'로만 작성하라. 본문 중간중간에 [[IMG_1]], [[IMG_2]] 태그를 삽입하라.";
+    let mission1 = "[트리니티 듀오 1/2] 키워드: " + target + ". H1 제목 + 목차 + 서론 + 섹션1-4 작성. 필독: 반드시 '한국어'로만 작성하라. 영어 사용 금지. 본문 중간중간에 [[IMG_1]], [[IMG_2]] 태그를 삽입하라.";
     let part1 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n" + mission1 + "\\n\\nSearch: " + searchData);
     console.log('   ✅ [Mission] 1단계 완료 (' + part1.length + '자)');
 

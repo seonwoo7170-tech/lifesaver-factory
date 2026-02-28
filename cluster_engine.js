@@ -104,12 +104,12 @@ async function genImg(desc, model, i) {
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
     console.log('   📝 [Draft] 블로그 기획 시작: ' + target);
     const searchData = await searchSerper(target);
-    const bpPrompt = 'Return ONLY valid JSON with title and 7 chapters for: ' + target + '. Format: {title:string, chapters:[7 strings]}. No markdown, no explanation.';
+    const bpPrompt = 'Return ONLY valid JSON with title and 7 chapters for: ' + target + '. Format: {title:string, chapters:[7 strings]}. WRITE CONTENT IN ' + lang.toUpperCase() + '. No markdown, no explanation.';
     const bpRes = await callAI(model, bpPrompt);
     let data = {};
     try { data = JSON.parse(clean(bpRes, 'obj') || '{}'); } catch(e) { console.log('   ⚠️ Blueprint parse fail, using fallback'); data = {}; }
     const title = data.title || target;
-    if(!data.chapters || !data.chapters.length) { try { const c2 = await callAI(model, 'Generate 7 short Korean subtitles for: ' + target + '. Return JSON array only.'); data.chapters = JSON.parse(clean(c2, 'arr') || '[]'); } catch(e2) { data.chapters = []; } }
+    if(!data.chapters || !data.chapters.length) { try { const c2 = await callAI(model, 'Generate 7 short ' + lang + ' subtitles for: ' + target + '. Return JSON array only.'); data.chapters = JSON.parse(clean(c2, 'arr') || '[]'); } catch(e2) { data.chapters = []; } }
     const chapters = Array.isArray(data.chapters) ? data.chapters : [];
     const halfIdx = Math.ceil(chapters.length / 2);
     const p1Chapters = chapters.slice(0, halfIdx);
@@ -119,13 +119,13 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log('   🚀 [Mission] Trinity Duo 1단계 시작 (전반부)...');
     const map1 = (extraLinks && extraLinks.length > 0) ? '\n[PILLAR MAPPING]: Use these links at the END of each H2 section.\n' + p1Chapters.map((c, i) => '- H2: "' + c + '" -> Sub: "' + extraLinks[i].title + '" (URL: ' + extraLinks[i].url + ')').join('\n') + '\nButton: <a href="URL" class="internal-link-btn">➔ 심층 분석: [Sub Title] 자세히 보기</a>' : '';
     const mission1 = '[트리니티 미션 1/2단계] ' + target + '\n\n1) H1 제목\n2) 목차\n3) 서론 (1,200자 이상, 전문가 통찰)\n4) 섹션(H2):\n' + p1Chapters.map(c => '<h2>' + c + '</h2>').join('\n') + '\n★ [필수]: H2마다 4~5개 문단(P) 필수. 문단마다 5문장 이상 꽉 찬 설명 필수. 단답형 요약 금지.' + map1;
-    let part1 = await callAI(model, MASTER_GUIDELINE + '\n\n' + mission1 + '\n\n[Search Reference]:\n' + searchData);
+    let part1 = await callAI(model, MASTER_GUIDELINE + '\n\n[TARGET_LANGUAGE: ' + lang + ']\n\n' + mission1 + '\n\n[Search Reference]:\n' + searchData);
     console.log('   ✅ [Mission] 1단계 완료 (' + part1.length + '자)');
 
     console.log('   🚀 [Mission] Trinity Duo 2단계 시작 (후반부)...');
     const map2 = (extraLinks && extraLinks.length > 0) ? '\n[PILLAR MAPPING]: Continue linking.\n' + p2Chapters.map((c, i) => '- H2: "' + c + '" -> Sub: "' + extraLinks[halfIdx+i].title + '" (URL: ' + extraLinks[halfIdx+i].url + ')').join('\n') + '\nButton: <a href="URL" class="internal-link-btn">➔ 심층 분석: [Sub Title] 자세히 보기</a>' : '';
     const mission2 = '[트리니티 미션 2/2단계] 이어서 작성 (H1/목차 중복 금지)\n' + p2Chapters.map(c => '<h2>' + c + '</h2>').join('\n') + '\n1) FAQ (8~10개 상세 답변)\n2) 결론 (1,000자 이상, 전문가 조언)\n★ [필수]: 1단계와 동일한 깊이 유지 (H2마다 4~5개 문단 꽉 채워 작성).\n- [[IMG_3]], [[IMG_4]] 배치.\n- [REQUIRED]: 메타데이터 블록(라벨, 검색 설명, 이미지 프롬프트 IMG_0, IMG_PIN, IMG_1-4) 생성.' + map2;
-    let part2 = await callAI(model, MASTER_GUIDELINE + '\n\n' + mission2 + '\n\n[Previous Part context]:\n' + part1.substring(part1.length - 1800));
+    let part2 = await callAI(model, MASTER_GUIDELINE + '\n\n[TARGET_LANGUAGE: ' + lang + ']\n\n' + mission2 + '\n\n[Previous Part context]:\n' + part1.substring(part1.length - 1800));
     let cleanPart2 = part2.replace(/<h1[\s\S]*?<\/h1>/gi, '').replace(/<div class="toc-box">[\s\S]*?<\/div>/gi, '');
     const firstH2Idx = cleanPart2.search(/<h2[\s>]/i);
     if (firstH2Idx > 0) cleanPart2 = cleanPart2.substring(firstH2Idx);
@@ -195,9 +195,22 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });
     const pool = config.clusters || []; if(!pool.length) { console.log('   ❌ [System] 타겟 키워드 풀이 비어있습니다.'); return; }
-    const mainSeed = pool.splice(Math.floor(Math.random()*pool.length), 1)[0];
-    console.log('   🎯 [Target] 이번 연재 키워드: ' + mainSeed);
-    await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(), [], 1, 1);
-    console.log('   ✨ [Done] 오늘의 클러스터 연재 전체 프로세스 종료!');
+    
+    console.log('   🎯 [Cluster] 1단계: 서브 문서 4개 생성 시작...');
+    const subResults = [];
+    const subPool = [...pool];
+    for (let i = 0; i < 4; i++) {
+      if (subPool.length === 0) break;
+      const subTarget = subPool.splice(Math.floor(Math.random() * subPool.length), 1)[0];
+      console.log('   📂 [Sub-' + (i + 1) + '/4] 생성 중: ' + subTarget);
+      await writeAndPost(model, subTarget, config.blog_lang, blogger, config.blog_id, new Date(), [], i + 1, 5);
+      subResults.push({ title: subTarget, url: '#' });
+    }
+    
+    console.log('   🎯 [Cluster] 2단계: 메인 필러(Pillar) 문서 생성 시작...');
+    const mainSeed = subPool.length > 0 ? subPool.splice(Math.floor(Math.random() * subPool.length), 1)[0] : pool[0] + ' 종합 가이드';
+    await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(Date.now() + 10000), subResults, 5, 5);
+    
+    console.log('   ✨ [Done] 오늘의 클러스터 연재(서브 4 + 메인 1) 전체 프로세스 종료!');
   }
   run();

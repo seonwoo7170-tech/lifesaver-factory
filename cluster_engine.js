@@ -672,7 +672,7 @@ YMYL 감지 시 적용:
    - ② 타사 제품/서비스와의 직접적 **비교 분석** 1건
    - ③ 업계 종사자만 아는 **비밀/내부 폭로** 정보 1건
 6. **JSON 한 줄 출력**: content 내부에 실제 줄바꿈을 넣지 말고 오직 한 줄로 길게 연결하라.`;
-const NARRATIVE_HINTS = `["실전 경험이 왜 중요한지 제가 직접 몸소 느꼈던 이야기를 해보려 합니다. 이론만 알 때는 몰랐던 진짜 현장의 목소리가 있더라고요.","솔직히 고백하자면 저도 처음엔 시간 낭비를 엄청나게 했습니다. 이 방법을 몰라서 며칠 밤을 꼬박 새우며 헛수고를 했던 기억이 나네요.","지금 이 글을 읽는 분들이 느끼실 그 막막함, 저도 누구보다 잘 압니다. 처음에 저도 컴퓨터 앞에서 어디서부터 손을 대야 할지 몰라 한참을 멍하니 있었거든요.","결국 정답은 아주 가까운 기본기에 있더라고요. 수많은 기교를 부리다가 결국 다시 처음으로 돌아와서야 비로소 깨달은 핵심을 공유합니다.","많은 전문가들이 말하지 않는 맹점이 하나 있습니다. 겉으로 보기엔 완벽해 보이지만, 실제로는 치명적인 허점이 숨겨져 있는 그런 부분들이죠.","이 고민 때문에 며칠 동안 밤잠를 설쳤던 것 같아요. 어떻게 하면 더 효율적이고 정확하게 처리할 수 있을까 고민하다 찾아낸 비책입니다.","제가 겪은 뼈아픈 실패의 기록이 여러분께는 소중한 교훈이 되었으면 합니다. 제 돈과 시간을 버려가며 얻어낸 '진짜' 데이터들입니다.","제 초보 시절을 떠올려보면 참 무모했던 것 같습니다. 그때 제가 지금의 저를 만났다면 제 고생이 훨씬 줄어들었을 텐데 말이죠.","요즘 들어 제게 가장 자주 물어보시는 질문들을 하나로 모았습니다. 사실 다들 비슷비슷한 부분에서 고민하고 계시다는 걸 알게 됐거든요."]`;
+const NARRATIVE_HINTS = `["실전 경험이 왜 중요한지 제가 직접 몸소 느꼈던 이야기를 해보려 합니다. 이론만 알 때는 몰랐던 진짜 현장의 목소리가 있더라고요.","솔직히 고백하자면 저도 처음엔 시간 낭비를 엄청나게 했습니다. 이 방법을 몰라서 며칠 밤을 고박 새우며 헛수고를 했던 기억이 나네요.","지금 이 글을 읽는 분들이 느끼실 그 막막함, 저도 누구보다 잘 압니다. 처음에 저도 컴퓨터 앞에서 어디서부터 손을 대야 할지 몰라 한참을 멍하니 있었거든요.","결국 정답은 아주 가까운 기본기에 있더라고요. 수많은 기교를 부리다가 결국 다시 처음으로 돌아와서야 비로소 깨달은 핵심을 공유합니다.","많은 전문가들이 말하지 않는 맹점이 하나 있습니다. 겉으로 보기엔 완벽해 보이지만, 실제로는 치명적인 허점이 숨겨져 있는 그런 부분들이죠.","이 고민 때문에 며칠 동안 밤잠를 설쳤던 것 같아요. 어떻게 하면 더 효율적이고 정확하게 처리할 수 있을까 고민하다 찾아낸 비책입니다.","제가 겪은 뼈아픈 실패의 기록이 여러분께는 소중한 교훈이 되었으면 합니다. 제 돈과 시간을 버려가며 얻어낸 '진짜' 데이터들입니다.","제 초보 시절을 떠올려보면 참 무모했던 것 같습니다. 그때 제가 지금의 저를 만났다면 제 고생이 훨씬 줄어들었을 텐데 말이죠.","요즘 들어 제게 가장 자주 물어보시는 질문들을 하나로 모았습니다. 사실 다들 비슷비슷한 부분에서 고민하고 계시다는 걸 알게 됐거든요."]`;
 
 const STYLE = `<style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Pretendard:wght@400;700&display=swap');
@@ -734,13 +734,17 @@ async function callAI(model, prompt, retry = 0) {
 }
 async function searchSerper(query) {
     if(!process.env.SERPER_API_KEY) return '';
+    console.log('   🔍 [Search] Google 검색 시도: ' + query);
     try {
         const r = await axios.post('https://google.serper.dev/search', { q: query, gl: 'kr', hl: 'ko' }, { headers: { 'X-API-KEY': process.env.SERPER_API_KEY } });
-return r.data.organic.slice(0, 5).map(o => o.title + ': ' + o.snippet).join('\n');
-    } catch(e) { return ''; }
+        const snippets = r.data.organic.slice(0, 5).map(o => o.title + ': ' + o.snippet).join('\n');
+        console.log('   ✅ [Search] 검색 결과 수집 완료 (' + r.data.organic.length + '개)');
+        return snippets;
+    } catch(e) { console.log('   ❌ [Search] 검색 실패'); return ''; }
 }
-async function genImg(desc, model) {
+async function genImg(desc, model, i) {
     if(!desc) return '';
+    console.log('   🎨 [Image] 이미지 ' + i + '번 시각화 프롬프트 생성 중...');
     let engPrompt = '';
     try {
         const engPromptRes = await callAI(model, 'Translate visual description to English for image generation. NO CHAT: ' + desc);
@@ -750,39 +754,51 @@ async function genImg(desc, model) {
     let imageUrl = "https://image.pollinations.ai/prompt/" + encodeURIComponent(engPrompt) + "?width=1280&height=720&nologo=true&seed=" + Math.floor(Math.random()*1000000) + "&model=flux";
     const imgbbKey = process.env.IMGBB_API_KEY;
     if(imgbbKey) {
+        console.log('   ☁️ [Image] ImgBB 영구 저장소에 업로드 시도...');
         try {
             const res = await axios.get(imageUrl, { responseType: 'arraybuffer' });
             const form = new FormData(); form.append('image', Buffer.from(res.data).toString('base64'));
             const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, form, { headers: form.getHeaders() });
+            console.log('   ✅ [Image] ImgBB 업로드 성공: ' + ir.data.data.url);
             return ir.data.data.url;
-        } catch(e) { }
+        } catch(e) { console.log('   ⚠️ [Image] ImgBB 업로드 실패, 원본 링크 사용'); }
     }
     return imageUrl;
 }
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
+    console.log('   📝 [Draft] 블로그 기획 시작: ' + target);
     const searchData = await searchSerper(target);
     const bpPrompt = 'Return ONLY valid JSON with title and 7 chapters for: ' + target + '. Format: {title:string, chapters:[7 strings]}. No markdown, no explanation.';
     const bpRes = await callAI(model, bpPrompt);
     let data = {};
-    try { data = JSON.parse(clean(bpRes, 'obj') || '{}'); } catch(e) { console.log('BP parse fail, using fallback'); data = {}; }
+    try { data = JSON.parse(clean(bpRes, 'obj') || '{}'); } catch(e) { console.log('   ⚠️ Blueprint parse fail, using fallback'); data = {}; }
     const title = data.title || target;
     if(!data.chapters || !data.chapters.length) { try { const c2 = await callAI(model, 'Generate 7 short Korean subtitles for: ' + target + '. Return JSON array only.'); data.chapters = JSON.parse(clean(c2, 'arr') || '[]'); } catch(e2) { data.chapters = []; } }
     const chapters = Array.isArray(data.chapters) ? data.chapters : [];
+    console.log('   📋 [Draft] 챕터 구성 완료: ' + chapters.length + '개 섹션');
     
     const vLogicPatterns = ['패턴 A', '패턴 B', '패턴 C', '패턴 D', '패턴 E', '패턴 F', '패턴 G', '패턴 H', '패턴 I', '패턴 J', '패턴 K', '패턴 L', '패턴 M', '패턴 N', '패턴 O'].sort(() => Math.random() - 0.5);
-    const vLogicRes = vLogicPatterns.slice(0, 7);
 
-    let mission1 = "[트리니티 미션 1/3] H1 제목 + 목차 + 서론 + 섹션1-3 작성. 키워드: " + target + ". 섹션1: " + chapters[0] + " (" + vLogicRes[0] + "), 섹션2: " + chapters[1] + " (" + vLogicRes[1] + "), 섹션3: " + chapters[2] + " (" + vLogicRes[2] + "). 필독: 반드시 본문 중간중간에 [[IMG_1]], [[IMG_2]] 태그를 자연스럽게 삽입하라.";
+    console.log('   🚀 [Mission] Trinity Mission 1단계 시작 (서론 및 섹션 1-3)...');
+    let mission1 = "[트리니티 미션 1/3] 키워드: " + target + ". H1 제목 + 목차 + 서론 + 섹션1-3 작성. 필독: 반드시 '한국어'로만 작성하라. 영어 사용 금지. 본문 중간중간에 [[IMG_1]], [[IMG_2]] 태그를 삽입하라.";
     let part1 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n" + mission1 + "\\n\\nSearch: " + searchData);
+    console.log('   ✅ [Mission] 1단계 완료 (' + part1.length + '자)');
 
-    let mission2 = "[트리니티 미션 2/3] 섹션4-7 작성. 섹션4: " + chapters[3] + " (" + vLogicRes[3] + "), 섹션5: " + chapters[4] + " (" + vLogicRes[4] + "), 섹션6: " + chapters[5] + " (" + vLogicRes[5] + "), 섹션7: " + chapters[6] + " (" + vLogicRes[6] + "). 필독: 본문 중간에 [[IMG_3]] 태그를 삽입하라. 앞의 말투를 그대로 복제하고 내용을 중복하지 마라.";
+    console.log('   🚀 [Mission] Trinity Mission 2단계 시작 (섹션 4-7, 말투 복제)...');
+    let mission2 = "[트리니티 미션 2/3] 섹션4-7 작성. 필독: 100% '한국어'로 작성하라. 절대로 제목(H1)이나 목차를 다시 쓰지 마라. 앞의 말투를 복제하고 본문 내용만 이어가라. 중간에 [[IMG_3]] 태그 삽입.";
     let part2 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n[CONTEXT]:\\n" + part1.substring(Math.max(0, part1.length - 8000)) + "\\n\\n[CURRENT]:\\n" + mission2);
+    console.log('   ✅ [Mission] 2단계 완료 (' + part2.length + '자)');
 
-    let mission3 = "[트리니티 미션 3/3] FAQ(10개) + 결론 + 태그 + 이미지 프롬프트 작성. 필독: 본문 마지막에 [[IMG_4]] 태그를 삽입하라. 전체 총합 10,000자가 되도록 아주 상세히 마무리하라.";
+    console.log('   🚀 [Mission] Trinity Mission 3단계 시작 (FAQ 및 결론)...');
+    let mission3 = "[트리니티 미션 3/3] FAQ(10개) + 결론 + 태그 작성. 필독: 100% '한국어'로 작성하라. 분량을 아주 상세히 채워 10,000자가 되게 하라. 본문 마지막에 [[IMG_4]] 태그 삽입.";
     let part3 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n[CONTEXT]:\\n" + (part1 + part2).substring(Math.max(0, (part1 + part2).length - 12000)) + "\\n\\n[CURRENT]:\\n" + mission3);
+    console.log('   ✅ [Mission] 3단계 완료 (' + part3.length + '자)');
 
     let fullContent = part1 + '\n' + part2 + '\n' + part3;
+    console.log('   📊 [Stat] 전체 원고 길이: ' + fullContent.length + '자 생성 완료');
     
+    const disclaimer = "<br><br><div style='font-size:14px; color:#888; border-top:1px solid #eee; padding-top:20px; margin-top:50px;'>* 본 포스팅은 정보 제공을 목적으로 작성되었으며, 실제 서비스 이용 시 공식 채널의 정보를 다시 확인하시기 바랍니다. 콘텐츠의 정확성을 기했으나 주관적인 견해가 포함될 수 있습니다.</div>";
+
     function getMeta(text, key) {
       const regex = new RegExp(key + '[\\:\\s]+(.*)', 'i');
       const match = text.match(regex);
@@ -800,6 +816,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 
     let finalHtml = clean(fullContent, 'text');
 
+    console.log('   🖼 [Image] 이미지 삽입 및 생성 프로세스 시작...');
     for (let i = 1; i <= 4; i++) {
         const placeholder = "[[IMG_" + i + "]]";
         if (finalHtml.includes(placeholder)) {
@@ -808,12 +825,13 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
                 const visualPrompt = await callAI(model, 'Generate a cinematic image prompt (visual only) for a blog about ' + target + ' and subtitle ' + (chapters[i-1] || target) + '. Return ONLY the visual description.');
                 p = { prompt: visualPrompt, alt: target, title: target };
             }
-            const url = await genImg(p.prompt, model);
+            const url = await genImg(p.prompt, model, i);
             const imgHtml = "<img src=\\\"" + url + "\\\" alt=\\\"" + p.alt + "\\\" title=\\\"" + p.title + "\\\" style=\\\"width:100%; border-radius:15px; margin: 30px 0;\\\">";
             finalHtml = finalHtml.replace(placeholder, imgHtml);
         }
     }
 
+    console.log('   🎨 [Design] 파스텔 톤 박스 디자인 적용 중...');
     function getRandomPastel() {
       const hues = [0, 30, 60, 120, 180, 210, 270, 330];
       const h = hues[Math.floor(Math.random() * hues.length)];
@@ -826,10 +844,12 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 
     const h1Match = finalHtml.match(/<h1.*?>(.*?)<\/h1>/i);
     const finalTitle = h1Match ? h1Match[1].replace(/<[^>]*>/g, '').trim() : target;
-    let finalBody = STYLE + '<div class=\"vue-premium\">' + finalHtml + '</div>';
+    let finalBody = STYLE + '<div class=\"vue-premium\">' + finalHtml + disclaimer + '</div>';
 
+    console.log('   🚀 [Post] Blogger 포스팅 시도: ' + finalTitle);
     try {
-        await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: finalBody, labels, published: pTime.toISOString() } });
+        const postRes = await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: finalBody, labels, published: pTime.toISOString() } });
+        console.log('   🎉 [Post] 포스팅 성공! URL: ' + postRes.data.url);
     } catch (e) {
         if (String(e.message).includes('429')) {
             console.log('   ⚠️ [Blogger] API 한도 초과 감지. 60초 후 재시도합니다...');
@@ -841,15 +861,16 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
   }
   async function run() {
     const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
+    console.log('   🔥 [System] 클러스터 엔진 가동 (Blogger ID: ' + config.blog_id + ')');
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });
-    const pool = config.clusters || []; if(!pool.length) return;
+    const pool = config.clusters || []; if(!pool.length) { console.log('   ❌ [System] 타켓 키워드 풀이 비어있습니다.'); return; }
     const mainSeed = pool.splice(Math.floor(Math.random()*pool.length), 1)[0];
-    console.log('\n🚀 연재 시도:', mainSeed);
+    console.log('   🎯 [Target] 이번 연재 키워드: ' + mainSeed);
     await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(), [], 1, 1);
-    console.log('✨ 클러스터 연재 완료!');
+    console.log('   ✨ [Done] 오늘의 클러스터 연재 전체 프로세스 종료!');
   }
   run();

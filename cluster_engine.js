@@ -828,13 +828,13 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     let mission1 = '[1/2단계 전용 - 목표 5000자 이상] 키워드: ' + target + '\n\n'
         + '아래 순서대로만 작성하라 (h1/목차/서론/전반부 외에는 절대 쓰지 마라):\n'
         + '1) h1 제목 (50자 이내, 클릭유도 강하게)\n'
-        + '2) 목차 리스트 (전체 섹션 나열: ' + chapters.join(', ') + ')\n'
+        + '2) 목차 리스트 (주의: 1단계 작성 내용만 넣지 말고, 전체 섹션을 모두 나열할 것: ' + chapters.join(', ') + ')\n'
         + '3) 서론 - 충격적 훅으로 시작, 4~6문단, 총 1000자 이상. 독자 통증 공감 + 해결책 안내\n'
         + '4) 다음 ' + p1Chapters.length + '개 주제를 각각의 h2 섹션으로 작성:\n'
         + p1Chapters.map((c, i) => '   - <h2>' + c + '</h2>').join('\n') + '\n'
         + '   ★ 각 섹션 1000자 이상 매우 풍부하게 쓰라. 반드시 데이터 비교표 1개 이상, 꿀팁박스(연두색) 1개 이상 포함.\n'
         + '올바른 h2 예: <h2>주제 제목</h2> (섹션 번호 수식어 X)\n'
-        + '절대 금지: FAQ, 결론, 나머지 섹션을 쓰지 마라. [[IMG_1]], [[IMG_2]] 태그 본문 중간 삽입. 한국어만 사용.';
+        + '절대 금지: FAQ, 결론, 나머지 섹션을 미리 쓰지 마라. <script> 태그 및 JSON-LD 절대 생성 금지. [[IMG_1]], [[IMG_2]] 태그 본문 중간 삽입. 한국어만 사용.';
     let part1 = await callAI(model, "STRICT MODE - 1/2:\\n" + MASTER_GUIDELINE + "\\n\\n[현재 지시]:\\n" + mission1 + "\\n\\n[참고 검색]:\\n" + searchData);
     // part1에서 할당된 섹션 수보다 많이 썼을 경우 잘라냄 (서론 h1/목차 제외, 본문 h2 기준)
     (function trimPart1() {
@@ -850,7 +850,10 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log('   ✅ [Mission] 1단계 완료 (' + part1.length + '자)');
 
     console.log('   🚀 [Mission] Trinity Duo 2단계 시작 (후반부 및 FAQ)...');
-    let mission2 = '[2/2단계 전용 - 목표 5000자 이상] 이전 글에 이어서 다음 내용만 작성하라 (H1/목차/서론 절대 금지):\n'
+    let mission2 = '[2/2단계 전용 - 목표 5000자 이상] 이전 글(1단계)에 이어서 다음 내용만 이어서 작성하라 (H1/목차/서론 절대 금지):\n\n'
+        + '[전체 기획된 목차]: ' + chapters.join(', ') + '\n'
+        + '[1단계에서 작성 완료된 목차 - 이것들은 절대 다시 쓰지 마라]: ' + p1Chapters.join(', ') + '\n\n'
+        + '아래 2단계 할당량만 작성하라:\n'
         + '1) 다음 ' + p2Chapters.length + '개 주제를 각각의 h2 섹션으로 작성:\n'
         + p2Chapters.map((c, i) => '   - <h2>' + c + '</h2>').join('\n') + '\n'
         + '   ★ 각 섹션 1000자 이상 매우 풍부하게 쓰라. 최신 데이터, 전문가 내밀 팁 등 포함.\n'
@@ -858,7 +861,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         + '   - Q&A 10~15개 필수, 각 답변 400자 이상 충실히 작성. 원칙: 독자가 실제로 묻는 질문 위주\n'
         + '3) 결론 단락 (600자 이상). 문제 해결 훅 재강조 + 콜투액션 포함\n'
         + '콘텐츠 박스: 꿀팁박스(연두색), 주의박스(황색), 정보박스(파란색) 중 2개 이상 삽입\n'
-        + '절대 금지: h2 안에 섹션N, 쭋터N, Step N 번호 접두어\n'
+        + '절대 금지: 이전 1단계 주제 중복 작성 금지. h2 안에 섹션 번호 접두어 금지. <script> 태그 및 FAQ JSON-LD 스키마 절대 생성 금지(HTML 본문만 작성할 것).\n'
         + '[[IMG_3]], [[IMG_4]] 태그 본문 중간 삽입. 한국어만 사용.';
     let part2 = await callAI(model, '[2단계 이어쓰기]\n' + MASTER_GUIDELINE + '\n\n[이전 글 끝부분]:\n' + part1.substring(Math.max(0, part1.length - 1500)) + '\n\n[지시사항]:\n' + mission2);
     // part2에서 첫 번째 <h2> 이전의 모든 내용(중복 서론/목차) 제거
@@ -933,7 +936,45 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     const h1Match = finalHtml.match(/<h1.*?>(.*?)<\/h1>/i);
     const finalTitle = h1Match ? h1Match[1].replace(/<[^>]*>/g, '').trim() : target;
     let bodyWithoutH1 = finalHtml.replace(/<h1.*?>.*?<\/h1>/gi, '');
-    let finalBody = STYLE + '<div class=\"vue-premium\">' + bodyWithoutH1 + disclaimer + '</div>';
+
+    let extraLinksHtml = '';
+    try {
+        console.log('   🔗 [Related Posts] 함께 보면 좋은 글 추출 시도 (키워드 기반: ' + target + ')');
+        let listRes = await blogger.posts.search({ blogId: bId, q: target, fetchBodies: false });
+        let items = (listRes.data && listRes.data.items) ? listRes.data.items : [];
+        
+        // 연관 검색 결과가 부족하면 전체 포스트 목록에서 가져오기 (Fallback)
+        if (items.length < 2) {
+            console.log('   ⚠️ [Related Posts] 연관 포스트 부족, 최신 글 위주로 보충합니다.');
+            const fallbackRes = await blogger.posts.list({ blogId: bId, maxResults: 10, fetchBodies: false });
+            if (fallbackRes.data && fallbackRes.data.items) {
+                items = items.concat(fallbackRes.data.items);
+                // 중복 제거 (ID 기준)
+                items = items.filter((item, index, self) => index === self.findIndex((t) => t.id === item.id));
+            }
+        }
+        
+        if (items && items.length > 0) {
+            // (현재 생성중인 글 제목과 완벽하게 동일한 글이 혹시 있다면 제외)
+            items = items.filter(item => item.title !== finalTitle);
+            items = items.sort(() => 0.5 - Math.random());
+            let picked = items.slice(0, 2);
+            if (picked.length > 0) {
+                extraLinksHtml = "<div style='background:#F8FAFC; border-left:5px solid #3B82F6; border-radius:12px; padding:20px; margin:40px 0;'>";
+                extraLinksHtml += "<p style='font-size:18px; font-weight:bold; color:#1E3A8A; margin:0 0 15px;'>👉 함께 보면 좋은 글</p>";
+                extraLinksHtml += "<ul style='list-style:none; padding:0; margin:0;'>";
+                picked.forEach(item => {
+                    extraLinksHtml += "<li style='margin-bottom:10px;'><a href='" + item.url + "' target='_blank' style='color:#2563EB; text-decoration:none; font-size:16px; font-weight:bold;'>🔹 " + item.title + "</a></li>";
+                });
+                extraLinksHtml += "</ul></div>";
+                console.log('   ✅ [Related Posts] 함께 보면 좋은 글 삽입 완료 (' + picked.length + '개)');
+            }
+        }
+    } catch(err) {
+        console.log('   ⚠️ [Related Posts] 불러오기 실패 (무시됨): ' + err.message);
+    }
+
+    let finalBody = STYLE + '<div class=\"vue-premium\">' + bodyWithoutH1 + extraLinksHtml + disclaimer + '</div>';
 
     console.log('   🚀 [Post] Blogger 포스팅 시도: ' + finalTitle);
     try {

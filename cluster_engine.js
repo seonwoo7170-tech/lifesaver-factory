@@ -786,9 +786,13 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log('   ✅ [Mission] 1단계 완료 (' + part1.length + '자)');
 
     console.log('   🚀 [Mission] Trinity Duo 2단계 시작 (섹션 5-7, FAQ 및 결론)...');
-    let mission2 = "[트리니티 듀오 2/2] 섹션5-7 + FAQ(10개) + 결론 + 태그 작성. '절대로' 제목(H1)이나 목차를 다시 쓰지 마라. 섹션5부터 곧바로 시작하라. 한국어로만 작성하라. 중간에 [[IMG_3]], [[IMG_4]] 태그 삽입.";
-    let part2 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n[CONTEXT (LAST 2000 CHARS)]:\\n" + part1.substring(Math.max(0, part1.length - 2000)) + "\\n\\n[ACTION]:\\n" + mission2);
-    let cleanPart2 = part2.replace(/<h1.*?>.*?<\/h1>/gi, '').replace(/<div.*?목차.*?<\/div>/gi, '');
+    let mission2 = "[STRICT CONTINUATION - 2/2] 이전 글에 이어서 오직 다음 내용만 작성하라: 섹션5, 섹션6, 섹션7, FAQ(10개 질문/답변), 결론 단락. 절대 금지: H1제목, 목차, 서론, 이미 쓴 섹션1~4 재작성 금지. 섹션5 <h2>태그부터 곧바로 시작하라. 중간에 [[IMG_3]], [[IMG_4]] 태그 삽입. 한국어만 사용.";
+    let part2 = await callAI(model, "[이어쓰기 모드] 아래 글에서 이어서 섹션5부터 계속 써라. 절대로 제목/목차/서론을 다시 쓰지 마라. 첫 줄에 <h2> 태그로 섹션5를 바로 시작하라.\\n\\n[이전 글 끝부분]:\\n" + part1.substring(Math.max(0, part1.length - 1500)) + "\\n\\n[지시사항]:\\n" + mission2);
+    // part2에서 첫 번째 <h2> 이전의 모든 내용(중복 서론/목차) 제거
+    let cleanPart2 = part2;
+    const firstH2Idx = cleanPart2.search(/<h2[\s>]/i);
+    if (firstH2Idx > 0) cleanPart2 = cleanPart2.substring(firstH2Idx);
+    cleanPart2 = cleanPart2.replace(/<h1[\s\S]*?<\/h1>/gi, '');
     console.log('   ✅ [Mission] 2단계 완료 (' + part2.length + '자)');
 
     let fullContent = part1 + '\n' + cleanPart2;

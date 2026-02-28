@@ -708,7 +708,7 @@ function clean(raw, defType = 'obj') {
         t = t.replace(/^(서론|본론|결론|부록|주의|참고|Introduction|Summary|Conclusion|주의|날짜|장|절|챕터\s*\d+|섹션\s*타이틀|핵심\s*요약|해결책|FAQ)[:\s]*/gmi, '');
         t = t.replace(/^#{1,6}\s+.*$/gm, '');
         t = t.replace(/<script type=\"application\/ld\+json\">[\s\S]*?<\/script>/gi, '');
-        t = t.replace(/IMG_\d+:\s*\{[\s\S]*?\}/gi, '');
+        t = t.replace(/IMG_[0-9A-Z]+:\s*\{[\s\S]*?\}/gi, '');
         t = t.replace(/^[🔗📎🏷📝🖼\#\>].*$/gm, '');
         t = t.replace(/^(Part|Mission|Trinity Mission|트리니티 미션).*/gmi, '');
         return t.trim();
@@ -1105,10 +1105,27 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });
-    const pool = config.clusters || []; if(!pool.length) { console.log('   ❌ [System] 타켓 키워드 풀이 비어있습니다.'); return; }
-    const mainSeed = pool.splice(Math.floor(Math.random()*pool.length), 1)[0];
-    console.log('   🎯 [Target] 이번 연재 키워드: ' + mainSeed);
-    await writeAndPost(model, mainSeed, config.blog_lang, blogger, config.blog_id, new Date(), [], 1, 1);
-    console.log('   ✨ [Done] 오늘의 클러스터 연재 전체 프로세스 종료!');
+    const pool = config.clusters || []; if(!pool.length) { console.log('   ❌ [System] 키워드 풀이 비어있습니다.'); return; }
+    const dailyCount = config.daily_count || 1;
+    const seedKw = pool[Math.floor(Math.random()*pool.length)];
+    console.log('   🏠 [Cluster] 메인 키워드: ' + seedKw + ' | 서브 주제 ' + dailyCount + '개 생성 예정');
+    let subTopics = [seedKw];
+    if (dailyCount > 1) {
+        const langName = config.blog_lang === 'ko' ? 'Korean' : 'English';
+        const subPrompt = 'Main keyword: ' + seedKw + '. Generate ' + dailyCount + ' different sub-topic blog subjects. Each is a unique angle: beginner, advanced, troubleshooting, review, comparison, etc. No duplicates. ' + (config.blog_lang === 'ko' ? 'Reply in Korean.' : 'Reply in English.') + ' Return ONLY a JSON array of strings.';
+        try {
+            const subRes = await callAI(model, subPrompt);
+            const arrMatch = subRes.replace(/```(json)?/gi,'').trim().match(/\[[\s\S]*\]/);
+            if (arrMatch) { const parsed = JSON.parse(arrMatch[0]); if (Array.isArray(parsed) && parsed.length > 0) subTopics = parsed.slice(0, dailyCount); }
+        } catch(e) { console.log('   ⚠️ 서브주제 생성 실패, 시드만 사용'); }
+        console.log('   📌 서브 주제 목록:', subTopics);
+    }
+    for (let i = 0; i < subTopics.length; i++) {
+        console.log('   ✍️ [' + (i+1) + '/' + subTopics.length + '] 주제: ' + subTopics[i]);
+        const pTime = new Date(Date.now() + i * 5 * 60 * 1000);
+        await writeAndPost(model, subTopics[i], config.blog_lang, blogger, config.blog_id, pTime, [], i+1, subTopics.length);
+        if (i < subTopics.length - 1) { console.log('   ⏱ 30초 대기 후 다음 글 작성...'); await new Promise(r => setTimeout(r, 30000)); }
+    }
+    console.log('   ✨ [Done] 클러스터 연재 ' + subTopics.length + '개 완료!');
   }
   run();

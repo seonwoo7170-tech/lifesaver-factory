@@ -695,7 +695,7 @@ function clean(raw, defType = 'obj') {
         t = t.replace(/<(!DOCTYPE|html|body|head|meta|link).*?>/gi, '').replace(/<\/(html|body|head|title|meta)>/gi, '');
         t = t.replace(/<title[\s\S]*?<\/title>/gi, '');
         t = t.replace(/\*\*+(.*?)\*\*+/g, '<b>$1</b>');
-        t = t.replace(/\[(EDITORIAL|시행지침|가이드라인|RULE|V-LOGIC|연계.*?)\]/gi, '');
+        t = t.replace(/\\[(EDITORIAL|시행지침|가이드라인|RULE|V-LOGIC|연계.*?)\\]/gi, '');
         t = t.replace(/패턴\s*[A-O](\s*(.*?))?(:)?/gi, '');
         t = t.replace(/^(서론|본론|결론|부록|주의|참고|Introduction|Summary|Conclusion|주의|날짜|장|절|챕터\s*\d+|섹션\s*타이틀|핵심\s*요약|해결책|FAQ)[:\s]*/gmi, '');
         t = t.replace(/^#{1,6}\s+.*$/gm, '');
@@ -780,24 +780,18 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     const chapters = Array.isArray(data.chapters) ? data.chapters : [];
     console.log('   📋 [Draft] 챕터 구성 완료: ' + chapters.length + '개 섹션');
     
-    console.log('   🚀 [Mission] Trinity Mission 1단계 시작 (서론 및 섹션 1-3)...');
-    let mission1 = "[트리니티 미션 1/3] 키워드: " + target + ". H1 제목 + 목차 + 서론 + 섹션1-3 작성. 필독: 반드시 '한국어'로만 작성하라. 영어 사용 금지. 본문 중간중간에 [[IMG_1]], [[IMG_2]] 태그를 삽입하라.";
+    console.log('   🚀 [Mission] Trinity Duo 1단계 시작 (서론 및 섹션 1-4)...');
+    let mission1 = "[트리니티 듀오 1/2] 키워드: " + target + ". H1 제목 + 목차 + 서론 + 섹션1-4 작성. 필독: 반드시 '한국어'로만 작성하라. 본문 중간중간에 [[IMG_1]], [[IMG_2]] 태그를 삽입하라.";
     let part1 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n" + mission1 + "\\n\\nSearch: " + searchData);
     console.log('   ✅ [Mission] 1단계 완료 (' + part1.length + '자)');
 
-    console.log('   🚀 [Mission] Trinity Mission 2단계 시작 (섹션 4-7, 말투 복제)...');
-    let mission2 = "[트리니티 미션 2/3] 섹션4-7 작성. '절대로' 제목(H1)이나 목차를 다시 쓰지 마라. 섹션4부터 곧바로 시작하라. 한국어로만 작성하라. 중간에 [[IMG_3]] 태그 삽입.";
+    console.log('   🚀 [Mission] Trinity Duo 2단계 시작 (섹션 5-7, FAQ 및 결론)...');
+    let mission2 = "[트리니티 듀오 2/2] 섹션5-7 + FAQ(10개) + 결론 + 태그 작성. '절대로' 제목(H1)이나 목차를 다시 쓰지 마라. 섹션5부터 곧바로 시작하라. 한국어로만 작성하라. 중간에 [[IMG_3]], [[IMG_4]] 태그 삽입.";
     let part2 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n[CONTEXT (LAST 2000 CHARS)]:\\n" + part1.substring(Math.max(0, part1.length - 2000)) + "\\n\\n[ACTION]:\\n" + mission2);
     let cleanPart2 = part2.replace(/<h1.*?>.*?<\/h1>/gi, '').replace(/<div.*?목차.*?<\/div>/gi, '');
     console.log('   ✅ [Mission] 2단계 완료 (' + part2.length + '자)');
 
-    console.log('   🚀 [Mission] Trinity Mission 3단계 시작 (FAQ 및 결론)...');
-    let mission3 = "[트리니티 미션 3/3] FAQ(10개) + 결론 + 태그 작성. '절대로' 제목, 서론, 섹션1-7을 다시 쓰지 마라. FAQ부터 곧바로 시작하라. 한국어로만 작성하라. 본문 마지막에 [[IMG_4]] 태그 삽입.";
-    let part3 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n[CONTEXT (LAST 2000 CHARS)]:\\n" + part2.substring(Math.max(0, part2.length - 2000)) + "\\n\\n[ACTION]:\\n" + mission3);
-    let cleanPart3 = part3.replace(/<h1.*?>.*?<\/h1>/gi, '').replace(/<div.*?목차.*?<\/div>/gi, '');
-    console.log('   ✅ [Mission] 3단계 완료 (' + part3.length + '자)');
-
-    let fullContent = part1 + '\n' + cleanPart2 + '\n' + cleanPart3;
+    let fullContent = part1 + '\n' + cleanPart2;
     console.log('   📊 [Stat] 전체 원고 길이: ' + fullContent.length + '자 생성 완료');
     
     const disclaimer = "<br><br><div style='font-size:14px; color:#888; border-top:1px solid #eee; padding-top:20px; margin-top:50px;'>* 본 포스팅은 정보 제공을 목적으로 작성되었으며, 실제 서비스 이용 시 공식 채널의 정보를 다시 확인하시기 바랍니다. 콘텐츠의 정확성을 기했으나 주관적인 견해가 포함될 수 있습니다.</div>";

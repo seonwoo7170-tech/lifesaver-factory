@@ -781,8 +781,19 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log('   📋 [Draft] 챕터 구성 완료: ' + chapters.length + '개 섹션');
     
     console.log('   🚀 [Mission] Trinity Duo 1단계 시작 (서론 및 섹션 1-4)...');
-    let mission1 = "[트리니티 듀오 1/2] 키워드: " + target + ". H1 제목 + 목차 + 서론 + 섹션1-4 작성. 필독: 반드시 '한국어'로만 작성하라. 영어 사용 금지. 본문 중간중간에 [[IMG_1]], [[IMG_2]] 태그를 삽입하라.";
-    let part1 = await callAI(model, "STRICT: " + MASTER_GUIDELINE + "\\n\\n" + mission1 + "\\n\\nSearch: " + searchData);
+    let mission1 = "[1/2단계 전용] 키워드: " + target + ". 아래 내용만 작성하라 (반드시 이 순서로, 이 이상 쓰지 마라): 1) <h1> 제목 2) 목차(섹션1~7만 나열) 3) 서론 단락 4) 섹션1 <h2> 5) 섹션2 <h2> 6) 섹션3 <h2> 7) 섹션4 <h2>. 절대 금지: 섹션5/6/7/FAQ/결론을 여기서 쓰는 것. [[IMG_1]], [[IMG_2]] 태그를 본문 중간에 삽입. 한국어만 사용.";
+    let part1 = await callAI(model, "STRICT MODE - 1/2:\\n" + MASTER_GUIDELINE + "\\n\\n[현재 지시]:\\n" + mission1 + "\\n\\n[참고 검색]:\\n" + searchData);
+    // part1에서 5번째 h2 이후 내용을 완전히 잘라냄 (AI가 섹션5 이상을 썼을 경우 방지)
+    (function trimPart1() {
+        const h2Matches = [];
+        const rx = /<h2[\s>]/gi;
+        let m;
+        while ((m = rx.exec(part1)) !== null) h2Matches.push(m.index);
+        if (h2Matches.length >= 5) {
+            part1 = part1.substring(0, h2Matches[4]);
+            console.log('   ✂️ [Trim] part1이 섹션4를 초과하여 자동 잘라냄');
+        }
+    })();
     console.log('   ✅ [Mission] 1단계 완료 (' + part1.length + '자)');
 
     console.log('   🚀 [Mission] Trinity Duo 2단계 시작 (섹션 5-7, FAQ 및 결론)...');

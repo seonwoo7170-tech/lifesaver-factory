@@ -729,7 +729,8 @@ function clean(raw, defType = 'obj') {
 
 async function callAI(model, prompt, retry = 0) {
     try {
-        const r = await model.generateContent('[SYSTEM: ACT AS A TOP-TIER COLUMNIST. STRICTLY FOLLOW GOOGLE E-E-A-T. NO CHAT.]\n' + prompt);
+        const curDate = new Date().toISOString().split('T')[0];
+        const r = await model.generateContent('[SYSTEM: ACT AS A TOP-TIER COLUMNIST. CURRENT DATE: ' + curDate + '. STRICTLY FOLLOW GOOGLE E-E-A-T. NO CHAT.]\n' + prompt);
         const cand = r.response.candidates?.[0];
         if (cand?.finishReason === 'SAFETY' || cand?.finishReason === 'RECITATION') {
             return '안전상의 문제로 생성할 수 없습니다.';
@@ -853,7 +854,8 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     console.log('   📝 [Draft] 블로그 기획 시작: ' + target);
     const searchData = await searchSerper(target);
     const langName = (lang === 'ko') ? 'Korean' : (lang === 'ja') ? 'Japanese' : (lang === 'zh') ? 'Chinese' : 'English';
-    const bpPrompt = 'Return ONLY valid JSON with title and 4 to 7 chapters for: ' + target + '. All values must be in ' + langName + '. Format: {title:string, chapters:[strings]}. No markdown, no explanation.';
+    const curY = new Date().getFullYear();
+    const bpPrompt = 'Current Year: ' + curY + '\n[Search Reference]:\n' + searchData + '\n\nReference the search data above to create a high-CTR title and 4-7 chapter subtitles for: ' + target + '. All values must be in ' + langName + '. (DO NOT USE OLD YEARS LIKE 2024. ALWAYS USE CURRENT YEAR ' + curY + '). Return ONLY valid JSON: {title:string, chapters:[strings]}.';
     const bpRes = await callAI(model, bpPrompt);
     let data = {};
     try { data = JSON.parse(clean(bpRes, 'obj') || '{}'); } catch(e) { console.log('   ⚠️ Blueprint parse fail, using fallback'); data = {}; }
@@ -935,7 +937,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     }
 
     const labelStr = getMeta(fullContent, '🏷 라벨');
-    const labels = labelStr ? labelStr.split(/[\,\s]+/).map(s => s.trim()).filter(s => s.length > 0) : [];
+    const labels = labelStr ? labelStr.split(/[\,\s]+/).map(s => s.trim().replace(/[^a-zA-Z0-9ᄀ-ᇿ㄰-㆏ꥠ-꥿가-힯ힰ-퟿]/g, '')).filter(s => s.length > 0) : [];
 
     const imgPrompts = {};
     fullContent.split('\n').forEach(function(line) {
@@ -1093,7 +1095,10 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
             console.log('   ⚠️ [Blogger] API 한도 초과 감지. 60초 후 재시도합니다...');
             await new Promise(res => setTimeout(res, 60000));
             await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: finalBody, labels, published: pTime.toISOString() } });
-        } else throw e;
+        } else {
+            console.log('   ❌ [Blogger] 포스팅 실패 사유:', e.response?.data?.error || e.message);
+            throw e;
+        }
     }
     return { title: finalTitle };
   }

@@ -649,11 +649,12 @@ YMYL 감지 시 적용:
     🏷 라벨: 연관 키워드 10개 쉼표 구분 (블로그스팟 라벨 칸에 복붙)
     📝 검색 설명: 스니펫 기반 150자 이내 메타 디스크립션
     🖼 이미지 프롬프트:
-      IMG_0: { prompt: "영문 프롬프트 16:9 (썸네일 배경)", alt: "썸네일 배경 묘사", title: "유튜브 썸네일 스타일의 어그로 카피 (15자 이내)" }
-      IMG_1: { prompt: "영문 프롬프트 16:9", alt: "1번 이미지 구체적 한글 묘사", title: "핵심 인사이트 한글 제목(툴팁)" }
-      IMG_2: { prompt: "영문 프롬프트 16:9", alt: "2번 이미지 구체적 한글 묘사", title: "핵심 인사이트 한글 제목(툴팁)" }
-      IMG_3: { prompt: "영문 프롬프트 16:9", alt: "3번 이미지 구체적 한글 묘사", title: "핵심 인사이트 한글 제목(툴팁)" }
-      IMG_4: { prompt: "영문 프롬프트 16:9", alt: "4번 이미지 구체적 한글 묘사", title: "핵심 인사이트 한글 제목(툴팁)" }
+      IMG_0: { prompt: "영문 프롬프트 16:9 (썸네일 배경)", alt: "썸네일 배경 묘사(본문 언어)", title: "유튜브 썸네일 스타일의 어그로 카피 (15자 이내)" }
+      IMG_PIN: { prompt: "영문 프롬프트 2:3 (핀터레스트 핀 배경)", alt: "세로형 배경 묘사(본문 언어)", title: "유튜브 썸네일 스타일의 어그로 카피 (15자 이내)" }
+      IMG_1: { prompt: "영문 프롬프트 16:9", alt: "1번 이미지 구체적 묘사(본문 언어)", title: "핵심 인사이트 제목(본문 언어 툴팁)" }
+      IMG_2: { prompt: "영문 프롬프트 16:9", alt: "2번 이미지 구체적 묘사(본문 언어)", title: "핵심 인사이트 제목(본문 언어 툴팁)" }
+      IMG_3: { prompt: "영문 프롬프트 16:9", alt: "3번 이미지 구체적 묘사(본문 언어)", title: "핵심 인사이트 제목(본문 언어 툴팁)" }
+      IMG_4: { prompt: "영문 프롬프트 16:9", alt: "4번 이미지 구체적 묘사(본문 언어)", title: "핵심 인사이트 제목(본문 언어 툴팁)" }
   → 그 외 텍스트 없음
 
 
@@ -674,8 +675,9 @@ YMYL 감지 시 적용:
    - ② 타사 제품/서비스와의 직접적 **비교 분석** 1건
    - ③ 업계 종사자만 아는 **비밀/내부 폭로** 정보 1건
 6. **유튜브 썸네일 카피 강제**: IMG_0의 title(썸네일 텍스트)은 반드시 다음의 '유튜브 썸네일 카피라이팅 기법'을 따르라.
+   - 언어: 반드시 '본문 기사글과 동일한 언어(예: 영어 포스팅이면 영어로, 한국어 포스팅이면 한국어로)'로만 작성할 것.
    - 분량: 공백 포함 무조건 15자 이내로 짧고 강렬하게 (절대 글 제목을 그대로 쓰지 말 것).
-   - 기법: 시청자의 호기심/손실 회피(FOMO) 심리를 자극하거나 결과를 먼저 제시할 것. (예: "안 보면 100만 원 손해?", "99%가 모르는 이것", "이거 하나면 종결")
+   - 기법: 시청자의 호기심/손실 회피(FOMO) 심리를 자극하거나 결과를 먼저 제시할 것. (예: "안 보면 손해?", "99%가 모르는 이것")
    - 숫자 활용: 구체적 숫자를 넣어 신뢰도와 클릭률을 높일 것 (예: "5분 만에 끝내는 법")
 7. **JSON 한 줄 출력**: content 내부에 실제 줄바꿈을 넣지 말고 오직 한 줄로 길게 연결하라.`;
 const NARRATIVE_HINTS = `["실전 경험이 왜 중요한지 제가 직접 몸소 느꼈던 이야기를 해보려 합니다. 이론만 알 때는 몰랐던 진짜 현장의 목소리가 있더라고요.","솔직히 고백하자면 저도 처음엔 시간 낭비를 엄청나게 했습니다. 이 방법을 몰라서 며칠 밤을 꼬박 새우며 헛수고를 했던 기억이 나네요.","지금 이 글을 읽는 분들이 느끼실 그 막막함, 저도 누구보다 잘 압니다. 처음에 저도 컴퓨터 앞에서 어디서부터 손을 대야 할지 몰라 한참을 멍하니 있었거든요.","결국 정답은 아주 가까운 개인적인 경험에 있더라고요. 수많은 기교를 부리다가 결국 다시 처음으로 돌아와서야 비로소 깨달은 핵심을 공유합니다.","많은 전문가들이 말하지 않는 맹점이 하나 있습니다. 겉으로 보기엔 완벽해 보이지만, 실제로는 치명적인 허점이 숨겨져 있는 그런 부분들이죠.","이 고민 때문에 며칠 동안 밤잠를 설쳤던 것 같아요. 어떻게 하면 더 효율적이고 정확하게 처리할 수 있을까 고민하다 찾아낸 비책입니다.","제가 겪은 뼈아픈 실패의 기록이 여러분께는 소중한 교훈이 되었으면 합니다. 제 돈과 시간을 버려가며 얻어낸 '진짜' 데이터들입니다.","제 초보 시절을 떠올려보고 싶습니다. 그때 제가 지금의 저를 만났다면 제 고생이 훨씬 줄어들었을 텐데 말이죠.","요즘 들어 제게 가장 자주 물어보시는 질문들을 하나로 모았습니다. 사실 다들 비슷비슷한 부분에서 고민하고 계시다는 걸 알게 됐거든요."]`;
@@ -751,11 +753,11 @@ async function searchSerper(query) {
         return snippets;
     } catch(e) { console.log('   ❌ [Search] 검색 실패'); return ''; }
 }
-async function genImg(desc, model, i, overlayText) {
+async function genImg(desc, model, i, overlayText, aspectRatio = '16:9') {
     if(!desc) return '';
     const kieKey = process.env.KIE_API_KEY;
     const imgbbKey = process.env.IMGBB_API_KEY;
-    console.log('   🎨 [Image] ' + i + '번 이미지 생성 시작 (KIE z-image)...');
+    console.log('   🎨 [Image] ' + i + '번 이미지 생성 시작 (KIE z-image)... ' + aspectRatio);
     // 프롬프트 영문 번역
     let engPrompt = '';
     try {
@@ -769,7 +771,7 @@ async function genImg(desc, model, i, overlayText) {
         try {
             const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', {
                 model: 'z-image',
-                input: { prompt: engPrompt, aspect_ratio: '16:9' }
+                input: { prompt: engPrompt, aspect_ratio: aspectRatio }
             }, { headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + kieKey }, timeout: 30000 });
             if (cr.data.code !== 200) throw new Error(cr.data.msg || 'KIE API:' + cr.data.code);
             const tid = cr.data.data && cr.data.data.taskId;
@@ -791,7 +793,9 @@ async function genImg(desc, model, i, overlayText) {
     }
     if (!finalUrl) {
         const seed = Math.floor(Math.random()*1000000);
-        finalUrl = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(engPrompt) + '?width=1280&height=720&nologo=true&seed=' + seed + '&model=flux';
+        const width = (aspectRatio === '2:3') ? 1000 : 1280;
+        const height = (aspectRatio === '2:3') ? 1500 : 720;
+        finalUrl = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(engPrompt) + '?width=' + width + '&height=' + height + '&nologo=true&seed=' + seed + '&model=flux';
         console.log('   🔄 [Image] Pollinations fallback 사용');
     }
     if (imgbbKey && finalUrl) {
@@ -806,7 +810,7 @@ async function genImg(desc, model, i, overlayText) {
                 ctx.drawImage(img, 0, 0);
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
                 ctx.fillRect(0, 0, cvs.width, cvs.height);
-                ctx.font = 'bold 70px sans-serif';
+                ctx.font = 'bold 70px "Malgun Gothic", "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif';
                 ctx.fillStyle = '#ffffff';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -1004,16 +1008,30 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         bodyWithoutH1 = bodyWithoutH1.replace('[[IMG_0]]', '');
     }
 
+    // 핀터레스트용 숨겨진 썸네일(IMG_PIN) 생성 및 삽입
+    let pPin = imgPrompts['PIN'];
+    if (pPin && pPin.prompt) {
+        console.log('   📌 [Pinterest] 핀터레스트용 2:3 세로 썸네일 생성 시도...');
+        const pinUrl = await genImg(pPin.prompt, model, 'PIN', pPin.title || target, '2:3');
+        if (pinUrl) {
+            const pinHtml = "<img src='" + pinUrl + "' alt='" + pPin.alt + "' title='" + pPin.title + "' style='display:none;' data-pin-media='true'>";
+            bodyWithoutH1 = pinHtml + '\n' + bodyWithoutH1;
+        }
+    }
+
     // 목차 ID <-> 본문 H2 ID 강제 매칭 보정
     let tocCounter = 1;
     let h2Counter = 1;
-    bodyWithoutH1 = bodyWithoutH1.replace(/<h2((?![^>]*id)[^>]*)>/gi, '<h2 id=\'toc-REPLACEME\'$1>');
-    bodyWithoutH1 = bodyWithoutH1.replace(/<h2([^>]*)id=[\'\"]?[^\'\"\\s>]+[\'\"]?([^>]*)>/gi, function(match, p1, p2) {
-        return '<h2 id=\'toc-' + (h2Counter++) + '\'' + p1 + p2 + '>';
+    bodyWithoutH1 = bodyWithoutH1.replace(/<h2([^>]*)>/gi, function(match, inside) {
+        let cleanInside = inside.replace(/\s+id\s*=\s*['"][^'"]*['"]/gi, '');
+        cleanInside = cleanInside.replace(/\s+id\s*=\s*[^\s>]+/gi, '');
+        return '<h2 id=\'toc-' + (h2Counter++) + '\'' + cleanInside + '>';
     });
-    bodyWithoutH1 = bodyWithoutH1.replace(/<div[^>]*toc-box[^>]*>([\s\S]*?)<\/div>/gi, function(match, innerHtml) {
-        const newInner = innerHtml.replace(/<a([^>]*)href=[\'\"]?[^\'\"\\s>]+[\'\"]?([^>]*)>/gi, function(m2, p1, p2) {
-            return '<a href=\'#toc-' + (tocCounter++) + '\'' + p1 + p2 + '>';
+    bodyWithoutH1 = bodyWithoutH1.replace(/<div(?:[^>]*?)toc-box(?:[^>]*?)>([\s\S]*?)<\/div>/gi, function(match, innerHtml) {
+        const newInner = innerHtml.replace(/<a([^>]+)>/gi, function(m2, inside) {
+            let cleanInside = inside.replace(/\s+href\s*=\s*['"][^'"]*['"]/gi, '');
+            cleanInside = cleanInside.replace(/\s+href\s*=\s*[^\s>]+/gi, '');
+            return '<a href=\'#toc-' + (tocCounter++) + '\'' + cleanInside + '>';
         });
         return match.replace(innerHtml, newInner);
     });

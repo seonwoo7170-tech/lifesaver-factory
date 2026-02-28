@@ -1,7 +1,7 @@
 {
   "blog_id": "3842750331568707733",
   "blog_lang": "ko",
-  "post_mode": "single",
+  "post_mode": "cluster",
   "pillar_topic": "컴퓨터/노트북 원인 모를 고장 증상 완벽 해결 가이드",
   "clusters": [
     "블루스크린",

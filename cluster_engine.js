@@ -1080,19 +1080,19 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });
     const pool = config.clusters || []; if(!pool.length) { console.log('   ❌ [System] 키워드 풀이 비어있습니다.'); return; }
-    const dailyCount = config.daily_count || 1;
+    const dailyCount = 5; // 유저 요청에 따라 메인 1 + 서브 4 고정
     const mainSeed = config.pillar_topic || (pool.length > 0 ? pool[0] : 'Blog Topic');
-    console.log('   🏠 [Cluster] 메인 시드: ' + mainSeed + ' | 총 ' + dailyCount + '개 (메인 1 + 서브 ' + (dailyCount-1) + ') 생성 예정');
+    console.log('   🏠 [Cluster] 메인 시드: ' + mainSeed + ' | 총 5개 (서브 4 + 메인 1) 생성 예정');
     let subTopics = [mainSeed];
     if (dailyCount > 1) {
         const langName = config.blog_lang === 'ko' ? 'Korean' : 'English';
-        const subPrompt = 'Main topic: ' + mainSeed + '. Generate ' + dailyCount + ' blog article titles for a cluster strategy. One title must be a Main Pillar (comprehensive, foundational guide), and the other ' + (dailyCount-1) + ' titles must be specific Clusters (narrow angles like niche case studies, specific tutorials, advanced tips, or comparisons). Ensure they are all related but distinct. ' + (config.blog_lang === 'ko' ? 'Reply in Korean.' : 'Reply in English.') + ' Return ONLY a JSON array of strings.';
+        const subPrompt = 'Main topic: ' + mainSeed + '. Generate exactly 5 blog article titles for a cluster strategy. The FIRST title must be the Main Pillar (comprehensive guide linking others), and the remaining 4 titles must be specific Clusters (narrow niche topics). Ensure they map to 4 distinct sub-themes. ' + (config.blog_lang === 'ko' ? 'Reply in Korean.' : 'Reply in English.') + ' Return ONLY a JSON array of 5 strings.';
         try {
             const subRes = await callAI(model, subPrompt);
             const arrMatch = subRes.replace(/```(json)?/gi,'').trim().match(/\[[\s\S]*\]/);
-            if (arrMatch) { const parsed = JSON.parse(arrMatch[0]); if (Array.isArray(parsed) && parsed.length > 0) subTopics = parsed.slice(0, dailyCount); }
+            if (arrMatch) { const parsed = JSON.parse(arrMatch[0]); if (Array.isArray(parsed) && parsed.length === 5) subTopics = parsed; }
         } catch(e) { console.log('   ⚠️ 서브주제 생성 실패, 시드만 사용'); }
-        console.log('   📌 서브 주제 목록:', subTopics);
+        console.log('   📌 [Cluster Plan] 확정된 주제 목록 (총 5개):', subTopics);
     }
     const clusterResults = [];
     // 1. Cluster Articles (Sub Topics) 먼저 4개 작성

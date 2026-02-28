@@ -840,7 +840,10 @@ async function genImg(desc, model, i, overlayText, aspectRatio = '16:9') {
                 fd.append('image', finalUrl);
             }
             const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + imgbbKey, fd, { headers: fd.getHeaders(), timeout: 20000 });
-            if (ir.data && ir.data.success) return ir.data.data.url;
+            if (ir.data && ir.data.success) {
+                console.log('   ✅ [Image] ImgBB 오버레이 이미지 업로드 성공: ' + ir.data.data.url);
+                return ir.data.data.url;
+            }
             throw new Error('업로드 실패');
         } catch(e) { console.log('   ⚠️ [Image] ImgBB 오버레이/업로드 실패: ' + e.message + ' → 원본 URL 사용'); }
     }
@@ -849,14 +852,15 @@ async function genImg(desc, model, i, overlayText, aspectRatio = '16:9') {
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
     console.log('   📝 [Draft] 블로그 기획 시작: ' + target);
     const searchData = await searchSerper(target);
-    const bpPrompt = 'Return ONLY valid JSON with title and 4 to 7 chapters for: ' + target + '. Format: {title:string, chapters:[strings]}. No markdown, no explanation.';
+    const langName = (lang === 'ko') ? 'Korean' : (lang === 'ja') ? 'Japanese' : (lang === 'zh') ? 'Chinese' : 'English';
+    const bpPrompt = 'Return ONLY valid JSON with title and 4 to 7 chapters for: ' + target + '. All values must be in ' + langName + '. Format: {title:string, chapters:[strings]}. No markdown, no explanation.';
     const bpRes = await callAI(model, bpPrompt);
     let data = {};
     try { data = JSON.parse(clean(bpRes, 'obj') || '{}'); } catch(e) { console.log('   ⚠️ Blueprint parse fail, using fallback'); data = {}; }
     const title = data.title || target;
-    if(!data.chapters || !data.chapters.length) { try { const c2 = await callAI(model, 'Generate 4 to 7 short Korean subtitles for: ' + target + '. Return JSON array only.'); data.chapters = JSON.parse(clean(c2, 'arr') || '[]'); } catch(e2) { data.chapters = []; } }
+    if(!data.chapters || !data.chapters.length) { try { const c2 = await callAI(model, 'Generate 4 to 7 short subtitles in ' + langName + ' for: ' + target + '. Return JSON array only.'); data.chapters = JSON.parse(clean(c2, 'arr') || '[]'); } catch(e2) { data.chapters = []; } }
     const chapters = Array.isArray(data.chapters) ? data.chapters : [];
-    if(chapters.length < 4) { chapters.push('핵심 요약'); chapters.push('주의사항'); chapters.push('활용 팁'); }
+    if(chapters.length < 4) { chapters.push(lang === 'ko' ? '핵심 요약' : 'Key Summary'); chapters.push(lang === 'ko' ? '주의사항' : 'Cautions'); chapters.push(lang === 'ko' ? '활용 팁' : 'Tips'); }
     console.log('   📋 [Draft] 챕터 구성 완료: ' + chapters.length + '개 섹션');
     
     const halfIdx = Math.ceil(chapters.length / 2);
@@ -934,10 +938,15 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     const labels = labelStr ? labelStr.split(/[\,\s]+/).map(s => s.trim()).filter(s => s.length > 0) : [];
 
     const imgPrompts = {};
-    const imgRowRegex = /IMG_(\d+):\s*\{?\s*prompt:\s*[\"\'](.*?)[\"\'],\s*alt:\s*[\"\'](.*?)[\"\'],\s*title:\s*[\"\'](.*?)[\"\']\s*\}?/gi;
-    let im; while ((im = imgRowRegex.exec(fullContent)) !== null) {
-        imgPrompts[im[1]] = { prompt: im[2], alt: im[3], title: im[4] };
-    }
+    fullContent.split('\n').forEach(function(line) {
+        const keyM = line.match(/IMG_([0-9A-Z]+):/);
+        if (!keyM) return;
+        const key = keyM[1];
+        const promptM = line.match(/prompt:\s*["']([^"']+)["']/);
+        const altM    = line.match(/alt:\s*["']([^"']+)["']/);
+        const titleM  = line.match(/title:\s*["']([^"']+)["']/);
+        if (promptM) imgPrompts[key] = { prompt: promptM[1], alt: altM ? altM[1] : '', title: titleM ? titleM[1] : '' };
+    });
 
     let finalHtml = clean(fullContent, 'text');
 

@@ -298,24 +298,25 @@ async function run() {
         ' 수리비 0원 도전! 당신이 몰랐던 완벽 응급 처치 가이드'
     ].sort(() => 0.5 - Math.random());
 
-    const limit = pLimit(2);
-    const subTasks = Array.from({length: 4}).map((_, i) => limit(async () => {
+    // [인간미 넘치는 랜덤 예약 시스템: 80분 ~ 180분 간격]
+    let currentPubTime = Date.now();
+    const getRandOffset = () => (Math.floor(Math.random() * (180 - 80 + 1)) + 80) * 60 * 1000;
+
+    for (let i = 0; i < 4; i++) {
+        currentPubTime += getRandOffset();
         const baseSub = subTopicBaseList[i] || (baseKeyword + ' 관련 정보 ' + (i + 1));
         const subTitlePrompt = `주제: \"${baseSub}\"\\n방금 위 세부 주제로 블로그 클릭률(CTR)을 폭발시킬 가장 자극적이고 전문적인 후킹 제목을 '딱 1개'만 생성하라.\\n- 문제 해결 약속, 강렬한 혜택(돈, 시간 이득), 부정적 금지어(절대, 피하는 법) 활용.\\n- 20~35자 내외. 여러 개 나열 금지, 부연 설명 금지, 따옴표 없이 딱 1줄 텍스트만 출력.`;
         let targetSub = await callAI(model, subTitlePrompt);
         targetSub = targetSub ? targetSub.split('\\n')[0].replace(/^\\d+\\.\\s*/, '').replace(/[\"\']/g, '').trim() : '';
         if(!targetSub) targetSub = baseSub + clusterVibes[i % clusterVibes.length];
         
-        // 서브글은 6시간 간격으로 배정
-        return await writeAndPost(model, targetSub, 'ko', blogger, config.blog_id, new Date(Date.now() + i * 21600000), [], i + 1, 5);
-    }));
-
-    const subLinksResults = await Promise.allSettled(subTasks);
-    subLinksResults.forEach(res => { if(res.status === 'fulfilled' && res.value) subLinks.push(res.value); });
+        const res = await writeAndPost(model, targetSub, 'ko', blogger, config.blog_id, new Date(currentPubTime), [], i + 1, 5);
+        if(res && res.url) subLinks.push(res);
+    }
 
     report('🏆 모든 정보가 집결된 메인 필러 포스트(허브) 집필 시작...');
-    // 메인글은 마지막 서브글 발행 6시간 뒤(즉, 현재로부터 24시간 뒤)로 배정
-    await writeAndPost(model, seed, 'ko', blogger, config.blog_id, new Date(Date.now() + 86400000), subLinks, 5, 5);
+    currentPubTime += getRandOffset();
+    await writeAndPost(model, seed, 'ko', blogger, config.blog_id, new Date(currentPubTime), subLinks, 5, 5);
     
     report(`✅ [클러스터 완료]: ${baseKeyword} (총 5개 포스팅 완료)`);
     report('\n🌈 선택된 키워드 클러스터 작업이 성공적으로 종료되었습니다.', 'success');

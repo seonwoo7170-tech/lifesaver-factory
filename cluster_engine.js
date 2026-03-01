@@ -34,24 +34,6 @@ async function uploadReport() {
     } catch(e) { console.log('⚠️ [REPORT ERROR]: ' + e.message); }
 }
 
-const STYLE = `<style>
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Noto+Sans+KR:wght@400;700&display=swap');
-  .vue-premium { font-family: 'Outfit', 'Noto Sans KR', sans-serif; color: #1e293b; line-height: 1.9; font-size: 17px; max-width: 850px; margin: 0 auto; padding: 30px; word-break: keep-all; background: #fff; }
-  .vue-premium p { margin: 32px 0; color: #334155; }
-  .vue-premium h1 { font-size: 38px; font-weight: 800; color: #0f172a; margin-bottom: 50px; text-align: center; letter-spacing: -0.03em; }
-  .vue-premium h2 { font-size: 28px; font-weight: 700; color: #0f172a; background: linear-gradient(to right, #f8fafc, #fff); border-left: 8px solid #6366f1; padding: 20px 25px; margin: 90px 0 45px; border-radius: 4px 16px 16px 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-  .toc-box { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 24px; padding: 35px; margin: 45px 0; }
-  .toc-box b { color: #4338ca; font-size: 20px; display: block; margin-bottom: 15px; }
-  .tip-box { background: #fffbeb; border-left: 5px solid #f59e0b; border-radius: 12px; padding: 25px; margin: 40px 0; }
-  .warn-box { background: #fef2f2; border-left: 5px solid #ef4444; border-radius: 12px; padding: 25px; margin: 40px 0; }
-  .vue-premium table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 55px 0; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; }
-  .vue-premium th { background: #f8fafc; padding: 20px; color: #1e293b; font-weight: 700; border-bottom: 2px solid #e2e8f0; }
-  .vue-premium td { padding: 18px; border-bottom: 1px solid #f1f5f9; }
-  .cluster-btn-box { text-align: center; margin: 70px 0; }
-  .cluster-btn { display: inline-block; padding: 20px 60px; background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); color: #fff !important; text-decoration: none !important; border-radius: 50px; font-weight: 800; font-size: 20px; box-shadow: 0 10px 25px rgba(99,102,241,0.3); transition: transform 0.2s; }
-  .cluster-btn:hover { transform: scale(1.05); }
-</style>`;
-
 function clean(raw, defType = 'obj') {
     if(!raw) return defType === 'text' ? '' : (defType === 'obj' ? '{}' : '[]');
     let t = raw.replace(/\`\`\`(json|html|javascript|js)?/gi, '').trim();

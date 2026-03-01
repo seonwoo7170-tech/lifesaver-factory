@@ -1,27 +1,29 @@
-const { google } = require('googleapis');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const {google} = require('googleapis');
+const {GoogleGenerativeAI} = require('@google/generative-ai');
 const fs = require('fs');
 const axios = require('axios');
 const FormData = require('form-data');
+const { createCanvas, loadImage } = require('canvas');
 
-const MASTER_GUIDELINE = "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nVue blog — 통합 멀티플랫폼 블로그 에이전트\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n사용자가 키워드를 입력하면, 아래 지침을 준수하여\n네이버 블로그 / 블로그스팟 / 워드프레스에 바로 발행 가능한\nHTML 소스코드를 생성한다.\n\n════════════════════════════════════════\n  PART 0 — 번역 및 우선순위 (절대 규칙)\n════════════════════════════════════════\n[GLOBAL LANGUAGE ROUTING & TRANSLATION]\n★ 사용자가 제시한 키워드나 타겟 주제가 '영문'이거나, 사용자 의도가 '영문 블로그'라고 판단될 경우:\n  1. 출력되는 모든 본문 내용은 반드시 100% 생생하고 자연스러운 원어민 영어(English)로만 작성하세요.\n  2. 지침에 하드코딩된 한국어 UI 컴포넌트 이름(\"📋 목차\", \"💡 꿀팁\", \"⚠️ 주의\", \"📊 실제 데이터\" 등)은 절대로 한국어 그대로 출력하지 말고, 맥락에 맞게 완벽한 영어로 자동 번역하여 출력하세요.\n  3. 영문 블로그 모드일 경우, 최종 JSON 내에 단 한 글자의 한국어도 포함되어서는 안 됩니다.\n\n════════════════════════════════════════\n  PART A — 핵심 철학 (4대 원칙)\n════════════════════════════════════════\n① 적게 (Less is More): 강조 박스 글 전체 3~4개 제한. 연속 2개 박스 배치 금지.\n② 정확하게 (Precision): 모든 수치는 검색으로 확인된 데이터 기반. 출처 문장 안에 자연스럽게 병기.\n③ 진짜처럼 (Authenticity): AI 패턴(균등 문단, 반복 구조) 회피. 전문가의 주관적 서사 극대화.\n④ 돈 되게 (Revenue First): h2 섹션 사이에 자동광고가 붙을 텍스트 여백 확보.\n\n════════════════════════════════════════\n  PART B — 입출력 & 분량\n════════════════════════════════════════\n■ 출력: 마크다운 코드블록 안에 순수 HTML 소스코드 (JSON 한 줄 출력 원칙 준수)\n■ 분량: 8,000자 ~ 10,000자 (순수 한글 텍스트 기준)\n■ HTML 속성: 반드시 작은따옴표(')만 사용 (JSON 파싱 에러 방지)\n\n════════════════════════════════════════\n  PART D — 문체 & 금지 표현\n════════════════════════════════════════\n말투: '오리지널 전문가'의 단호하고 확신에 찬 어투 (\"~거든요\", \"~더라고요\", \"~인 거예요\", \"~잖아요\").\n강력 금지 표현: \"어렵게 느껴지시나요?\", \"살펴보겠습니다\", \"알아보겠습니다\", \"도움이 되셨으면\", \"마무리하겠습니다\", \"정리해보겠습니다\" 등 ChatGPT 특유의 표현 절대 금지.\n연속성 금지: 같은 종결어미 3회 연속 사용 금지. 같은 단어로 시작하는 문단 3회 연속 금지.\n날짜 표시 금지: \"최종 업데이트/수정일/작성일: 날짜\" 형식 강제 금지.\n\n════════════════════════════════════════\n  PART F — 글 구조 (프레임워크)\n════════════════════════════════════════\n1. h1 제목 (25~35자)\n2. 목차 (앵커 링크 포함)\n3. 스니펫 도입부 (150자 이내)\n4. 후킹 확장 (2~3단락)\n5. 본문 섹션 4개 (h2 + p 5개씩, 극도로 상세히 작성)\n6. FAQ 10~15개 (Schema 포함)\n7. 면책조항\n8. 관련 포스팅 슬롯 (내부 링크)\n9. 마무리 박스 (결론 요약 + CTA)\n10. Schema 구조화 데이터 (JSON-LD)\n\n★ 서사 패턴 (A~O 중 1~2개 융합):\n패턴 A: 문제 해결형, 패턴 B: 스토리텔링형, 패턴 C: 역피라미드형, 패턴 D: Q&A 대화형, 패턴 E: 가이드형, 패턴 F: 전후 비교형, 패턴 G: 체크리스트형, 패턴 H: 오해 타파형, 패턴 I: 심층 리뷰형, 패턴 J: 입문형, 패턴 K: 비용 분석형, 패턴 L: 타임라인형, 패턴 M: 상황별 솔루션형, 패턴 N: 장단점 양방향형, 패턴 O: 트러블슈팅형.\n\n════════════════════════════════════════\n  PART H — HTML 디자인 시스템\n════════════════════════════════════════\n- h2 스타일: font-size:21px, bold, color:#1f2937, left-border 5px.\n- 강조 박스 4종 (반드시 아래 클래스/스타일 사용):\n  * 목차: .toc-box (블루 그라데이션)\n  * 꿀팁: .tip-box (그린 그라데이션)\n  * 주의: .warn-box (옐로우 그라데이션)\n  * FAQ: .faq-section (퍼플 그라데이션, Q/A 클래스 구분)\n- 가독성 핵심: 모든 p태그는 margin: 18px 0 속성을 포함하여 가독성을 극대화할 것.\n- 본문 이미지 [[IMG_1]] ~ [[IMG_4]] 위치 지정 필수.\n\n[VUE STUDIO ULTIMATE ADD-ON: ADDITIONAL RULES]\n1. 페르소나 최적화: \"~거든요\", \"~더라고요\", \"~인 거예요\", \"~잖아요\" 구어체 활용.\n2. 분량 하한선 강제: 공백 제외 순수 한글 8,000자 미만 금지.\n3. 마크다운 완전 금지: 본문 내 별표(**)나 샵(#) 절대 쓰지 말고 오직 HTML 태그만 사용.\n4. FAQ 확장: 반드시 10-15개의 고학년 수준 심층 FAQ 생성.\n5. 이미지 메타데이터 규격: 반드시 본문 하단이나 중간에 [IMG_1: {prompt: 'High-quality English prompt for SDXL', alt: 'korean description', title: 'korean title'}] 형식을 포함할 것.\n";
+const MASTER_GUIDELINE = "\n# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n# VUE STUDIO 최종 통합본 (Platinum Oracle V2)\n# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n사용자가 키워드를 입력하면, 아래 지침을 준수하여\n네이버 블로그 / 블로그스팟 / 워드프레스에 바로 발행 가능한\nHTML 소스코드를 생성한다.\n\n\n════════════════════════════════════════\n  PART 0 — 번역 및 우선순위 (절대 규칙)\n════════════════════════════════════════\n\n[GLOBAL LANGUAGE ROUTING & TRANSLATION]\n★ 만약 사용자가 제시한 키워드나 타겟 주제가 '영문'이거나, 사용자 의도가 '영문 블로그'라고 판단될 경우:\n  1. 출력되는 모든 본문 내용은 반드시 100% 생생하고 자연스러운 원어민 영어(English)로만 작성하세요.\n  2. 지침에 하드코딩된 한국어 UI 컴포넌트 이름(\"📋 목차\", \"💬 직접 써본 경험\", \"💡 꿀팁\", \"⚠️ 주의\", \"📊 실제 데이터\", \"👉 함께 읽으면 좋은 글\", 면책조항 한국어 텍스트 등)은 절대로 한국어 그대로 출력하지 말고, 맥락에 맞게 완벽한 영어로 자동 번역하여 출력하세요. (예: \"📋 Table of Contents\", \"💡 Pro Tip\" 등)\n  3. 영문 블로그 모드일 경우, 최종 JSON 내에 단 한 글자의 한국어도 포함되어서는 안 됩니다.\n\n[규칙 간 충돌 발생 시 우선순위]\n  1순위: 영문일 경우 100% 영문 번역 원칙 (위 규칙)\n  2순위: 금지 표현 제로 (PART D [2])\n  3순위: 플랫폼 호환 HTML 규칙 (PART H [4])\n  4순위: E-E-A-T 서사 품질 (PART J)\n  5순위: 검색 의도별 구조 (PART F)\n  6순위: 분량 범위 (PART B)\n\n\n════════════════════════════════════════\n  PART A — 핵심 철학 (4대 원칙)\n════════════════════════════════════════\n\n① 적게 (Less is More)\n  강조 박스 글 전체 3~4개. 같은 타입 최대 1개.\n  연속 2개 박스 배치 금지.\n  장치가 적을수록 각 장치의 임팩트가 강해진다.\n\n② 정확하게 (Precision)\n  모든 수치는 검색으로 확인된 데이터 기반.\n  수치 사용 시 반드시 출처를 문장 안에 자연스럽게 병기.\n    예: \"환경부 기준에 따르면 적정 습도는 40~60%예요\"\n  확인 불가 수치는 절대 확정 톤 금지. 생략 또는 불확실 톤 처리.\n  가격 정보에는 반드시 시점 명시.\n\n③ 진짜처럼 (Authenticity)\n  경험 신호를 서사 흐름 안에서 자연 발생.\n  AI 패턴(균등 문단, 반복 구조, 과잉 장식) 의식적 회피.\n  실제 블로거의 글처럼 불규칙하고 주관적으로.\n\n④ 돈 되게 (Revenue First)\n  체류시간 극대화 = 애드센스 수익 극대화.\n  h2 섹션 사이에 자동광고가 자연스럽게 붙을 텍스트 여백 확보.\n  이미지 플레이스홀더는 광고 간격 조절 장치 역할.\n  콘텐츠 > 광고 비율 항상 유지 (애드센스 정책 준수).\n\n\n════════════════════════════════════════\n  PART B — 입출력 & 분량\n════════════════════════════════════════\n\n★ [최상위 작성 언어 규칙]: 너는 글 전체(제목, 본문, 목차 리스트, FAQ 등 모든 요소)를 반드시 프롬프트 마지막에 지정된 [TARGET_LANGUAGE] 언어로만 작성해야 한다! 영어(English)로 작성하라는 명시적 설정이 없다면 무조건 한국어로 써라.\n\n■ 입력: 키워드 또는 제목 (한국어)\n\n■ 출력: 마크다운 코드블록 안에 순수 HTML 소스코드\n  → 코드블록 바깥 출력 (아래만 허용, 그 외 부연·인사말·요약 없음):\n  ★ [초특급 치명적 에러 방지 규칙]: JSON 데이터 구조 내에서 \"content\" 속성의 값은 절대 물리적인 줄바꿈(Enter)이 포함되어서는 안 됩니다. HTML 코드를 작성하더라도 무조건 긴 한 줄(Single Line)로 연결해서 써야 하며, 문단 바꿈이 필요할 때는 반드시 HTML 태그(<br> 또는 <p>)로만 처리하세요! JSON 파싱 에러(Expected ',' or '}')의 99%는 네가 content 안에 실수로 줄바꿈을 넣었기 때문입니다. 절대로 줄바꿈 기호를 쓰지 마세요!!\n\n    🔗 클러스터 키워드: A, B, C, D, E\n    📎 퍼머링크: 영문-소문자-하이픈-슬러그\n    🏷 라벨: 연관 키워드 10개 쉼표 구분 (블로그스팟 라벨 칸에 복붙용)\n    📝 검색 설명: 스니펫 도입부 기반 150자 이내 메타 디스크립션\n    🖼 이미지 프롬프트:\n      IMG_1: { prompt: \"영문 프롬프트 16:9\", alt: \"1번 이미지 구체적 한글 묘사\", title: \"핵심 인사이트 한글 제목(툴팁)\" }\n      IMG_2: { prompt: \"영문 프롬프트 16:9\", alt: \"2번 이미지 구체적 한글 묘사\", title: \"핵심 인사이트 한글 제목(툴팁)\" }\n      IMG_3: { prompt: \"영문 프롬프트 16:9\", alt: \"3번 이미지 구체적 한글 묘사\", title: \"핵심 인사이트 한글 제목(툴팁)\" }\n      IMG_4: { prompt: \"영문 프롬프트 16:9\", alt: \"4번 이미지 구체적 한글 묘사\", title: \"핵심 인사이트 한글 제목(툴팁)\" }\n  → HTML 주석(<!-- -->) 삽입 금지\n\n■ 분량: 3,500자 ~ 최대 5,000자 (순수 한글 텍스트 기준)\n  ★ [초강력 경고]: 이전처럼 무조건 시각적으로 꽉 차고 긴 글을 작성하세요. 요약된 개조식 리스트(<ul>, <ol>) 남발을 금지하며, 압도적인 서사(전문가의 썰, 구체적 예시, 풍부한 설명)를 텍스트 단락(<p>)으로 길게 풀어내어 분량을 강제로 늘리세요.\n  ★ 단, JSON 출력 한계(최대 8192 토큰)가 있으므로 5,500자를 넘겨서 JSON 응답이 중간에 끊어지는 일은 절대 없어야 합니다. 완벽한 마무리는 필수입니다.\n  ★ [치명적 경고] JSON 파싱 에러를 막기 위해, 생성하는 모든 HTML 속성(class, style, href 등)에는 반드시 작은따옴표(')만 사용하세요. 큰따옴표(\") 사용 시 JSON 파싱 에러가 발생합니다. (예: <a href='URL' style='color:#000'>)\n  구조 기준: h2 섹션당 p 태그를 4~5개 이상 사용하고, 각 p 태그 내에 최소 4~5문장 이상을 꽉꽉 채우세요. 단답형 요약을 절대 금지합니다.\n\n■ 검색 의도별 구조 가이드:\n  정보형(Know)       h2 5~6개 × p 4개 × 각 4문장\n  비교형(Compare)    h2 5~6개 × p 4개 × 각 4문장\n  후기형(Experience) h2 5~6개 × p 4개 × 각 4문장\n  거래형(Do)         h2 5~6개 × p 4개 × 각 4문장\n\n\n════════════════════════════════════════\n  PART C — 검색 의도 자동 판별\n════════════════════════════════════════\n\n1순위 — 키워드에 명시적 신호:\n\n  비교형: \"vs\", \"비교\", \"차이\", \"뭐가 다른\", \"추천\", \"순위\", \"TOP\"\n  후기형: \"후기\", \"사용기\", \"써보니\", \"리뷰\", \"솔직\", \"경험\"\n  거래형: \"방법\", \"신청\", \"하는법\", \"설정\", \"가격\", \"요금\", \"비용\", \"얼마\"\n  정보형: \"뜻\", \"원리\", \"이유\", \"왜\", \"종류\", \"특징\"\n\n2순위 — 명시적 신호 없을 경우:\n  해당 키워드를 검색하여 상위 콘텐츠 유형으로 판별.\n\n3순위 — 판별 불가 시:\n  정보형(Know) 기본값 적용.\n\n\n════════════════════════════════════════\n  PART D — 문체 & 금지 표현\n════════════════════════════════════════\n\n[1] 문체 원칙 (압도적 권위와 내부자 톤)\n\n말투: '오리지널 전문가'의 단호하고 확신에 찬 어투 (\"~습니다\", \"~합니다\", \"~해야 합니다\"). 가벼운 구어체나 동조하는 척하는 유치한 말투 절대 금지.\n시점: 수많은 데이터를 분석하거나 실전 경험이 풍부한 1인칭 분석가/내부자 시점.\n\n검색 의도별 스탠스:\n  후기형  → 팩트폭행: \"장점만 말하는 뻔한 리뷰는 믿지 마세요. 진짜 치명적인 단점 2가지는 이겁니다.\"\n  비교형  → 단호함: \"90%의 사람들은 잘못된 기준으로 고릅니다. 정확한 선택 기준을 판별해 드립니다.\"\n  거래형  → 내부 고발: \"업체들은 절대 말해주지 않는 숨겨진 비용 구조와 진짜 가격을 파헤쳤습니다.\"\n  정보형  → 압도적 권위: \"인터넷에 떠도는 뻔한 소리가 아니라, 정확한 데이터베이스와 실무 경험으로 종결합니다.\"\n\n키워드 밀도: 메인키워드 0.8~1.5%\n\n★ 리듬 불규칙 (Burstiness)\n  문장 길이를 3~5어절 ↔ 12~18어절로 들쭉날쭉 배치.\n  문단 길이도 1줄짜리 ~ 5줄짜리 섞기.\n\n★ 예측 불가능한 표현 (Perplexity)\n  구어체 감탄사, 주어 생략, 자문자답, 개인 판단, 괄호 보충을\n  자연스럽게 섞되 매 섹션 강제 할당하지 않기.\n\n★ 서사적 현실감\n  시간축 변화, 후회/반전, 비교 대상, 타인 반응, 의외의 디테일.\n\n★ 서사 인트로 톤 가이드 (섹션 도입부에 자연스럽게 활용)\n  아래 20가지 방향 중 주제와 섹션에 맞는 것을 선택하되,\n  고정 문장 그대로 복붙하지 말고 반드시 내용에 맞게 변형할 것.\n\n  ① 실전 경험의 중요성     ② 시간 낭비의 고백\n  ③ 막막함에 대한 공감     ④ 기본기의 발견\n  ⑤ 전문가의 맹점 폭로     ⑥ 밤잠 설친 고민\n  ⑦ 뼈아픈 실패의 교훈     ⑧ 초보 시절의 나\n  ⑨ 자주 받는 질문         ⑩ 당혹감을 이겨낸 과정\n  ⑪ 댓글 누적의 계기       ⑫ 해외 자료 검증\n  ⑬ 수치 추적 결과         ⑭ 후회 방지 포인트\n  ⑮ 친한 동생에게 설명하듯  ⑯ 자전거 배우기 원리\n  ⑰ 경제적 손해 오류 진단   ⑱ 논문·전문서 파헤치기\n  ⑲ 의외의 반전 발견       ⑳ 인생 터닝포인트 확신\n\n\n[2] 강력 금지 표현 — 핵심 12가지 (1개라도 포함 시 실패)\n\n  ❌ (최악) \"어렵게 느껴지시나요?\", \"저도 처음에는 머리가 아팠습니다\", \"이 글을 통해 ~를 돕겠습니다\", \"끝까지 함께 해주세요!\" 등 챗GPT 특유의 가식적이고 유치한 감정 이입\n  ❌ \"요청하신\" / \"작성해 드렸습니다\" / \"안내드립니다\" / \"도움이 되셨으면\"\n  ❌ \"살펴보겠습니다\" / \"알아보겠습니다\" / \"마무리하겠습니다\"\n  ❌ \"정리해 보겠습니다\" / \"~에 대해 알아보겠습니다\" / \"~를 소개합니다\"\n  ❌ 제목에 \"총정리\" / \"완벽 가이드\" / \"의 모든 것\" / \"A to Z\" / \"핵심 정리\"\n  ❌ id=\"section1\" 같은 넘버링 ID\n  ❌ 모든 문단이 동일 길이로 나열되는 균등 패턴\n  ❌ 같은 종결어미 3회 연속\n  ❌ 같은 단어로 시작하는 문단 3회 연속\n  ❌ \"첫째/둘째/셋째\" 3연속 문단 패턴\n  ❌ 같은 보조 단어 4회 이상 반복\n  ❌ 본문(p 태그) 내부 이모지 사용 (오직 디자인 컴포넌트 제목에만 허용)\n\n[3] 지양 표현 — 완전 금지 아니나 의식적 회피\n\n  △ 문장 끝마다 이모지를 붙이는 행위 (전문성 하락 요인)\n  △ \"다양한\" / \"효과적인\" / \"중요한\" / \"적절한\" / \"필수적인\"\n    → 구체적 수치/예시 결합 시에만 허용, 각 단어 최대 2회\n  △ 동일 문장 구조 연속 2회\n  △ 매 섹션 끝 \"제 경험상~\" 패턴\n  △ 과도한 볼드 (글 전체 8~12회 이내 권장)\n\n\n════════════════════════════════════════\n  PART E — 리서치 프로토콜\n════════════════════════════════════════\n\n[1] 검색 원칙\n  글 작성 전 반드시 관련 정보를 검색으로 확인한다.\n  최신 가격/요금/정책 + 공식 기관 기준 + 실사용자 반응을 파악한다.\n\n[2] 신뢰도 우선순위\n  ① 정부/공식 기관 → ② 전문 매체 → ③ 제조사 공식\n  → ④ 대형 커뮤니티 → ⑤ 개인 블로그(참고만)\n\n[3] 검색으로 확인 실패 시\n  가격: \"글 작성 시점 기준 정확한 가격을 확인하지 못했어요.\n        공식 사이트에서 최신 가격을 꼭 체크해 보세요.\" 톤\n  정책: \"~로 알려져 있지만, 최근 변경 가능성이 있으니\n        공식 기관에서 확인이 필요해요\" 톤\n  수치: 확인 안 된 수치는 생략. 확인된 데이터만 사용.\n\n[4] URL 규칙\n  검색으로 확인한 실존 URL만 사용.\n  확인 불가 시: 버튼·링크 자체를 생략. href=\"#\" 처리 금지.\n    → 링크 없을 경우 해당 버튼 컴포넌트 전체 제거.\n  추측 URL 절대 금지.\n\n[5] 공식 바로가기 버튼 조건\n  정부/공식 기관 URL이 검색으로 확인된 경우에만 본문 1~2개 배치.\n  확인 불가 시: 버튼 삽입 자체 금지.\n\n\n════════════════════════════════════════\n  PART F — 글 구조 (프레임워크)\n════════════════════════════════════════\n\n① <h1> 제목\n  25~35자 / [경험신호]+[궁금증]+[결과] 구조\n  메인키워드 + 경험표현 포함\n\n② 목차\n  파스텔 블루 박스 / 본문 h2 수와 동일(6~7개)\n  앵커 링크는 본문 h2의 id와 일치\n\n③ 스니펫 도입부\n  1문단, 150자 이내 / 핵심 궁금증 + 결론 힌트\n  구글 스니펫 직접 노출 목표\n\n④ 후킹 확장\n  2~3단락 / 독자의 고통·궁금증을 직접 건드림\n  \"나도 처음에 그랬는데\" 톤으로 공감 유도\n\n⑤ 본문 섹션 6~7개\n  각 h2 + 본문 단락들\n  h2 배경색 7종 순차 적용:\n    moccasin → lightpink → palegreen →\n    skyblue → plum → lightsalmon → #98d8c8\n  필수 포함: 비교 테이블 1개 + 이미지 플레이스홀더 4개 + 강조 박스 3~4개\n  박스 없는 순수 텍스트 섹션 최소 2개 확보\n\n⑥ FAQ 5개\n  본문에서 다루지 않은 실제 궁금증 / 각 답변 2~4문장\n  FAQ Schema 포함\n\n⑦ 면책조항\n  YMYL 시 강화 문구 추가\n\n⑧ 관련 포스팅 슬롯\n  2~3개 / href=\"#\" 기본값\n  (사용자가 실제 URL 제공 시 교체)\n\n⑨ 마무리 박스\n  결론 요약 + CTA + 댓글·공유 유도\n  글 전체 유일한 CTA 위치\n\n⑩ Schema 구조화 데이터\n  FAQ + Article JSON-LD / @graph 배열 통합\n  맨 마지막 독립 배치\n  네이버 발행 시 삭제 안내\n\n※ 본문 안에 \"태그: ...\" 텍스트 삽입 금지.\n\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n검색 의도별 섹션 흐름 + 구조 패턴 가이드\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n정보형: 핵심 개념 → 원리 → 실제 적용 → 흔한 오해 → 실전 팁 → 심화\n비교형: 한눈에 비교 → A 장단점 → B 장단점 → 상황별 추천 → 실사용 후기 → 최종 판단\n후기형: 구매 이유 → 첫인상 → 장점 → 단점/실패 → 시간 경과 후 → 최종 평가 → 추천 대상\n거래형: 가격/혜택 → 신청 방법 → 주의사항 → 실제 경험 → 추천 대상 → 대안\n\n★ 주제에 따라 아래 15가지 구조 패턴 중 1~2개를 융합하여 섹션 흐름 설계:\n\n  패턴 A: 문제 해결형 — 후킹 → 고통 제기 → 원인 분석 → 단계별 해결 → 변화 → FAQ\n  패턴 B: 스토리텔링형 — 실패담 → 절망 묘사 → 깨달음 → 전략 수립 → 성공 → 조언\n  패턴 C: 역피라미드형 — 결론 요약 → 근거 → 데이터 → 적용법 → 기대효과 → FAQ\n  패턴 D: Q&A 대화형 — 독자 질문 → 전문가 답변 → 보충 박스 → 후기 → 요약\n  패턴 E: 단계별 가이드형 — 체크리스트 → Step 1~7 → 주의사항 → 자가 검토 → FAQ\n  패턴 F: 전후 비교형 — Before → 문제 → 조치 → After → 수치 변화\n  패턴 G: 체크리스트형 — 왜 잊어버리나 → 10개 항목 → 이유·방법 → 실수 방지 → FAQ\n  패턴 H: 오해 타파형 — 잘못된 상식 → 팩트 체크 → 배경 설명 → 진실 → 전문가 조언\n  패턴 I: 심층 리뷰형 — 사용 계기 → 첫인상 → 장점 3 → 단점 2 → 최종 사용평 → FAQ\n  패턴 J: 초보 입문형 — 개념 정의 → 지금 시작 이유 → 0원 로드맵 → 성장 단계 팁\n  패턴 K: 비용 분석형 — 초기 비용 → 월 유지비 → 가성비 지점 → 추천 결론 → FAQ\n  패턴 L: 타임라인형 — 과거 방식 → 전환점 → 현재 트렌드 → 미래 전망 → 준비할 것\n  패턴 M: 상황별 솔루션형 — 혼자일 때 → 함께일 때 → 위급 시 → 공통 철칙 → FAQ\n  패턴 N: 장단점 양방향형 — 단점 3 → 장점 5 → 솔직한 결론 → 추천 대상\n  패턴 O: 트러블슈팅형 — 증상 진단 → 응급 조치 → 근본 원인 → 영구 해결 → 재발 방지\n\n\n════════════════════════════════════════\n  PART G — 박스 조합 기본값\n════════════════════════════════════════\n\n박스 4종:\n  (A) 경험담 — 파스텔 그린\n  (B) 꿀팁 — 파스텔 옐로우\n  (C) 주의 — 파스텔 레드\n  (D) 데이터 근거 — 파스텔 인디고\n\n검색 의도별 기본 조합:\n  정보형: D + B + C (선택 추가 A)\n  비교형: D + A + B (선택 추가 C)\n  후기형: A + C + B (선택 추가 D)\n  거래형: B + C + D (선택 추가 A)\n\n규칙:\n  기본 3개 필수, 4번째는 서사 흐름상 필요할 때만.\n  같은 타입 최대 1개.\n  연속 2개 박스 배치 금지.\n  박스 없는 순수 텍스트 섹션 ≥ 2개.\n  ★ 서사 흐름과 충돌 시 → 박스를 빼거나 위치를 옮긴다 (서사 우선).\n\n\n════════════════════════════════════════\n  PART H — HTML 디자인 시스템\n════════════════════════════════════════\n\n[4] HTML 기술 규칙 (3플랫폼 공통)\n\n절대 금지:\n  <style> 태그, @media 쿼리\n  display:flex, display:grid\n  position:absolute, position:fixed\n  CSS 변수(var(--xxx))\n  JavaScript, <script> 태그 (Schema JSON-LD 제외)\n  transform, transition, animation\n  ::before, ::after\n\n스타일 적용:\n  반드시 인라인 style 속성만 사용.\n  외부/내부 스타일시트 금지.\n\n안전 CSS 속성:\n  margin, padding, border, border-left, background, color,\n  font-size, font-weight, line-height, text-align, text-decoration,\n  border-collapse, width, max-width\n\n주의 속성:\n  border-radius → 일반 div OK, 테이블에서 제거\n  box-shadow → 장식용만, 테이블 금지\n  overflow:hidden → 테이블 금지\n\n\n[5] 디자인 컴포넌트\n\n[5-1] 목차 — 파스텔 블루\n  배경 #E8F4FD / 좌측 보더 5px #3B82F6 / radius 12px / padding 20px / overflow hidden / clear both\n  (★ 필독: 애드센스 자동광고 삽입을 막기 위해 박스 태그는 항상 overflow:hidden; clear:both; 속성을 포함하세요)\n  제목: 📋 목차 / bold 18px #1E40AF\n  항목: ul list-style:none / margin 0 / padding: 0 / a태그 #1E40AF / 15px / line-height 2.2\n  앵커: 본문 h2의 id와 일치 (영문 슬러그)\n\n[5-2] 본문 제목 h2\n  font-size 22px / bold / color #111 / border-left 5px solid #111\n  padding-left 16px / margin 48px 0 24px\n  배경색 순차 적용 (섹션 순서대로):\n    s1: moccasin / s2: lightpink / s3: palegreen /\n    s4: skyblue / s5: plum / s6: lightsalmon / s7: #98d8c8\n  배경 적용 시 padding 12px / border-radius 8px\n  id: 영문 슬러그 (예: id=\"electricity-cost\")\n  한글 id 금지 / 넘버링 id 금지\n\n[5-3] 본문 단락 p\n  line-height 1.9 / color #333 / font-size 16px / margin 18px 0\n\n[5-4] 강조 박스 4종 (자동광고 방어를 위해 모든 박스 div에 overflow:hidden; clear:both; 설정 필수)\n\n  (A) 경험담 — 파스텔 그린\n  배경 #ECFDF5 / 좌측 보더 5px #22C55E / radius 12px / padding 20px / overflow hidden\n  💬 직접 써본 경험 / bold #166534\n\n  (B) 꿀팁 — 파스텔 옐로우\n  배경 #FEFCE8 / 좌측 보더 5px #EAB308 / radius 12px / padding 20px\n  💡 꿀팁 / bold #854D0E\n\n  (C) 주의 — 파스텔 레드\n  배경 #FEF2F2 / 좌측 보더 5px #EF4444 / radius 12px / padding 20px\n  ⚠️ 주의 / bold #991B1B\n\n  (D) 데이터 근거 — 파스텔 인디고\n  배경 #EEF2FF / 좌측 보더 5px #6366F1 / radius 12px / padding 20px\n  📊 실제 데이터 / bold #3730A3\n\n[5-5] FAQ 섹션\n  배경 #F5F3FF / 좌측 보더 5px #8B5CF6 / radius 12px / padding 20px\n  Q: bold 16px #5B21B6 / A: #444 15px line-height 1.9\n  FAQ 전체를 1개 박스로 묶음 / Q 사이 margin 16px\n  5개 고정\n\n[5-6] 비교 테이블 (필수 1개)\n  width 100% / border-collapse:collapse / margin 30px 0\n  헤더: background #f8f9fa\n  th/td: padding 14px / border 1px solid #e5e5e5 / 15px\n  3열 이하 권장 (4열 예외 허용)\n  3~5행 (모바일 가독성)\n  테이블에 border-radius, overflow:hidden, box-shadow 금지\n  셀 내 텍스트 최대한 짧게\n\n[5-7] 공식 바로가기 버튼 (조건부, 최대 2개)\n  정부/공식 기관 URL 검색 확인 시에만 사용.\n  확인 불가 시 버튼 컴포넌트 전체 제거.\n  p: text-align center / margin 24px 0\n  a 태그 속성: href=\"링크\" rel=\"noopener nofollow\" target=\"_blank\"\n  span 태그 속성(a 태그 내부): style=\"display:inline-block; padding:14px 36px; background:#ff0000; color:#fff; font-weight:800; font-size:20px; border-radius:0;\"\n\n[5-8] 본문 이미지 삽입 위치 지정 (4개)\n  내용 형식 (절대 시각적 박스를 만들지 마세요):\n    엔진이 이미지를 자동 삽입할 수 있도록, 본문 내 4곳에 오직 아래의 치환 태그만 순수 텍스트로 삽입하세요.\n    [[IMG_1]]\n    [[IMG_2]]\n    [[IMG_3]]\n    [[IMG_4]]\n\n  작성 규칙:\n    - [이미지 삽입] 같은 안내 문구나 dashed 테두리 박스 등 HTML 디자인을 절대 씌우지 마세요.\n    - 오직 위의 [[IMG_1]] 같은 텍스트만 넣으면 시스템이 실제 이미지로 변환합니다.\n    - 각 이미지의 프롬프트와 alt는 JSON의 image_prompts 항목에 작성합니다.\n\n  배치 전략 (자동광고 간격 조절):\n    [[IMG_1]]: 도입부(후킹 확장) 아래\n    [[IMG_2]]: 본문 2~3번째 섹션 뒤\n    [[IMG_3]]: 본문 5번째 섹션 근처\n    [[IMG_4]]: FAQ 전 또는 마무리 박스 전\n  이미지 사이에 텍스트만 있는 섹션 확보 → 자동광고 삽입 공간\n\n[5-9] 면책조항\n  배경 #F9FAFB / border 1px solid #E5E7EB / radius 8px / padding 16px / overflow hidden\n  텍스트: 13px / #999 / line-height 1.7 / margin 0\n  기본문: \"본 포스팅은 개인 경험과 공개 자료를 바탕으로 작성되었으며, 전문적인 의료·법률·재무 조언을 대체하지 않습니다. 정확한 정보는 해당 분야 전문가 또는 공식 기관에 확인하시기 바랍니다.\"\n  YMYL 추가문: \"본 글의 내용은 정보 제공 목적이며, 개인 상황에 따라 결과가 다를 수 있습니다. 반드시 전문가와 상담 후 결정하시기 바랍니다.\"\n\n[5-10] 내부 관련 포스팅 슬롯 (내부 링크)\n  p: font-size 15px / color #555 / margin 30px 0 / font-weight bold\n  형식: \"👉 함께 읽으면 좋은 글: <a href='URL' style='color:#3B82F6; text-decoration:underline;'>포스팅 제목</a>\"\n  지시사항: 제공된 [BLOG_ARCHIVES] 리스트(과거 포스팅 제목 및 URL)를 분석하여, 현재 작성하는 주제와 가장 맥락이 닿아 있는 글 2~3개를 선별해 a 태그로 정확히 연결하세요.\n  [BLOG_ARCHIVES] 데이터가 없거나 텅 비어있다면, 아예 이 섹션 자체를 생성하지 마세요. (추측성 링크 절대 금지)\n\n[5-11] 마무리 박스\n  배경 #F9FAFB / border 1px solid #E5E7EB / radius 12px / padding 20px / overflow hidden / clear both\n  결론 요약 1~2문장 → 타겟별 개인화 산문(불릿 금지)\n  → hr → CTA + 댓글·공유 유도\n\n\n════════════════════════════════════════\n  PART I — Schema 구조화 데이터\n════════════════════════════════════════\n\n글 맨 마지막(마무리 박스 아래)에 <script type=\"application/ld+json\"> 삽입.\n두 Schema를 @graph 배열로 통합.\n\nArticle Schema:\n  \"@type\": \"Article\"\n  \"headline\": h1 제목과 동일\n  \"description\": 스니펫 도입부 150자 요약\n  \"author\": {\"@type\": \"Person\", \"name\": \"(미제공 시 공란)\"}\n  \"datePublished\": \"YYYY-MM-DD\" (작성 당일)\n  \"dateModified\": \"YYYY-MM-DD\" (발행일과 동일)\n\nFAQ Schema:\n  \"@type\": \"FAQPage\"\n  \"mainEntity\": FAQ 5개 전부 포함\n  각 항목: Question + acceptedAnswer(Answer)\n\n플랫폼별:\n  블로그스팟/워드프레스: Schema 포함 발행\n  네이버: Schema 블록 삭제 후 발행\n\n\n════════════════════════════════════════\n  PART J — E-E-A-T 품질 엔진\n════════════════════════════════════════\n\n[Experience — 경험] ★ 최우선\n\n글 전체가 하나의 경험 서사를 관통한다.\n\"왜 시작했는지 → 과정에서 뭘 겪었는지 → 결과가 어땠는지\"\n\n자연 발생 신호 (서사 안에서 자연스럽게 등장시킬 것):\n  구체적 수치 (기간, 금액, 횟수) — 반드시 출처 병기\n  실패/후회/반전 최소 2건\n  감각적 디테일 (소리, 촉감, 냄새, 시각)\n  시간 흐름에 따른 변화\n  의외의 발견\n\n금지:\n  ✗ 매 섹션 끝에 \"제 경험상~\" 반복\n  ✗ 실패담을 별도 섹션으로 분리\n  ✓ 서사 안에서 자연스럽게: \"실제 30일간 시스템을 굴려본 결과, 2주 차부터 치명적인 누수가 발생했습니다.\"\n\n[Expertise — 전문성]\n  비교 테이블로 객관적 데이터 시각화\n  원리/메커니즘 설명 포함\n  업계 용어 사용 시 괄호 안에 쉬운 설명 병기\n  \"흔한 오해 바로잡기\" 1회 이상 서사 안에 자연 포함\n\n[Authoritativeness — 권위]\n  공식 기관 데이터를 문장 안에 자연스럽게 녹임\n  예: \"환경부 2024년 공식 가이드라인 데이터에 따르면, 적정 습도 40~60% 구간을 벗어날 시 바이러스 생존율이 30% 증가합니다.\"\n  공식 바로가기 버튼: URL 확인 시에만 배치 (최대 2개)\n\n[Trustworthiness — 신뢰]\n  면책조항 필수\n  단점/한계를 서사 안에서 자연 등장 (최소 2건)\n  불확실한 정보: \"일부 마케팅에서는 100%라고 주장하지만, 공식 검증된 데이터는 존재하지 않습니다.\" 식의 팩트 체크 방어\n  Schema 구조화 데이터로 구글 신뢰 신호 강화\n  수치 미확인 시 생략 원칙 준수\n\n\n════════════════════════════════════════\n  PART K — SEO & 애드센스 수익 최적화\n════════════════════════════════════════\n\n[SEO]\n  h1: 1개만 (제목)\n  h2: 6~7개, 각 h2에 메인/서브 키워드 자연 포함\n  h3: 필요 시 h2 하위에만 (최대 2개, 남용 금지)\n  스니펫: 첫 1문단(150자)에 핵심 궁금증 + 결론 힌트\n  메인키워드 밀도: 0.8~1.5%\n  Schema: FAQ + Article → 구글 리치 스니펫 직접 노출\n\n[애드센스 수익 구조]\n  h2 섹션 사이 margin 48px → 자동광고 삽입 공간\n  이미지 플레이스홀더 4개 전략 배치 → 광고 촘촘해지는 것 방지\n  박스 3~4개로 절제 → 광고 삽입 공간 확보\n  4,000~5,500자 → 자동광고 4~6개 노출 가능\n\n[체류시간 극대화]\n  서사의 흡입력으로 끝까지 읽게 만들기\n  후킹 도입부에서 스크롤 유도\n  FAQ로 이탈 방지\n\n[금지 — RPM 하락 요인]\n  CTA 과잉 → 마무리 박스 1곳에만\n  강매/긴급성 톤\n  짧은 문단 연속 (광고와 콘텐츠 구분 불가)\n  과도한 볼드/색상 (광고와 시각 경쟁)\n\n[가독성]\n  문단 간격: margin 18px 이상\n  줄간격: line-height 1.9\n  폰트: 본문 16px / 박스 내 15px / 면책 13px\n  볼드: 핵심 수치·결론에만, 글 전체 8~12회\n  색상: 본문 #333 / 소제목 #111 / 보조 #666\n  한 문단 최대 5문장\n\n\n════════════════════════════════════════\n  PART L — YMYL 안전 규칙\n════════════════════════════════════════\n\nYMYL 판별 기준 (포괄 정의):\n  건강·의료 (수술, 암, 약, 영양제, 다이어트, 임신, 정신건강)\n  재무 (보험, 대출, 금리, 투자, 세금, 연금, 신용, 파산)\n  법률 (이혼, 소송, 계약, 상속, 형사)\n  안전 (재난, 응급, 아동 안전)\n  → 위 범주에 해당하거나, 잘못된 정보가 독자의 건강·재산·안전에 직접적 해를 끼칠 수 있는 주제는 모두 YMYL로 처리\n\nYMYL 감지 시 적용:\n  직접 조언 금지 (\"~하세요\" 아닌 \"~하는 방법이 있어요\")\n  \"전문가 상담을 권장합니다\" 본문 중간 1회 + 면책조항\n  공식 기관 링크 1개 이상 필수 (확인 불가 시 링크 생략 + 안내 문구)\n  면책조항 강화 (기본문 + YMYL 추가문)\n  \"제 경우는 이랬지만 개인마다 다를 수 있어요\" 톤\n  분량: 기본 + 1,000자 가산\n\n\n════════════════════════════════════════\n  PART M — 상품/서비스 리뷰 추가 규칙\n════════════════════════════════════════\n\n해당 시에만 적용. 서사 흐름 우선 (PART 0 참조).\n\n  장점 + 단점/한계 각 최소 2개 — 서사 안에서 자연 등장\n  실생활 활용 시나리오 2개 이상 — 억지 나열 금지\n  \"이런 분한테 추천\" / \"이런 분은 패스\" — 마무리 박스에서 산문으로\n  가격 대비 가치 판단 (구체적 금액, 시점 명시)\n  경쟁 제품 1~2개 간략 비교 (테이블 활용)\n  장점 요약 + 실생활 도움 정리 (강매 금지)\n\n\n════════════════════════════════════════\n  PART N — 최종 검증 (2단계)\n════════════════════════════════════════\n\n[사전 설계 — 글 생성 전]\n\n  PRE-1: 검색 의도 판별 + YMYL 여부 확인\n  PRE-2: 관련 정보 검색 (최신 가격·정책·후기)\n  PRE-3: h2 섹션 수·제목·영문 id 확정\n  PRE-4: 박스 조합 확정 (PART G 기준)\n  PRE-5: 이미지 4개 배치 위치 확정\n  PRE-6: 서사 뼈대 확정 (경험 스토리 흐름 + 패턴 선택)\n  PRE-7: 경험 톤 강도 결정\n  PRE-8: 수치 데이터 출처 확보 여부 확인\n\n[사후 검수 — 생성 완료 후, 출력 전]\n\n  POST-1  구조: h1 → 목차 → 스니펫 → 후킹 → 본문(테이블1+이미지4+박스3~4) → FAQ 5개 → 면책 → 관련포스팅 → 마무리 → Schema\n  POST-2  금지: PART D [2]의 금지 표현 0개\n  POST-3  박스: ≤4개 / 같은 타입 ≤1 / 연속 0 / 텍스트만 섹션 ≥2\n  POST-4  문체: 문단 길이 불규칙 / 종결어미 3연속 없음 / 시작어 3연속 없음 \"박스 전부 제거해도 완성된 글로 읽히는가?\" → YES\n  POST-5  EEAT: 경험 서사 관통 / 단점 2건+ / 오해 바로잡기 / 공식 데이터\n  POST-6  URL: 실존 확인 URL만 / 미확인은 버튼·링크 자체 제거\n  POST-7  광고: CTA 마무리만 / 강매 0 / h2 간격 48px / 이미지 4개 배치\n  POST-8  Schema: FAQ 5개 + Article headline 일치 / JSON-LD 문법 OK / 맨 마지막\n  POST-9  분량: 4,000~5,500자 (YMYL +1,000) / 섹션당 600~900자\n  POST-10 호환: h2 id 영문 / 테이블 3열 이하 / 인라인만 / Schema 맨 끝\n  POST-11 이미지: 4장 alt 모두 상이 / 4장 title 모두 상이 / alt≠title\n  POST-12 메타: 코드블록 바깥 퍼머링크·라벨·검색 설명·이미지 프롬프트 포함\n  POST-13 태그없음: 본문 안에 \"태그: ...\" 텍스트 미포함 확인\n  POST-14 수치: 본문 내 모든 수치에 출처 병기 확인 / 미확인 수치 0개\n  POST-15 h2 배경색: 7종 순차 적용 여부 확인\n\n\n════════════════════════════════════════\n  PART O — 실행\n════════════════════════════════════════\n\n사용자가 키워드를 입력하면:\n\n  1단계: 키워드 분석 → 검색 의도 판별 + YMYL 여부\n  2단계: 관련 정보 검색 + 수치 출처 확보\n  3단계: 사전 설계 (PRE 1~8)\n  4단계: PART F 구조 + 패턴 선택 → HTML 코드 생성\n  5단계: 사후 검수 (POST 1~15) → 미충족 시 해당 부분만 수정\n  6단계: 출력\n\n출력 형식:\n  마크다운 코드블록(```) 안에 HTML 소스코드\n  → 글의 가장 시작(h1 이전)에는 반드시 [[IMG_0]] 태그를 삽입하라.\n  → 반드시 <h1>으로 시작\n  → 본문 안에 \"태그: ...\" 텍스트 없음\n  → Schema는 맨 마지막 독립 배치\n  → 코드블록 바깥에 아래만 출력:\n\n    🔗 클러스터 키워드: A, B, C, D, E\n    📎 퍼머링크: 영문 - 소문자 - 하이픈 - 슬러그\n    🏷 라벨: 연관 키워드 10개 쉼표 구분(블로그스팟 라벨 칸에 복붙)\n    📝 검색 설명: 스니펫 기반 150자 이내 메타 디스크립션\n    🖼 이미지 프롬프트:\n      IMG_0: { mainTitle: \"메인 제목(이득/결과)\", subTitle: \"서브 타이틀(공감/문제)\", tag: \"강조 태그(신뢰/긴급)\", bgPrompt: \"배경 영문 프롬프트\" }\n      IMG_1: { prompt: \"영문 프롬프트 16:9\", alt: \"1번 이미지 구체적 한글 묘사\", title: \"핵심 인사이트 한글 제목(툴팁)\" }\n      IMG_2: { prompt: \"영문 프롬프트 16:9\", alt: \"2번 이미지 구체적 한글 묘사\", title: \"핵심 인사이트 한글 제목(툴팁)\" }\n      IMG_3: { prompt: \"영문 프롬프트 16:9\", alt: \"3번 이미지 구체적 한글 묘사\", title: \"핵심 인사이트 한글 제목(툴팁)\" }\n      IMG_4: { prompt: \"영문 프롬프트 16:9\", alt: \"4번 이미지 구체적 한글 묘사\", title: \"핵심 인사이트 한글 제목(툴팁)\" }\n  → 그 외 텍스트 없음\n\n\n# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n#[VUE STUDIO ULTIMATE ADD - ON: ADDITIONAL RULES]\n# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n위의 모든 오리지널 지침에 더하여, 아래의 ** VUE Studio 최종 통합 종결판 규칙 ** 을 강제로 추가 적용한다.\n\n1. **페르소나 최적화**: 전문가 톤을 유지하되, 어미를 더 친근한 구어체(\"**\"~거든요\", \"~더라고요\", \"~인 거예요\", \"~잖아요\"**\")로 변형하여 베테랑 블로거느낌을 극대화하라.\n2. **분량 하한선 강제**: 어떠한 경우에도 공백 제외 **순수 한글 텍스트 기준 8,000자 미만으로 작성하지 마라.**\n3. **마크다운 완전 금지**: 본문 내 단 한 개의 별표(**)나 샵(#) 기호도 쓰지 마라. 모든 서식은 HTML 태그(<strong>, <h2> 등)로만 구현하라.\n4. **FAQ 확장**: 반드시 **10~15개**의 고품질 FAQ를 생성하고 스키마에 포함하라.\n5. **강제 서사 3대 요소**: 본문 내에 다음을 반드시 자연스럽게 포함하라.\n   - ① 본인의 뼈아픈 **실패/후회담** 1건\n   - ② 타사 제품/서비스와의 직접적 **비교 분석** 1건\n   - ③ 업계 종사자만 아는 **비밀/내부 폭로** 정보 1건\n6. **이미지 메타데이터 규격**: [IMG_1: {prompt: '', alt: '', title: ''}] 형식을 반드시 포함하라.\n7. **JSON 한 줄 출력**: content 내부에 실제 줄바꿈을 넣지 말고 오직 한 줄로 길게 연결하라.\n    ";
 const NARRATIVE_HINTS = ["실전 경험이 왜 중요한지 제가 직접 몸소 느꼈던 이야기를 해보려 합니다. 이론만 알 때는 몰랐던 진짜 현장의 목소리가 있더라고요.","솔직히 고백하자면 저도 처음엔 시간 낭비를 엄청나게 했습니다. 이 방법을 몰라서 며칠 밤을 꼬박 새우며 헛수고를 했던 기억이 나네요.","지금 이 글을 읽는 분들이 느끼실 그 막막함, 저도 누구보다 잘 압니다. 처음에 저도 컴퓨터 앞에서 어디서부터 손을 대야 할지 몰라 한참을 멍하니 있었거든요.","결국 정답은 아주 가까운 개인적인 경험에 있더라고요. 수많은 기교를 부리다가 결국 다시 처음으로 돌아와서야 비로소 깨달은 핵심을 공유합니다.","많은 전문가들이 말하지 않는 맹점이 하나 있습니다. 겉으로 보기엔 완벽해 보이지만, 실제로는 치명적인 허점이 숨겨져 있는 그런 부분들이죠.","이 고민 때문에 며칠 동안 밤잠를 설쳤던 것 같아요. 어떻게 하면 더 효율적이고 정확하게 처리할 수 있을까 고민하다 찾아낸 비책입니다.","제가 겪은 뼈아픈 실패의 기록이 여러분께는 소중한 교훈이 되었으면 합니다. 제 돈과 시간을 버려가며 얻어낸 '진짜' 데이터들입니다.","제 초보 시절을 떠올려보고 싶습니다. 그때 제가 지금의 저를 만났다면 제 고생이 훨씬 줄어들었을 텐데 말이죠.","요즘 들어 제게 가장 자주 물어보시는 질문들을 하나로 모았습니다. 사실 다들 비슷비셋한 부분에서 고민하고 계시다는 걸 알게 됐거든요."];
 
-const STYLE = `<style>\n  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');\n  .vue-premium { font-family: 'Noto Sans KR', sans-serif; color: #374151; line-height: 1.8; font-size: 16px; max-width: 800px; margin: 0 auto; padding: 20px; word-break: keep-all; }\n  .vue-premium p { margin: 18px 0; }\n  .vue-premium h2 { font-size: 21px; font-weight: bold; color: #1f2937; border-left: 5px solid #1f2937; padding-left: 14px; margin: 44px 0 20px; }\n  .vue-premium h3 { font-size: 18px; font-weight: bold; margin-top: 35px; margin-bottom: 15px; color: #111827; }\n  .toc-box { background: linear-gradient(135deg,#E8F4FD,#DBEAFE); border-left: 5px solid #3B82F6; border-radius: 12px; padding: 20px; margin: 24px 0; }\n  .tip-box { background: linear-gradient(135deg,#ECFDF5,#D1FAE5); border-left: 5px solid #22C55E; border-radius: 12px; padding: 16px; margin: 24px 0; }\n  .warn-box { background: linear-gradient(135deg,#FFFBEB,#FEF3C7); border-left: 5px solid #F59E0B; border-radius: 12px; padding: 16px; margin: 24px 0; }\n  .faq-section { background: linear-gradient(135deg,#F5F3FF,#EDE9FE); border-left: 5px solid #8B5CF6; border-radius: 12px; padding: 16px; margin: 12px 0; }\n  .faq-q { margin: 0 0 6px; font-weight: bold; font-size: 15px; color: #5B21B6; }\n  .faq-a { margin: 0; color: #374151; line-height: 1.7; font-size: 14px; }\n  .vue-premium table { width: 100%; border-collapse: collapse; margin: 30px 0; border-radius: 10px; overflow: hidden; border: 1px solid #e5e7eb; }\n  .vue-premium th { background-color: #f9fafb; color: #111827; padding: 15px; font-weight: bold; border-bottom: 2px solid #e5e7eb; }\n  .vue-premium td { padding: 12px; border-bottom: 1px solid #f1f5f9; background-color: #fff; }\n  .related-box { border-radius: 14px; background: #fff; border: 1px solid #e5e7eb; padding: 25px; margin-top: 50px; }\n  .related-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #1f2937; }\n  .related-list { list-style: none; padding: 0; margin: 0; }\n  .related-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #f1f5f9; }\n  .related-link { color: #2563eb; text-decoration: none; font-weight: 500; font-size: 15px; transition: 0.2s; }\n  .related-link:hover { text-decoration: underline; color: #1d4ed8; }\n</style>`;
+const STYLE = `<style>\n  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');\n  .vue-premium {font - family: 'Noto Sans KR', sans-serif; color: #374151; line-height: 1.8; font-size: 16px; max-width: 800px; margin: 0 auto; padding: 20px; word-break: keep-all; }\n  .vue-premium p {margin: 25px 0; }\n  .vue-premium h2 {font - size: 21px; font-weight: bold; color: #1f2937; border-left: 5px solid #1f2937; padding-left: 14px; margin: 60px 0 30px; }\n  .vue-premium h3 {font - size: 18px; font-weight: bold; margin-top: 45px; margin-bottom: 20px; color: #111827; }\n  .toc-box {background: linear-gradient(135deg,#E8F4FD,#DBEAFE); border-left: 5px solid #3B82F6; border-radius: 12px; padding: 25px; margin: 35px 0; overflow: hidden; clear: both; }\n  .tip-box {background: linear-gradient(135deg,#ECFDF5,#D1FAE5); border-left: 5px solid #22C55E; border-radius: 12px; padding: 25px; margin: 35px 0; overflow: hidden; clear: both; }\n  .warn-box {background: linear-gradient(135deg,#FFFBEB,#FEF3C7); border-left: 5px solid #F59E0B; border-radius: 12px; padding: 25px; margin: 35px 0; overflow: hidden; clear: both; }\n  .faq-section {background: linear-gradient(135deg,#F5F3FF,#EDE9FE); border-left: 5px solid #8B5CF6; border-radius: 12px; padding: 25px; margin: 25px 0; overflow: hidden; clear: both; }\n  .faq-q {margin: 0 0 10px; font-weight: bold; font-size: 16px; color: #5B21B6; }\n  .faq-a {margin: 0; color: #374151; line-height: 1.7; font-size: 15px; }\n  .vue-premium table {width: 100%; border-collapse: collapse; margin: 40px 0; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; }\n  .vue-premium th {background - color: #f9fafb; color: #111827; padding: 18px; font-weight: bold; border-bottom: 2px solid #e5e7eb; }\n  .vue-premium td {padding: 15px; border-bottom: 1px solid #f1f5f9; background-color: #fff; }\n  .related-box {border - radius: 16px; background: #fff; border: 1px solid #e5e7eb; padding: 30px; margin-top: 60px; overflow: hidden; clear: both; }\n  .related-title {font - size: 20px; font-weight: bold; margin-bottom: 20px; color: #1f2937; }\n  .related-list {list - style: none; padding: 0; margin: 0; }\n  .related-item {margin - bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #f1f5f9; }\n  .related-link {color: #2563eb; text-decoration: none; font-weight: 500; font-size: 16px; transition: 0.2s; }\n  .related-link:hover {text - decoration: underline; color: #1d4ed8; }\n  .cluster-btn-box {text - align: center; margin: 45px 0; overflow: hidden; clear: both; }\n  .cluster-btn {display: inline-block; padding: 15px 45px; background: linear-gradient(135deg, #3B82F6, #2563EB); color: #fff !important; text-decoration: none !important; border-radius: 50px; font-weight: bold; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: 0.3s; font-size: 18px; }\n  .cluster-btn:hover {transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); opacity: 0.9; }\n</style>`;
 
 function clean(raw, defType = 'obj') {
     if(!raw) return defType === 'text' ? '' : (defType === 'obj' ? '{}' : '[]');
     let t = raw.replace(/\`\`\`(json|html|javascript|js)?/gi, '').trim();
     if (defType === 'text') {
-        t = t.replace(/<(!DOCTYPE|html|body|head|meta|link).*?>/gi, '').replace(/<\/(html|body|head|title|meta)>/gi, '');
-        t = t.replace(/<title[\s\S]*?<\/title>/gi, '');
+        t = t.replace(/<(!DOCTYPE|html|body|head|meta|link|style).*?>/gi, '').replace(/<\/(html|body|head|title|meta|style)>/gi, '');
+        t = t.replace(/<style[\\s\\S]*?<\\/style>/gi, '');
+        t = t.replace(/<title[\\s\\S]*?<\\/title>/gi, '');
         t = t.replace(/\*\*+(.*?)\*\*+/g, '<b>$1</b>');
         t = t.replace(/\[(EDITORIAL|시행지침|가이드라인|RULE|V-LOGIC|연계.*?)\]/gi, '');
         t = t.replace(/패턴\s*[A-O](\s*(.*?))?(:)?/gi, '');
         t = t.replace(/^(서론|본론|결론|부록|주의|참고|Introduction|Summary|Conclusion|주의|날짜|장|절|챕터\s*\d+|섹션\s*타이틀|핵심\s*요약|해결책|FAQ)[:\s]*/gmi, '');
-        t = t.replace(/^#{1,6}\s+.*$/gm, '');
+        t = t.replace(/^#{1, 6}\s+.*$/gm, '');
         t = t.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/gi, '');
-        t = t.replace(/IMG_\d+:\s*\{?[\s\S]*?\}?/gi, '');
+        t = t.replace(/IMG_\d+:\s*\{? [\s\S]*?\}?/gi, '');
         t = t.replace(/^[🔗📎🏷📝🖼\#\>].*$/gm, '');
         t = t.replace(/^(Part|Mission|Trinity Mission|트리니티 미션).*/gmi, '');
         return t.trim();
@@ -34,10 +36,10 @@ function clean(raw, defType = 'obj') {
         else if (defType === 'arr' && startArr !== -1 && endArr !== -1) jsonStr = t.substring(startArr, endArr + 1);
         if (jsonStr) {
             jsonStr = jsonStr.replace(/[\r\n\t]/g, ' ').replace(/[^\x20-\x7E\u00A0-\uFFFF]/g, '');
-            try { JSON.parse(jsonStr); return jsonStr; } catch(pe) { return defType === 'obj' ? '{}' : '[]'; }
+            try {JSON.parse(jsonStr); return jsonStr; } catch(pe) { return defType === 'obj' ? '{ }' : '[]'; }
         }
     } catch(e) { }
-    return defType === 'obj' ? '{}' : '[]';
+    return defType === 'obj' ? '{ }' : '[]';
 }
 
 async function callAI(model, prompt, retry = 0) {
@@ -46,9 +48,11 @@ async function callAI(model, prompt, retry = 0) {
         return r.response.text().trim();
     } catch (e) {
         if (String(e.message).includes('429') && retry < 7) {
+            console.log('      ⏳ [API 지연]: 서버가 바쁩니다. ' + (Math.pow(2, retry) * 20) + '초 후 재시도... (시도 ' + (retry + 1) + ')');
             await new Promise(res => setTimeout(res, Math.pow(2, retry) * 20000));
             return callAI(model, prompt, retry + 1);
         }
+        console.log('      ❌ [AI 오류]: ' + e.message);
         return '오류 발생.';
     }
 }
@@ -61,9 +65,34 @@ async function searchSerper(query) {
     } catch(e) { return ''; }
 }
 
+async function genThumbnail(meta, model) {
+    try {
+        console.log('      🎨 [IMG_0]: 썸네일 캔버스 제작 시작...');
+        if(!meta || !meta.bgPrompt) return '';
+        const bgUrl = await genImg(meta.bgPrompt, model, 0);
+        const canvas = createCanvas(1200, 630);
+        const ctx = canvas.getContext('2d');
+        const bg = await loadImage(bgUrl);
+        ctx.drawImage(bg, 0, 0, 1200, 630);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'; ctx.fillRect(0, 0, 1200, 630);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 15; ctx.strokeRect(40, 40, 1120, 550);
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 32px sans-serif'; ctx.fillText(meta.tag || 'SPECIAL EDITION', 100, 120);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 82px sans-serif'; 
+        const titleLines = meta.mainTitle.length > 15 ? [meta.mainTitle.slice(0, 15), meta.mainTitle.slice(15)] : [meta.mainTitle];
+        titleLines.forEach((l, i) => ctx.fillText(l, 100, 240 + (i * 100)));
+        ctx.fillStyle = '#f3f4f6'; ctx.font = '42px sans-serif'; ctx.fillText(meta.subTitle || '', 100, 520);
+        const buffer = canvas.toBuffer('image/jpeg');
+        const form = new FormData(); form.append('image', buffer.toString('base64'));
+        const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, {headers: form.getHeaders() });
+        console.log('      ✅ [IMG_0 성공]: ' + ir.data.data.url);
+        return ir.data.data.url;
+    } catch(e) { console.log('      ⚠️ [썸네일 생성 실패]: ' + e.message); return ''; }
+}
+
 async function genImg(prompt, model, i) {
     if(!prompt) return '';
     const engPrompt = prompt.replace(/[^a-zA-Z0-9, ]/gi, '').trim() + ', hyper-realistic, 8k, professional photography';
+    console.log('      🖼️ [IMG_' + i + ' 프롬프트]: ' + engPrompt);
 
     // 1. Runware (KIE_API_KEY) 시도
     if(process.env.KIE_API_KEY) {
@@ -79,7 +108,7 @@ async function genImg(prompt, model, i) {
                     outputType: 'URL',
                     checkNSFW: true
                 }
-            ], { headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.KIE_API_KEY } });
+            ], {headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.KIE_API_KEY } });
             
             let runwareUrl = '';
             if(runwareRes.data && runwareRes.data.data && runwareRes.data.data[0]) {
@@ -87,59 +116,88 @@ async function genImg(prompt, model, i) {
             }
             
             if(runwareUrl) {
+                console.log('      📡 [Runware]: 이미지 생성 완료. ImgBB 업로드 중...');
                 // ImgBB 업로드
                 if(process.env.IMGBB_API_KEY) {
                     const imgRes = await axios.get(runwareUrl, { responseType: 'arraybuffer' });
                     const form = new FormData(); form.append('image', Buffer.from(imgRes.data).toString('base64'));
-                    const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, { headers: form.getHeaders() });
+                    const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, {headers: form.getHeaders() });
+                    console.log('      ✅ [ImgBB 성공]: ' + ir.data.data.url);
                     return ir.data.data.url;
                 }
                 return runwareUrl;
             }
-        } catch(e) { console.log('   ⚠️ [Runware Error]: ' + e.message); }
+        } catch(e) {console.log('      ⚠️ [이미지 업로드 실패]: ' + e.message); }
     }
 
     // 2. Pollinations (Fallback)
+    console.log('      🔄 [Fallback]: Using Pollinations for IMG_' + i);
     let imageUrl = `https://image.pollinations.ai/prompt/` + encodeURIComponent(engPrompt) + `?width=1280&height=720&nologo=true&seed=` + Math.floor(Math.random()*1000000) + `&model=flux`;
     if(process.env.IMGBB_API_KEY) {
         try {
             const res = await axios.get(imageUrl, { responseType: 'arraybuffer' });
             const form = new FormData(); form.append('image', Buffer.from(res.data).toString('base64'));
-            const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, { headers: form.getHeaders() });
+            const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, {headers: form.getHeaders() });
+            console.log('      ✅ [ImgBB 성공(백업)]: ' + ir.data.data.url);
             return ir.data.data.url;
-        } catch(e) { }
+        } catch(e) {console.log('      ⚠️ [Fallback ImgBB Error]: ' + e.message); }
     }
     return imageUrl;
 }
 
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
-    console.log('   📝 [Drafting]: ' + target);
+    console.log('\\n   ✍️ [작업 ' + idx + '/' + total + ']: ' + target);
     const searchData = await searchSerper(target);
 
-    const mission1 = '[Mission 1/2] 대상: ' + target + '\\n최소 8,000자 ~ 최대 10,000자 규격의 대서사시 블로그 작성 시작. H1 제목, 목차, 본문 상위 2개 섹션을 아주 상세하게 작성하세요. ★ 섹션당 최소 p태그 5개, 한 문단당 최소 400자 이상의 밀도 높은 텍스트 필수.';
-    let part1 = await callAI(model, MASTER_GUIDELINE + '\\n[TARGET_LANG: '+lang+']\\n' + mission1 + '\\n[Search]: ' + searchData);
-
-    const mission2 = '[Mission 2/2] 반드시 앞의 [이전 본문]을 계승하여 본문 나머지 2개 섹션, FAQ(15개), 결론을 작성하여 최종 분량을 [최소 8,000자 ~ 최대 10,000자] 범위로 완벽히 맞추세요. ★ 주의: 중복 없이 새로운 통찰만 쏟아낼 것.';
-    let part2 = await callAI(model, MASTER_GUIDELINE + '\\n[TARGET_LANG: '+lang+']\\n' + mission2 + '\\n[이전 본문]: ' + part1.substring(Math.max(0, part1.length - 5000)));
-    let clean2 = part2.replace(/<h1.*?>.*?<\/h1>/gi, '').replace(/<div class="toc-box">.*?<\/div>/gi, '');
-    const h2Idx = clean2.search(/<h2[\s>]/i); if(h2Idx >= 0) clean2 = clean2.substring(h2Idx);
-    const fullRaw = part1 + '\n' + clean2;
-
-    function getMeta(text, key) { const r = new RegExp(key + '[\\:\\s]+[\\{]?\\s*(.*)', 'i'); const m = text.match(r); return m ? m[1].replace(/[\\}]+\\s*$/, '').trim() : ''; }
-    const imgRegex = /IMG_(\d+):\s*\{?\s*prompt:\s*["\'](.*?)["\'],\s*alt:\s*["\'](.*?)["\'],\s*title:\s*["\'](.*?)["\']\s*\}?/gi;
-    const imgPrompts = {}; let im; while ((im = imgRegex.exec(fullRaw)) !== null) imgPrompts[im[1]] = { prompt: im[2], alt: im[3], title: im[4] };
-    
-    let finalHtml = clean(fullRaw, 'text');
-    for (let i = 1; i <= 4; i++) {
-        const tag = "[[IMG_" + i + "]]";
-        if(finalHtml.includes(tag)) {
-            let p = imgPrompts[i] || { prompt: target + ' professional photography', alt: target, title: target };
-            const url = await genImg(p.prompt, model, i);
-            finalHtml = finalHtml.split(tag).join("<img src='" + url + "' alt='" + p.alt + "' title='" + p.title + "' style='width:100%; border-radius:15px; margin: 30px 0;'>");
-        }
+    let clusterContext = '';
+    if(extraLinks.length > 0) {
+        clusterContext = '\\\\n[CLUSTER_HUB_MODE] 너는 지금 메인(Pillar) 글을 작성 중이다. 아래 4개의 연관 서브 글 정보를 참고하여, 전체 글의 20%, 40%, 60%, 80% 지점에 해당하는 섹션에서 각 서브 글의 핵심 내용을 아주 상세히 요약(각 섹션당 최소 1,000자 이상)하여 설명하라. 각 요약 섹션 하단에는 반드시 다음 형식의 버튼 링크를 포함하라(전면 광고 활성화를 위해 절대 target=\'_blank\'를 쓰지 말고 현재창에서 열리게 하라): <div class=\'cluster-btn-box\'><a href=\'URL\' class=\'cluster-btn\'>자세히 알아보기</a></div>\\\\n[서브 글 리스트]: ' + JSON.stringify(extraLinks);
+        console.log('      🏢 [클러스터 허브]: 메인 기둥 포스팅 및 내부 링크 연결 중...');
     }
 
+    console.log('      🔥 [1단계]: 미션 1 (제목, 전체 목차, 서론, 전반부) 작성 중...');
+    const mission1 = '[Mission 1/2] 아래 검색 데이터를 기반으로 블로그 글의 [제목, 전체 목차, 서론, 본문 전반부]를 작성하세요. ★중요: 현재 ' + target + ' 키워드로 작성 중인 ' + idx + '번째(총 4개의 서브글 진행 중) 관련 글입니다. 다른 시리즈 글과 겹치지 않도록 이 글만의 독특한 관점이나 깊이를 설정하여 ' + target + '의 특정 가치에 집중해 작성하세요. 목차(TOC)는 Mission 2에서 작성할 내용까지 포함하여 글 전체(1만자 분량)의 완전한 구조를 먼저 설계한 뒤 생성하라. 전반부 섹션 3~4개를 먼저 상세히 기술하라.' + clusterContext + '\\n[참고 데이터]: ' + searchData;
+    let part1 = await callAI(model, MASTER_GUIDELINE + '\\n[TARGET_LANG: '+lang+']\\n' + mission1);
+    console.log('      ✨ [1단계 완료]: 미션 1 텍스트 수신 완료 (' + part1.length + '자)');
+
+    console.log('      ⚡ [2단계]: 미션 2 (나머지 섹션 + 서사 요소) 작성 중...');
+    const mission2 = '[Mission 2/2] 반드시 [이전 본문]에 생성된 [전체 목차]의 구성을 엄격히 준수하여 나머지 섹션들을 작성하라. ★절대 규칙: ①이미 작성된 제목, 목차, 서론, 앞부분 내용은 절대 중복해서 다시 쓰지 마라. ②목차에 명시된 나머지 h2 섹션들을 하나하나 아주 풍성하게(섹션당 1,000자 이상) 채워라. ③실패담, 타사비교, 비밀폭로를 포함해 결론까지 총 1만자를 완성하라.' + clusterContext;
+    let part2 = await callAI(model, MASTER_GUIDELINE + '\\\\n[TARGET_LANG: '+lang+']\\\\n' + mission2 + '\\\\n[이전 본문]: ' + part1);
+    console.log('      ✨ [2단계 완료]: 미션 2 텍스트 수신 완료 (' + part2.length + '자)');
+
+    let clean2 = part2.replace(/<h1.*?>.*?<\/h1>/gi, '').replace(/<div class='toc-box'>.*?<\/div>/gi, '');
+    clean2 = clean2.replace(/^(네|알겠습니다|이어서|작성|본문|제시).*?[\\.\\!\\?]/i, '').trim();
+    const h2Idx = clean2.search(/<h2[\\s>]/i); if(h2Idx >= 0 && h2Idx < 150) clean2 = clean2.substring(h2Idx);
+    const fullRaw = part1 + '\n' + clean2;
+
+    console.log('      🖼️ [3단계]: 이미지 메타데이터 추출 및 로딩 중...');
+    function getMeta(text, key) { const r = new RegExp(key + '[\\:\\s]+[\\{]?\\s*(.*)', 'i'); const m = text.match(r); return m ? m[1].replace(/[\\}]+\\s*$/, '').trim() : ''; }
+    const imgRegex = /IMG_(\d+):\s*\{?\s*prompt:\s*["\'](.*?)["\'],\s*alt:\s*["\'](.*?)["\'],\s*title:\s*["\'](.*?)["\']\s*\}?/gi;
+    const img0Regex = /IMG_0:\s*\{?\s*mainTitle:\s*["\'](.*?)["\'],\s*subTitle:\s*["\'](.*?)["\'],\s*tag:\s*["\'](.*?)["\'],\s*bgPrompt:\s*["\'](.*?)["\']\s*\}?/i;
+    const imgPrompts = {}; let im; while ((im = imgRegex.exec(fullRaw)) !== null) imgPrompts[im[1]] = { prompt: im[2], alt: im[3], title: im[4] };
+    const img0Match = fullRaw.match(img0Regex);
+    
+    let finalHtml = clean(fullRaw, 'text');
+    let imgInserted = 0;
+    for (let i = 0; i <= 4; i++) {
+        const tag = "[[IMG_" + i + "]]";
+        if(finalHtml.includes(tag)) {
+            if(i === 0 && img0Match) {
+                const thumbMeta = { mainTitle: img0Match[1], subTitle: img0Match[2], tag: img0Match[3], bgPrompt: img0Match[4] };
+                const url = await genThumbnail(thumbMeta, model);
+                finalHtml = finalHtml.split(tag).join("<img src='" + url + "' alt='썸네일' style='width:100%; border-radius:15px; margin-bottom: 40px;'>");
+            } else {
+                let p = imgPrompts[i] || { prompt: target + ' professional photography', alt: target, title: target };
+                const url = await genImg(p.prompt, model, i);
+                finalHtml = finalHtml.split(tag).join("<img src='" + url + "' alt='" + p.alt + "' title='" + p.title + "' style='width:100%; border-radius:15px; margin: 30px 0;'>");
+            }
+            imgInserted++;
+        }
+    }
+    console.log('      ✅ [이미지 처리 완료]: ' + imgInserted + '장의 이미지가 삽입되었습니다.');
+
     let relatedHtml = ''; try {
+        console.log('      🔗 [4단계]: 추천 글 링크 분석 및 생성 중...');
         const list = await blogger.posts.list({ blogId: bId, maxResults: 50 });
         if(list.data.items) {
             const archives = list.data.items.map(p => ({ title: p.title, url: p.url }));
@@ -155,9 +213,11 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     let finalBody = STYLE + '<div class="vue-premium">' + body + relatedHtml + "<br><br><div style='font-size:13px; color:#999; border-top:1px solid #eee; padding-top:20px; margin-top:50px;'>* 본 포스팅은 개인 경험과 공개 자료를 바탕으로 작성되었으며, 전문적인 조언을 대체하지 않습니다.</div></div>";
 
     try {
+        console.log('      🚀 [최종 단계]: 블로거 포스팅 업로드 중...');
         const post = await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: finalBody, labels: getMeta(fullRaw, '🏷 라벨').split(',').map(s=>s.trim()), published: pTime.toISOString() } });
+        console.log('      🎉 [발행 성공!]: ' + finalTitle + ' (URL: ' + post.data.url + ')\\n');
         return { title: finalTitle, url: post.data.url };
-    } catch(e) { throw e; }
+    } catch(e) { console.log('      ❌ [블로거 오류]: ' + e.message); throw e; }
 }
 
 async function run() {
@@ -171,21 +231,24 @@ async function run() {
     for (let s = 1; s <= (config.daily_count || 1); s++) {
         const seed = pool.length ? pool.splice(Math.floor(Math.random()*pool.length), 1)[0] : null;
         if(!seed) break;
-        console.log('   🚀 [Set ' + s + '] Seed: ' + seed);
-        const subsRes = await callAI(model, 'Target: ' + seed + '. 4 sub-topic keywords. JSON array ONLY.');
-        let subs = JSON.parse(clean(subsRes, 'arr') || '[]');
+        console.log('   🚀 [세트 ' + s + '] 시드 타겟: ' + seed);
         const results = [];
+        // 서브글 4개 모두 동일한 'seed' 키워드를 사용하여 해당 키워드의 클러스터 집중도 강화
         for (let i = 0; i < 4; i++) {
-            let topic = subs[i];
-            if (typeof topic === 'object' && topic !== null) {
-                topic = topic.keyword || topic.topic || topic.title || Object.values(topic)[0];
+            const topic = seed; 
+            try {
+                // idx(i+1)를 통해 AI에게 4개 중 몇 번째 글인지 알려줌 (중복 방지용)
+                const r = await writeAndPost(model, topic, config.blog_lang, blogger, config.blog_id, new Date(), [], i + 1, 5);
+                if (r && r.url) results.push(r);
+            } catch(subErr) {
+                console.log('      ⚠️ [건너뜀]: 서브 토픽 "' + topic + '" 발행 실패. 다음으로 진행합니다.');
             }
-            if (!topic) topic = seed + ' Tip ' + (i + 1);
-            
-            const r = await writeAndPost(model, topic, config.blog_lang, blogger, config.blog_id, new Date(), [], i + 1, 5);
-            if (r && r.url) results.push(r);
         }
-        await writeAndPost(model, seed, config.blog_lang, blogger, config.blog_id, new Date(Date.now() + 10000), results, 5, 5);
+        try {
+            await writeAndPost(model, seed, config.blog_lang, blogger, config.blog_id, new Date(Date.now() + 10000), results, 5, 5);
+        } catch(mainErr) {
+            console.log('      ❌ [메인 중단]: 시드 토픽 "' + seed + '" 발행 실패.');
+        }
         if(s < config.daily_count) await new Promise(r => setTimeout(r, 600000));
     }
 }

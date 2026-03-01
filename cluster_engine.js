@@ -146,10 +146,10 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     report(`🔥 [포스팅 ${idx}/${total}]: '${target}' 집필 및 발행 시작...`);
     const m1 = await callAI(model, MASTER_GUIDELINE + '\\n[MISSION: PART 1] ' + target + '의 최상단 썸네일(IMG_0), H1 제목, 전체 목차(TOC), 그리고 전반부 핵심 본문(H2 2~3개)까지만 작성하라.' + clusterContext + '\\n' + searchData + '\\n★ 제약: 반드시 HTML 태그가 완벽하게 닫힌 상태(문단이나 섹션의 끝)에서 PART 1을 종료할 것.');
     report(`   - 미션 1 완료 (${m1.length}자)`);
-    const m2 = await callAI(model, MASTER_GUIDELINE + '\\n[MISSION: PART 2] (매우 중요) 앞서 작성된 내용에 끊기지 않고 바로 이어지도록 나머지 후반부 본문(H2)과 FAQ, 결론을 작성하라.\\n★ 금지: 이전 내용에 이미 H1 제목과 썸네일(IMG_)이 있으므로 절대 중복 생성 금지! 서론이나 '네, 이어서 작성하겠습니다' 같은 인사말 금지! 마크다운(```html) 금지! 바로 다음 <h2> 태그부터 순수 HTML 코드로만 이어나갈 것.\\n[이전 내용 마지막 1000자]: ' + m1.slice(-1000));
+    const m2 = await callAI(model, MASTER_GUIDELINE + '\\n[MISSION: PART 2] (매우 중요) 앞서 작성된 내용에 끊기지 않고 바로 이어지도록 나머지 후반부 본문(H2)과 FAQ, 결론을 작성하라.\\n★ 금지: 이전 내용에 이미 H1 제목과 썸네일(IMG_)이 있으므로 절대 중복 생성 금지! 서론이나 \'네, 이어서 작성하겠습니다\' 같은 인사말 금지! 마크다운(```html) 금지! 바로 다음 <h2> 태그부터 순수 HTML 코드로만 이어나갈 것.\\n[이전 내용 마지막 1000자]: ' + m1.slice(-1000));
     report(`   - 미션 2 완료 (${m2.length}자)`);
-    let cleanM1 = m1.replace(/\`\`\`(html|json|javascript|js)?/gi, '').replace(/\\n네, 이어서.*?하겠습니다\\./gi, '').trim();
-    let cleanM2 = m2.replace(/\`\`\`(html|json|javascript|js)?/gi, '').replace(/^네[,\\s]+이어서.*?하겠습니다\\.?/i, '').replace(/<h1.*?>.*?<\\/h1>/gi, '').trim();
+    let cleanM1 = m1.replace(/\`\`\`(html|json|javascript|js)?/gi, '').replace(/\n네, 이어서.*?하겠습니다\./gi, '').trim();
+    let cleanM2 = m2.replace(/\`\`\`(html|json|javascript|js)?/gi, '').replace(/^네[,\s]+이어서.*?하겠습니다\.?/i, '').replace(/<h1.*?>.*?<\/h1>/gi, '').trim();
     const fullRaw = cleanM1 + '\\n' + cleanM2;
     const img0Regex = /IMG_0:\s*\\{?\\s*mainTitle:\s*["\'](.*?)["\'],\s*subTitle:\s*["\'](.*?)["\'],\s*tag:\s*["\'](.*?)["\'],\s*bgPrompt:\s*["\'](.*?)["\']\\s*\\}?/i;
     const m0 = fullRaw.match(img0Regex);

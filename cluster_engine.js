@@ -248,10 +248,10 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     report(`   - 미션 2 완료 (${m2.length}자)`);
     let cleanM2 = m2.replace(/\\\`\\\`\\\`(html|json|javascript|js)?/gi, '', '')
                     .replace(/^네[,\\s]+이어서.*?하겠습니다\\.?/i, '')
-                    .replace(/IMG_\\\\d+:[\\\\s\\\\S]*?\\\\??\\\\{([\\\\s\\\\S]*?)\\\\??\\\\}/gi, '')
+                    .replace(/IMG_\\d+:[\\s\\S]*?\\?\\{([\\s\\S]*?)\\?\\}/gi, '')
                     .replace(/<h1.*?>.*?<\\/h1>/gi, '')
-                    .replace(/<div[^>]*class=['\"]toc-box['\"][^>]*>[\\\\s\\\\S]*?<\\/div>/gi, '')
-                    .replace(/<div(?:\\\\s+[^>]*)?>\\\\s*<h\\\\d[^>]*>(?:Table of Contents|핵심 요약 목차|목차)<\\/h\\\\d>[\\\\s\\\\S]*?<\\/div>/gi, '')
+                    .replace(/<div[^>]*class=['\"]toc-box['\"][^>]*>[\\s\\S]*?<\\/div>/gi, '')
+                    .replace(/<div(?:\\s+[^>]*)?>\\s*<h\\d[^>]*>(?:Table of Contents|핵심 요약 목차|목차)<\\/h\\d>[\\s\\S]*?<\\/div>/gi, '')
                     .trim();
     const fullRaw = cleanM1 + '\\n' + cleanM2;
     let finalHtml = fullRaw;

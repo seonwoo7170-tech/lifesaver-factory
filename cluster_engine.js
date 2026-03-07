@@ -851,13 +851,13 @@ async function genThumbnail(meta, model, ratio = '16:9') {
         ctx.fillRect(0, 0, w, h);
 
         ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 10;
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 15;
 
-        const mainTitle = meta.mainTitle || meta.prompt || '';
+        const mainTitle = (meta.mainTitle || meta.prompt || '').trim();
         const words = mainTitle.split(' ');
-        let fontSize = isPin ? 60 : 55;
-        ctx.font = `bold ${fontSize}px sans-serif`;
+        let fontSize = isPin ? 65 : 60;
+        ctx.font = `bold ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", "NanumGothic", "Pretendard", sans-serif`;
 
         let line = '';
         let lines = [];
@@ -874,7 +874,13 @@ async function genThumbnail(meta, model, ratio = '16:9') {
         }
         lines.push(line.trim());
 
-        let y = isPin ? (h / 2) - (lines.length * 40) : (h * 0.5) - (lines.length * 30) + 50;
+        // 텍스트가 너무 많으면 폰트 크기 자동 축소
+        if (lines.length > 4) {
+            fontSize = Math.floor(fontSize * 0.82);
+            ctx.font = `bold ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", "NanumGothic", "Pretendard", sans-serif`;
+        }
+
+        let y = isPin ? (h / 2) - (lines.length * (fontSize + 15) / 2) + 20 : (h * 0.5) - (lines.length * (fontSize + 15) / 2) + 15;
         for (let l of lines) {
             ctx.fillText(l, w / 2, y);
             y += fontSize + 15;
@@ -898,16 +904,14 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         const isKo = lang === 'ko';
         const btnText = isKo ? "자세히 보기 →" : "Read More →";
         const contextPrompt = isKo
-            ? `[INTERNAL_LINK_MISSION]: 이 포스팅은 메인 허브(Pillar) 글입니다. 
-            아래 제공된 ${extraLinks.length}개의 서브 글들을 포스팅 초반부(섹션 2~5)에 **하나도 빠짐없이 각각 별도의 독립된 H2 섹션으로** 작성하세요.
-            절대로 두 개 이상의 글을 한 섹션에 합치지 마세요.
-            각 섹션의 마지막에는 반드시 해당 글의 URL을 연결한 <a href='URL' class='cluster-btn'>${btnText}</a> 버튼을 정확히 한 개씩(총 ${extraLinks.length}개) 삽입해야 합니다.
-            이것은 블로그 지수의 핵심인 내부 링크 구조이므로 누락 시 즉시 실패로 간주합니다.`
-            : `[INTERNAL_LINK_MISSION]: This is a Pillar post. 
-            Summarize the following ${extraLinks.length} Spoke posts into **separate and independent H2 sections** for EACH link.
-            DO NOT combine multiple topics into one section.
-            At the end of EVERY summary section, you MUST insert exactly one button: <a href='URL' class='cluster-btn'>${btnText}</a>.
-            Total number of buttons must be exactly ${extraLinks.length}. This is a strict SEO requirement.`;
+            ? `[INTERNAL_LINK_PUNITIVE_MISSION]: 이 포스팅은 메인 허브(Pillar) 글입니다. 
+            ★ 절대 규칙: 아래 제공된 ${extraLinks.length}개의 서브 글 요약 섹션 뒤에는 **반드시 각각 하나씩** 아래 버튼 코드를 삽입하세요.
+            코드 예시: <a href='서브글URL' class='cluster-btn'>${btnText}</a>
+            누락 시 SEO 전략이 완전히 실패하므로, 정확히 ${extraLinks.length}개의 버튼이 본문 곳곳에 박혀 있어야 합니다.`
+            : `[INTERNAL_LINK_PUNITIVE_MISSION]: This is a Pillar post. 
+            ★ STRICT RULE: After EACH of the following ${extraLinks.length} summary sections, you MUST insert the following button code:
+            Example: <a href='SpokeURL' class='cluster-btn'>${btnText}</a>
+            Total ${extraLinks.length} buttons are REQUIRED. Failure to include these links will result in a penalty.`;
         pillarContext = `\n${contextPrompt}\n${links}`;
     }
 
@@ -1190,17 +1194,44 @@ async function run() {
     const pillarTitle = list[0]; const spokes = list.slice(1);
     const subLinks = [];
 
-    // 2단계: Spoke(서브 글) 먼저 작성 - 실제 URL 확보
-    for (let i = 0; i < spokes.length; i++) {
-        const pTime = getKST(); pTime.setMinutes(pTime.getMinutes() + (i + 1) * 2);
-        const sRes = await writeAndPost(model, spokes[i], config.blog_lang, blogger, config.blog_id, pTime, [], i + 1, 5, config.selected_persona);
-        if (sRes) subLinks.push(sRes);
-        await new Promise(r => setTimeout(r, 30000)); // 할당량 보호: 포스팅 간격을 30초로 확대
+    // [Time Optimization] 스케줄 기준 시간 설정
+    let currentTime = getKST();
+    if (config.schedule_time) {
+        const [sh, sm] = config.schedule_time.split(':');
+        currentTime.setHours(parseInt(sh), parseInt(sm), 0, 0);
     }
 
-    // 3단계: Pillar(메인 글) 마지막 작성 - 모든 서브글 링크 실제 주소로 연결
+    // 2단계: Spoke(서브 글) 먼저 작성 - 실제 URL 확보
+    for (let i = 0; i < spokes.length; i++) {
+        // [핵심] 랜덤 지연 설정 시 '글 하나당' 1~120분 랜덤 시간 예약
+        if (config.random_delay) {
+            const delay = Math.floor(Math.random() * 120) + 1;
+            currentTime.setMinutes(currentTime.getMinutes() + delay);
+            report(`🎲 [Spoke ${i + 1}] ${delay}분 지연 예약: ${currentTime.toLocaleTimeString('ko-KR')}`);
+        } else {
+            // 랜덤 지연 미설정 시 기존 5분 간격 (첫 글은 즉시)
+            if (i > 0) currentTime.setMinutes(currentTime.getMinutes() + 5);
+            report(`⏰ [Spoke ${i + 1}] 5분 간격 예약: ${currentTime.toLocaleTimeString('ko-KR')}`);
+        }
+
+        const pTime = new Date(currentTime.getTime());
+        const sRes = await writeAndPost(model, spokes[i], config.blog_lang, blogger, config.blog_id, pTime, [], i + 1, 5, config.selected_persona);
+        if (sRes) subLinks.push(sRes);
+        await new Promise(r => setTimeout(r, 30000));
+    }
+
+    // 3단계: Pillar(메인 글) 마지막 작성
     report(`🎯 최종 메인 허브(Pillar) 글 작성: ${pillarTitle}`);
-    await writeAndPost(model, pillarTitle, config.blog_lang, blogger, config.blog_id, getKST(), subLinks, 5, 5, config.selected_persona);
+    if (config.random_delay) {
+        const finalDelay = Math.floor(Math.random() * 120) + 1;
+        currentTime.setMinutes(currentTime.getMinutes() + finalDelay);
+        report(`🎲 [Pillar] ${finalDelay}분 최종 지연 예약: ${currentTime.toLocaleTimeString('ko-KR')}`);
+    } else {
+        currentTime.setMinutes(currentTime.getMinutes() + 5);
+    }
+
+    const pillarTime = new Date(currentTime.getTime());
+    await writeAndPost(model, pillarTitle, config.blog_lang, blogger, config.blog_id, pillarTime, subLinks, 5, 5, config.selected_persona);
     report('🌈 프리미엄 클러스터 전략 완료!', 'success');
 }
 run().catch(e => { report(e.message, 'error'); process.exit(1); });

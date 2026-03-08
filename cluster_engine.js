@@ -1106,8 +1106,8 @@ ${langTag}`;
     finalHtml = finalHtml.replace(/```json[\s\S]*?```/gi, '');
     finalHtml = finalHtml.replace(/^\s*text\s*$/gm, '');
 
-    // [MARKDOWN_TO_HTML] 마크다운 **강조** 문법을 HTML 태그로 변환시켜 깨짐 현상 방지
-    finalHtml = finalHtml.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // [MARKDOWN_TO_HTML] 마크다운 **강조** 문법을 HTML 태그로 변환시켜 깨짐 현상 방지 (더욱 강력한 정규식 적용)
+    finalHtml = finalHtml.replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>');
 
     finalHtml = finalHtml.trim();
 
@@ -1306,30 +1306,41 @@ async function run() {
 
     if (config.schedule_time) {
         const [sh, sm] = config.schedule_time.split(':');
-        const kstOffsetMs = 9 * 3600000;
-        let nowKst = new Date(Date.now() + kstOffsetMs);
-        nowKst.setUTCHours(parseInt(sh), parseInt(sm), 0, 0); // KST 기준으로 시간 강제 맞춤
-        if (nowKst.getTime() < Date.now() + kstOffsetMs) {
-            nowKst.setUTCDate(nowKst.getUTCDate() + 1); // 지정 시간이 이미 지났다면 내일로 예약
+        const kstHour = parseInt(sh);
+        const kstMin = parseInt(sm);
+        const utcHour = kstHour - 9; // KST → UTC 변환
+
+        // 오늘 날짜 기준으로 스케줄 시간(UTC) 생성
+        const now = new Date();
+        let scheduled = new Date(Date.UTC(
+            now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(),
+            utcHour < 0 ? utcHour + 24 : utcHour, kstMin, 0, 0
+        ));
+        // utcHour가 음수면 하루 전 날짜가 되므로 보정 불필요 (Date.UTC가 알아서 처리)
+        // 단, KST 00:00~08:59는 UTC 기준 전날이므로 날짜 보정
+        if (utcHour < 0) {
+            // 이미 Date.UTC에서 24를 더했으므로, 실제로는 "오늘 KST = 어제 UTC" 케이스
+            // scheduled는 오늘 UTC로 잡혔지만, 실제 KST로는 내일이 될 수 있음
         }
-        currentTime = new Date(nowKst.getTime() - kstOffsetMs); // 다시 UTC 기준 절대 Date로 변환
+
+        // 이미 과거 시간이면 내일로 예약
+        if (scheduled.getTime() < Date.now()) {
+            scheduled.setUTCDate(scheduled.getUTCDate() + 1);
+        }
+
+        currentTime = scheduled;
+        report(`📅 [스케줄] config.schedule_time=${config.schedule_time} KST → UTC 예약시간: ${scheduled.toISOString()} (KST: ${new Date(scheduled.getTime() + 9 * 3600000).toISOString().replace('T', ' ').substring(0, 16)})`);
     }
 
     // 2단계: Spoke(서브 글) 먼저 작성 - 실제 URL 확보
     for (let i = 0; i < spokes.length; i++) {
-        // [핵심] 각 글 발행 이후 간격: 최소 80분에서 최대 120분 사이 랜덤
-        if (config.random_delay) {
-            let delay = 0;
-            if (i > 0) {
-                delay = Math.floor(Math.random() * 41) + 80; // 80 ~ 120 랜덤
-                currentTime.setMinutes(currentTime.getMinutes() + delay);
-            }
-            report(`🎲 [Spoke ${i + 1}] ${delay === 0 ? '첫 글 (기본15분 대기)' : delay + '분 뒤'} 시간 지정: ${new Date(currentTime.getTime() + 9 * 3600000).toISOString().replace('T', ' ').substring(0, 16)} KST`);
-        } else {
-            // 랜덤 사용 안 할 시 20분 간격
-            if (i > 0) currentTime.setMinutes(currentTime.getMinutes() + 20);
-            report(`⏰ [Spoke ${i + 1}] 20분 간격 예약 지정시간: ${new Date(currentTime.getTime() + 9 * 3600000).toISOString().replace('T', ' ').substring(0, 16)} KST`);
+        // [핵심] 각 글 발행 이후 간격: 최소 80분에서 최대 120분 사이 랜덤 (항상 적용)
+        let delay = 0;
+        if (i > 0) {
+            delay = Math.floor(Math.random() * 41) + 80; // 80 ~ 120 랜덤
+            currentTime.setMinutes(currentTime.getMinutes() + delay);
         }
+        report(`🎲 [Spoke ${i + 1}] ${delay === 0 ? '첫 글 (스케줄 기준)' : delay + '분 뒤'} 예약시간: ${new Date(currentTime.getTime() + 9 * 3600000).toISOString().replace('T', ' ').substring(0, 16)} KST`);
 
         const pTime = new Date(currentTime.getTime());
         const sRes = await writeAndPost(model, spokes[i], config.blog_lang, blogger, config.blog_id, pTime, [], i + 1, 5, config.selected_persona);
@@ -1339,14 +1350,9 @@ async function run() {
 
     // 3단계: Pillar(메인 글) 마지막 작성
     report(`🎯 최종 메인 허브(Pillar) 글 작성: ${pillarTitle}`);
-    if (config.random_delay) {
-        const finalDelay = Math.floor(Math.random() * 41) + 80; // 똑같이 80~120분 랜덤
-        currentTime.setMinutes(currentTime.getMinutes() + finalDelay);
-        report(`🎲 [Pillar] ${finalDelay}분 최종 지연 예약: ${new Date(currentTime.getTime() + 9 * 3600000).toISOString().replace('T', ' ').substring(0, 16)} KST`);
-    } else {
-        currentTime.setMinutes(currentTime.getMinutes() + 20);
-        report(`⏰ [Pillar] 최종 블로그 예약 지정시간: ${new Date(currentTime.getTime() + 9 * 3600000).toISOString().replace('T', ' ').substring(0, 16)} KST`);
-    }
+    const pillarDelay = Math.floor(Math.random() * 41) + 80; // 80~120분 랜덤
+    currentTime.setMinutes(currentTime.getMinutes() + pillarDelay);
+    report(`🎲 [Pillar] ${pillarDelay}분 뒤 예약시간: ${new Date(currentTime.getTime() + 9 * 3600000).toISOString().replace('T', ' ').substring(0, 16)} KST`);
 
     const pillarTime = new Date(currentTime.getTime());
     await writeAndPost(model, pillarTitle, config.blog_lang, blogger, config.blog_id, pillarTime, subLinks, 5, 5, config.selected_persona);
